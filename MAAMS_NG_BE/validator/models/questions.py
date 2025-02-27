@@ -2,7 +2,6 @@ from django.db import models
 import uuid
 
 from django.core.exceptions import ValidationError
-from authentication.models import CustomUser
 from .tag import Tag
 
 class Question(models.Model):
@@ -14,7 +13,7 @@ class Question(models.Model):
         PENGAWASAN = "PENGAWASAN", "pengawasan"
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, default=None)  #untuk guest
+    #user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, default=None)  #untuk guest
     title = models.CharField(max_length=40, default='')
     question = models.CharField()
     mode = models.CharField(max_length=20, choices=ModeChoices.choices, default=ModeChoices.PRIBADI)

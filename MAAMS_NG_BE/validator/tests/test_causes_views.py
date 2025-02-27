@@ -2,26 +2,17 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from validator.models.causes import Causes
-from validator.models.question import Question
-from authentication.models import CustomUser
+from validator.models.questions import Question
 import uuid
-import json
 
 class CausesViewGuestTest(APITestCase):
     def setUp(self):
         """
         Set Up objects
         """
-        self.user1 = CustomUser.objects.create(
-            username="test-username",
-            email="test@email.com"
-        )
-        self.user1.set_password('test-password')
-        self.user1.save()
-
         self.question_uuid1 = uuid.uuid4()
         self.question1 = Question.objects.create(
-            user=self.user1,
+            user=None,  # Guest user (user=None)
             id=self.question_uuid1,
             question='pertanyaan',
             mode=Question.ModeChoices.PRIBADI

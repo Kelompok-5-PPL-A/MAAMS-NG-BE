@@ -4,7 +4,7 @@ from datetime import (
     datetime, timedelta
 )
 from multiprocessing.managers import BaseManager
-from authentication.models import CustomUser
+#from authentication.models import CustomUser (untuk user jika sudah ada auth)
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from validator.dataclasses.field_values import FieldValuesDataClass
@@ -16,7 +16,7 @@ from validator.models.tag import Tag
 
 
 class QuestionService():
-    def create(self, user: CustomUser | None, title: str, question: str, mode: str, tags: List[str]):
+    def create(self, user: None, title: str, question: str, mode: str, tags: List[str]): 
         tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(

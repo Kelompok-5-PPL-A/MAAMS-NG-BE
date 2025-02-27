@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from validator.models.question import Question
+from validator.models.questions import Question
 from validator.models.tag import Tag
 
 class Command(BaseCommand):
