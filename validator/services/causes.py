@@ -2,16 +2,16 @@ from typing import List
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from validator.dataclasses.create_cause import CreateCauseDataClass
-from validator.models import question
+from validator.models import questions
 from validator.models.causes import Causes
-from validator.services import question
+from validator.services import questions
 import uuid
 import requests
 
 class CausesService:
     def create(self, question_id: uuid, cause: str, row: int, column: int, mode: str) -> CreateCauseDataClass:
         cause = Causes.objects.create(
-            problem=question.Question.objects.get(pk=question_id),
+            problem=questions.Question.objects.get(pk=question_id),
             row=row,
             column=column,
             mode=mode,

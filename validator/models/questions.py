@@ -15,7 +15,7 @@ class Question(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     #user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, default=None)  #untuk guest
     title = models.CharField(max_length=40, default='')
-    question = models.CharField()
+    question = models.CharField(max_length=255)
     mode = models.CharField(max_length=20, choices=ModeChoices.choices, default=ModeChoices.PRIBADI)
     created_at = models.DateTimeField(auto_now_add=True)
     tags = models.ManyToManyField(Tag)  

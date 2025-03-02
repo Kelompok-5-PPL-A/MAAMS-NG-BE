@@ -12,7 +12,6 @@ class CausesViewGuestTest(APITestCase):
         """
         self.question_uuid1 = uuid.uuid4()
         self.question1 = Question.objects.create(
-            user=None,  # Guest user (user=None)
             id=self.question_uuid1,
             question='pertanyaan',
             mode=Question.ModeChoices.PRIBADI

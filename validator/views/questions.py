@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.decorators import permission_classes
 from drf_spectacular.utils import extend_schema
 
-from validator.services.question import QuestionService
+from validator.services.questions import QuestionService
 from validator.serializers import QuestionRequest, QuestionResponse
 
 
