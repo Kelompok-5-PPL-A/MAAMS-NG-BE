@@ -1,5 +1,6 @@
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core.exceptions import ValidationError
 from .models import Problem
 
 class ProblemModelTests(TestCase):
@@ -23,7 +24,7 @@ class ProblemModelTests(TestCase):
 
     def test_problem_creation_invalid_email(self):
         """Negative test: Create a Problem instance with invalid email"""
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             Problem.objects.create(
                 user_email='invalid-email',
                 question='Test question content'
@@ -31,7 +32,7 @@ class ProblemModelTests(TestCase):
 
     def test_problem_creation_empty_question(self):
         """Negative test: Create a Problem instance with empty question"""
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             Problem.objects.create(
                 user_email='test@example.com',
                 question=''
@@ -39,7 +40,7 @@ class ProblemModelTests(TestCase):
 
     def test_problem_creation_missing_fields(self):
         """Negative test: Create a Problem instance with missing fields"""
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             Problem.objects.create(
                 user_email='test@example.com'
             )
