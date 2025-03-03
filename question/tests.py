@@ -2,6 +2,48 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from .models import Problem
 
+class ProblemModelTests(TestCase):
+    def test_problem_creation(self):
+        """Positive test: Create a Problem instance"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            question='Test question content'
+        )
+        self.assertEqual(problem.user_email, 'test@example.com')
+        self.assertEqual(problem.question, 'Test question content')
+        self.assertIsNotNone(problem.created_at)
+
+    def test_problem_str_representation(self):
+        """Positive test: String representation of Problem"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            question='Test question content'
+        )
+        self.assertEqual(str(problem), 'Test question content')
+
+    def test_problem_creation_invalid_email(self):
+        """Negative test: Create a Problem instance with invalid email"""
+        with self.assertRaises(ValueError):
+            Problem.objects.create(
+                user_email='invalid-email',
+                question='Test question content'
+            )
+
+    def test_problem_creation_empty_question(self):
+        """Negative test: Create a Problem instance with empty question"""
+        with self.assertRaises(ValueError):
+            Problem.objects.create(
+                user_email='test@example.com',
+                question=''
+            )
+
+    def test_problem_creation_missing_fields(self):
+        """Negative test: Create a Problem instance with missing fields"""
+        with self.assertRaises(ValueError):
+            Problem.objects.create(
+                user_email='test@example.com'
+            )
+
 class QuestionTests(TestCase):
     def setUp(self):
         self.client = Client()
