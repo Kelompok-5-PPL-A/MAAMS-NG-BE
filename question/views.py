@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.db import IntegrityError
-from .models import User, Problem
+from .models import Problem
 from .forms import QuestionForm
 
 def submit_question(request):
@@ -12,12 +12,11 @@ def submit_question(request):
             try:
                 # Get or create the user (in a real app, this would likely come from the session)
                 user_email = form.cleaned_data['user_email']
-                user, created = User.objects.get_or_create(email=user_email)
                 
                 # Create the problem (question)
                 question = form.cleaned_data['question']
                 new_problem = Problem.objects.create(
-                    user_email=user,
+                    user_email=user_email,
                     question=question,
                 )
 
