@@ -3,33 +3,16 @@ name: SonarCloud
 on:
   push:
     branches:
-      - main
-      - ci-cd
+      - "*"
+      
   pull_request:
     branches:
-      - main
-      - ci-cd
+      - "*"
 
 jobs:
   build:
     name: Build and analyze
     runs-on: ubuntu-latest
-
-    #Might be used later
-    # services:
-    #   postgres:
-    #     image: postgres:latest
-    #     ports:
-    #       - 5432:5432
-    #     env:
-    #       POSTGRES_USER: ${{ secrets.DB_USER }}
-    #       POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-    #       POSTGRES_DB: ${{ secrets.DB_NAME }}
-    #     options: >-
-    #       --health-cmd pg_isready
-    #       --health-interval 10s
-    #       --health-timeout 5s
-    #       --health-retries 5
     
     steps:
       - uses: actions/checkout@v3
@@ -53,21 +36,6 @@ jobs:
             key: ${{ runner.os }}-python-${{ hashFiles('requirements.txt') }}
             restore-keys: ${{ runner.os }}-python
     
-    # Might be used later
-    #   - name: Set environment variables
-    #     run: |
-    #       echo "ENVIRONMENT=${{ secrets.ENVIRONMENT }}" >> $GITHUB_ENV
-    #       echo "HOST_FE=${{ secrets.HOST_FE }}" >> $GITHUB_ENV
-    #       echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> $GITHUB_ENV
-    #       echo "DEBUG=True" >> $GITHUB_ENV
-    #       echo "DB_HOST=${{ secrets.DB_HOST }}" >> $GITHUB_ENV
-    #       echo "DB_PORT=${{ secrets.DB_PORT }}" >> $GITHUB_ENV
-    #       echo "DB_USER=${{ secrets.DB_USER }}" >> $GITHUB_ENV
-    #       echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
-    #       echo "DB_NAME=${{ secrets.DB_NAME }}" >> $GITHUB_ENV
-    #       echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> $GITHUB_ENV
-    #       echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> $GITHUB_ENV
-
       - name: Install dependencies
         run: |
           python -m venv .venv
@@ -88,7 +56,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
             args:
-                -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-BE
+                -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
                 -Dsonar.organization=kelompok-5-ppl-a-1
                 -Dsonar.sources=. 
                 -Dsonar.python.coverage.reportPaths=htmlcov/coverage.xml
