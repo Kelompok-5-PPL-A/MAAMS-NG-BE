@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "*"
+
   pull_request:
     branches:
       - "*"
@@ -55,7 +56,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
             args:
-                -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-BE
+                -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
                 -Dsonar.organization=kelompok-5-ppl-a-1
                 -Dsonar.sources=. 
                 -Dsonar.python.coverage.reportPaths=htmlcov/coverage.xml
