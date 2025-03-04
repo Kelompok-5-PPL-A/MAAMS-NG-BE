@@ -2,17 +2,29 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.exceptions import ValidationError
 from .models import Problem
+import uuid
 
 class ProblemModelTests(TestCase):
     def test_problem_creation(self):
-        """Positive test: Create a Problem instance"""
+        """Positive test: Create a Problem instance with default status"""
         problem = Problem.objects.create(
             user_email='test@example.com',
             question='Test question content'
         )
         self.assertEqual(problem.user_email, 'test@example.com')
         self.assertEqual(problem.question, 'Test question content')
+        self.assertEqual(problem.status, 'PRIBADI')  # Check default status
         self.assertIsNotNone(problem.created_at)
+        self.assertIsInstance(problem.id, uuid.UUID)  # Check UUID
+
+    def test_problem_creation_with_status(self):
+        """Positive test: Create a Problem instance with specific status"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            question='Test question content',
+            status='PENGAWASAN'
+        )
+        self.assertEqual(problem.status, 'PENGAWASAN')
 
     def test_problem_str_representation(self):
         """Positive test: String representation of Problem"""
@@ -25,25 +37,47 @@ class ProblemModelTests(TestCase):
     def test_problem_creation_invalid_email(self):
         """Negative test: Create a Problem instance with invalid email"""
         with self.assertRaises(ValidationError):
-            Problem.objects.create(
+            problem = Problem(
                 user_email='invalid-email',
                 question='Test question content'
             )
+            problem.full_clean()
 
     def test_problem_creation_empty_question(self):
         """Negative test: Create a Problem instance with empty question"""
         with self.assertRaises(ValidationError):
-            Problem.objects.create(
+            problem = Problem(
                 user_email='test@example.com',
                 question=''
             )
+            problem.full_clean()
 
     def test_problem_creation_missing_fields(self):
         """Negative test: Create a Problem instance with missing fields"""
         with self.assertRaises(ValidationError):
-            Problem.objects.create(
+            problem = Problem(
                 user_email='test@example.com'
             )
+            problem.full_clean()
+
+    def test_problem_creation_invalid_status(self):
+        """Negative test: Create a Problem instance with invalid status"""
+        with self.assertRaises(ValidationError):
+            problem = Problem(
+                user_email='test@example.com',
+                question='Test question content',
+                status='INVALID_STATUS'
+            )
+            problem.full_clean()
+
+    def test_problem_id_is_uuid(self):
+        """Positive test: Problem ID is UUID and auto-generated"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            question='Test question content'
+        )
+        self.assertIsInstance(problem.id, uuid.UUID)
+        self.assertIsNotNone(problem.id)
 
 class QuestionTests(TestCase):
     def setUp(self):
