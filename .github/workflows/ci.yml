@@ -1,0 +1,68 @@
+name: SonarCloud
+
+on:
+  push:
+    branches:
+      - "*"
+
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: "pip"
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+            path: ~/.sonar/cache
+            key: ${{ runner.os }}-sonar
+            restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Python virtual environment
+        uses: actions/cache@v3
+        with:
+            path: .venv
+            key: ${{ runner.os }}-python-${{ hashFiles('requirements.txt') }}
+            restore-keys: ${{ runner.os }}-python
+    
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - name: Run tests with coverage
+        run: |
+          source .venv/bin/activate
+          coverage run --source=. manage.py test
+      - name: Generate coverage report
+        run: |
+          source .venv/bin/activate
+          coverage html
+      - name: Run SonarCloud analysis
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+            args:
+                -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
+                -Dsonar.organization=kelompok-5-ppl-a-1
+                -Dsonar.sources=. 
+                -Dsonar.python.coverage.reportPaths=htmlcov/coverage.xml
+      - name: Upload coverage report artifact (optional)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
