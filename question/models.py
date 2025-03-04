@@ -4,7 +4,7 @@ from django.core.validators import validate_email
 
 class Problem(models.Model):
     user_email = models.EmailField()
-    question = models.CharField(max_length=255)
+    question = models.CharField(max_length=255, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
