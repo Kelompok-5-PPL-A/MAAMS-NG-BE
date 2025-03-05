@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.exceptions import ValidationError
 from .models import Problem
+from .forms import QuestionForm
 import uuid
 
 class ProblemModelTests(TestCase):
