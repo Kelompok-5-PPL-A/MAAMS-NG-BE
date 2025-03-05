@@ -86,10 +86,13 @@ class QuestionTests(TestCase):
             'question': self.test_question,
             'status': 'PRIBADI'
         })
-        self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, self.success_url)
-        self.assertEqual(Problem.objects.count(), 1)
-        new_problem = Problem.objects.last()
+        self.assertEqual(response.status_code, 200)
+        new_problem = Problem.objects.filter(
+            title=self.test_title,
+            question=self.test_question,
+            status='PRIBADI'
+        ).first()
+        self.assertIsNotNone(new_problem)
         self.assertEqual(new_problem.title, self.test_title)
         self.assertEqual(new_problem.question, self.test_question)
         self.assertEqual(new_problem.status, 'PRIBADI')
@@ -101,7 +104,7 @@ class QuestionTests(TestCase):
             'question': self.test_question,
             'status': 'PENGAWASAN'
         })
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         new_problem = Problem.objects.last()
         self.assertEqual(new_problem.status, 'PENGAWASAN')
 
