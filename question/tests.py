@@ -6,16 +6,14 @@ import uuid
 
 class ProblemModelTests(TestCase):
     def test_problem_creation(self):
-        """Positive test: Create a Problem instance with default status"""
+        """Positive test: Create a Problem instance with default values"""
         problem = Problem.objects.create(
-            user_email='test@example.com',
-            title='Test Title',
-            question='Test question content'
+            user_email='test@example.com'
         )
         self.assertEqual(problem.user_email, 'test@example.com')
-        self.assertEqual(problem.title, 'Test Title')
-        self.assertEqual(problem.question, 'Test question content')
-        self.assertEqual(problem.status, 'PRIBADI')  # Check default status
+        self.assertEqual(problem.title, 'N/A')  # Check default value
+        self.assertEqual(problem.question, 'N/A')  # Check default value
+        self.assertEqual(problem.status, 'PRIBADI') # Check default status
         self.assertIsNotNone(problem.created_at)
         self.assertIsInstance(problem.id, uuid.UUID)
 
@@ -69,6 +67,16 @@ class ProblemModelTests(TestCase):
                 status='INVALID_STATUS'
             )
             problem.full_clean()
+
+    def test_problem_creation_with_custom_values(self):
+        """Positive test: Create a Problem instance with custom values"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            title='Test Title',
+            question='Test question content'
+        )
+        self.assertEqual(problem.title, 'Test Title')
+        self.assertEqual(problem.question, 'Test question content')
 
 class QuestionTests(TestCase):
     def setUp(self):
@@ -158,3 +166,14 @@ class QuestionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'There are some issues with your submission')
         self.assertEqual(Problem.objects.count(), 0)
+
+    def test_submit_question_with_defaults(self):
+        """Positive test: Submit question with default values"""
+        response = self.client.post(self.submit_url, {
+            'user_email': self.test_email
+        })
+        self.assertEqual(response.status_code, 200)
+        new_problem = Problem.objects.last()
+        self.assertEqual(new_problem.title, 'N/A')
+        self.assertEqual(new_problem.question, 'N/A')
+        self.assertEqual(new_problem.status, 'PRIBADI')
