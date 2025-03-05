@@ -48,7 +48,7 @@ jobs:
       - name: Generate coverage report
         run: |
           source .venv/bin/activate
-          coverage html
+          coverage xml
       - name: Run SonarCloud analysis
         uses: sonarsource/sonarcloud-github-action@master
         env:
@@ -59,10 +59,10 @@ jobs:
                 -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
                 -Dsonar.organization=kelompok-5-ppl-a-1
                 -Dsonar.sources=. 
-                -Dsonar.python.coverage.reportPaths=htmlcov/coverage.xml
-      - name: Upload coverage report artifact (optional)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: htmlcov/
+                -Dsonar.python.coverage.reportPaths=coverage.xml
+      # - name: Upload coverage report artifact (optional)
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: coverage-report
+      #     path: htmlcov/
