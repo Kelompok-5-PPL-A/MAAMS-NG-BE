@@ -11,6 +11,7 @@ class Problem(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_email = models.EmailField()
+    title = models.CharField(max_length=255, null=False)
     question = models.CharField(max_length=255, null=False)
     status = models.CharField(
         max_length=10,
@@ -29,6 +30,8 @@ class Problem(models.Model):
             validate_email(self.user_email)
         except ValidationError:
             raise ValidationError('Invalid email format.')
+        if not self.title:
+            raise ValidationError('Title is required.')
         if not self.question:
             raise ValidationError('Question content is required.')
 

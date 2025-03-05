@@ -11,8 +11,22 @@
     {% endif %}
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Submit</button>
+        <div>
+            <label for="{{ form.title.id_for_label }}">Title:</label>
+            {{ form.title }}
+        </div>
+
+        <div>
+            <label for="{{ form.question.id_for_label }}">Question:</label>
+            {{ form.question }}
+        </div>
+
+        <div>
+            <label for="{{ form.status.id_for_label }}">Status:</label>
+            {{ form.status }}
+        </div>
+
+        <button type="submit">Submit Question</button>
     </form>
 </body>
 </html>
