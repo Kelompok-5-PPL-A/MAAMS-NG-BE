@@ -12,6 +12,7 @@ class ProblemModelTests(TestCase):
         cls.valid_email = 'test@example.com'
         cls.valid_title = 'Test Title'
         cls.valid_question = 'Test question content'
+        cls.success_url = reverse('success')
 
     def test_problem_creation_with_defaults(self):
         """Menguji pembuatan instance Problem dengan nilai default"""
@@ -57,6 +58,34 @@ class ProblemModelTests(TestCase):
         with self.assertRaises(ValidationError):
             problem = Problem(user_email=self.valid_email, title=self.valid_title, question=self.valid_question, status='INVALID')
             problem.full_clean()
+
+    def test_remove_question_success(self):
+        """Positive test: Remove a question successfully"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            question='Test question content'
+        )
+        response = self.client.get(reverse('remove_question', kwargs={'question_id': problem.id}))
+        self.assertEqual(response.status_code, 302)  # Redirect after removal
+        self.assertRedirects(response, reverse('remove_success'))
+        self.assertEqual(Problem.objects.count(), 0)  # Check that the question was removed
+
+    def test_remove_question_not_found(self):
+        """Negative test: Attempt to remove a question that does not exist"""
+        response = self.client.get(reverse('remove_question', kwargs={'question_id': uuid.uuid4()}))
+        self.assertEqual(response.status_code, 404)  # Should return 404 for non-existent question
+
+    def test_success_page(self):
+        """Test the success page"""
+        response = self.client.get(self.success_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Your question has been successfully submitted!")
+
+    def test_remove_success_page(self):
+        """Test the remove success page"""
+        response = self.client.get(reverse('remove_success'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "The question has been successfully removed!")
 
 
 class QuestionViewTests(TestCase):
