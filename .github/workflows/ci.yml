@@ -1,15 +1,11 @@
-name: SonarCloud
+name: SonarQube
 
 on:
   push:
     branches:
-      - "main"
-      - "staging"
-
+      - "*"
   pull_request:
-    branches:
-      - "main"
-      - "staging"
+    types: [opened, synchronize, reopened]
 
 jobs:
   build:
@@ -17,54 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.10'
-          cache: "pip"
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-            path: ~/.sonar/cache
-            key: ${{ runner.os }}-sonar
-            restore-keys: ${{ runner.os }}-sonar
-      - name: Cache Python virtual environment
-        uses: actions/cache@v3
-        with:
-            path: .venv
-            key: ${{ runner.os }}-python-${{ hashFiles('requirements.txt') }}
-            restore-keys: ${{ runner.os }}-python
-    
+          node-version: '20'
+
       - name: Install dependencies
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
+        run: npm install
+
       - name: Run tests with coverage
-        run: |
-          source .venv/bin/activate
-          coverage run --source=. manage.py test
-      - name: Generate coverage report
-        run: |
-          source .venv/bin/activate
-          coverage html
-      - name: Run SonarCloud analysis
-        uses: sonarsource/sonarcloud-github-action@master
+        run: npm test -- --coverage --watchAll=false
+
+      - name: Run build script
+        run: npm run build 
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache npm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node
+
+      - name: Run SonarQube analysis
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-            args:
-                -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
-                -Dsonar.organization=kelompok-5-ppl-a-1
-                -Dsonar.sources=. 
-                -Dsonar.python.coverage.reportPaths=htmlcov/coverage.xml
-      - name: Upload coverage report artifact (optional)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: htmlcov/
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: npx sonar-scanner
