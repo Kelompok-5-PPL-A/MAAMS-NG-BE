@@ -11,8 +11,8 @@ class Problem(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_email = models.EmailField()
-    title = models.CharField(max_length=255, null=False)
-    question = models.CharField(max_length=255, null=False)
+    title = models.CharField(max_length=255, null=False, default='N/A')
+    question = models.CharField(max_length=255, null=False, default='N/A')
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
