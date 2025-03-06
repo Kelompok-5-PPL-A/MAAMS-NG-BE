@@ -1,6 +1,5 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
 import uuid
 
 class Problem(models.Model):
@@ -10,7 +9,7 @@ class Problem(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_email = models.EmailField()
+    user_email = models.EmailField(null=True)
     title = models.CharField(max_length=255, null=False, default='N/A')
     question = models.CharField(max_length=255, null=False, default='N/A')
     status = models.CharField(
@@ -24,12 +23,6 @@ class Problem(models.Model):
         return self.question
     
     def clean(self):
-        if not self.user_email:
-            raise ValidationError('User email is required.')
-        try:
-            validate_email(self.user_email)
-        except ValidationError:
-            raise ValidationError('Invalid email format.')
         if not self.title:
             raise ValidationError('Title is required.')
         if not self.question:
