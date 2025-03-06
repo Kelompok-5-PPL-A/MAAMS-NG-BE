@@ -59,6 +59,20 @@ class ProblemModelTests(TestCase):
             problem = Problem(user_email=self.valid_email, title=self.valid_title, question=self.valid_question, status='INVALID')
             problem.full_clean()
 
+    def test_str_representation(self):
+        """Test the string representation of Problem model"""
+        problem = Problem.objects.create(
+            user_email=self.valid_email,
+            title=self.valid_title,
+            question=self.valid_question,
+            status='PENGAWASAN'
+        )
+        self.assertEqual(str(problem), 'Test question content')
+        
+        # Test with different question content
+        problem.question = 'Different question content'
+        self.assertEqual(str(problem), 'Different question content')
+
     def test_remove_question_success(self):
         """Positive test: Remove a question successfully"""
         problem = Problem.objects.create(
@@ -96,7 +110,6 @@ class QuestionViewTests(TestCase):
         cls.submit_url = reverse('submit_question')
         cls.success_url = reverse('success')
         cls.valid_data = {
-            'user_email': 'test@example.com',
             'title': 'Test Title',
             'question': 'Test Question',
             'status': 'PRIBADI'
@@ -104,8 +117,16 @@ class QuestionViewTests(TestCase):
 
     def test_submit_question_success(self):
         """Menguji pengiriman form yang valid"""
-        response = self.client.post(self.submit_url, self.valid_data, follow=True)
-        self.assertEqual(response.status_code, 200)
+        response = self.client.post(self.submit_url, self.valid_data)            
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, self.success_url)
+        
+        # Verify database entry
+        self.assertEqual(Problem.objects.count(), 1)
+        problem = Problem.objects.first()
+        self.assertEqual(problem.title, self.valid_data['title'])
+        self.assertEqual(problem.question, self.valid_data['question'])
+        self.assertEqual(problem.status, self.valid_data['status'])
 
     def test_submit_question_with_pengawasan_status(self):
         """Menguji pengiriman form dengan status PENGAWASAN"""
