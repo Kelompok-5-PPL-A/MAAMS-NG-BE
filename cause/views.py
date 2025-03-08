@@ -1,7 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from validator.services.causes import CausesService
-from validator.serializers import CausesRequest, CausesResponse
+from serializers import CausesRequest, CausesResponse
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import permission_classes
@@ -16,7 +15,9 @@ class CausesPost(APIView):
     def post(self, request):
         request_serializer = CausesRequest(data=request.data)
         request_serializer.is_valid(raise_exception=True)
-        cause = CausesService.create(self=CausesService, **request_serializer.validated_data)
-        response_serializer = CausesResponse(cause)
-
+        
+        # Langsung menggunakan data yang divalidasi tanpa service
+        cause_data = request_serializer.validated_data  
+        
+        response_serializer = CausesResponse(cause_data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)

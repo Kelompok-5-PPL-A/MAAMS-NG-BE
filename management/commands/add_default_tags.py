@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
-from validator.models.questions import Question
-from validator.models.tag import Tag
+from question.models import Problem
+from tag.models import Tag
 
 class Command(BaseCommand):
     help = 'Add default tag "analisis" to existing questions'
@@ -8,7 +8,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         default_tag, _ = Tag.objects.get_or_create(name='analisis')
 
-        questions = Question.objects.all()
+        questions = Problem.objects.all()
         for question in questions:
             question.tags.add(default_tag)
 
