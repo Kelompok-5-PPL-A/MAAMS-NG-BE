@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from validator.models.causes import Causes
-from validator.models.questions import Question
+from question.models import Problem
 
 
 class BaseQuestion(serializers.Serializer):
-    MODE_CHOICES = Question.ModeChoices
+    MODE_CHOICES = Problem.ModeChoices
 
     class Meta:
         ref_name = 'BaseQuestion'
