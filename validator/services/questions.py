@@ -19,6 +19,7 @@ from validator.constants import ErrorMsg
 
 class QuestionService():
     def create(self, user: None, title: str, question: str, mode: str, tags: List[str]): 
+        tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
             # user=user if user else None,  # Jika guest, user None
@@ -27,8 +28,15 @@ class QuestionService():
             mode=mode
         )
 
+        for tag in tags_object:
+            question_object.tags.add(tag)
+
+        return question_object
+    
+    
+    def _validate_tags(self, new_tags: List[str]):
         tags_object = []
-        for tag_name in tags:
+        for tag_name in new_tags:
                 try:
                     tag = Tag.objects.get(name=tag_name)
                     if tag in tags_object:
@@ -37,8 +45,5 @@ class QuestionService():
                     tag = Tag.objects.create(name=tag_name)
                 finally:
                     tags_object.append(tag)
-
-        # Add tags to the question
-        question_object.tags.set(tags_object)
-
-        return question_object
+        
+        return tags_object
