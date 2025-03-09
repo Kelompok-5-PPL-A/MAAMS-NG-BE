@@ -1,0 +1,73 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    name: Build the project
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          echo "Installing requirements..."
+          pip install -r requirements.txt
+
+  test:
+    name: Run tests and check coverage
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run unit tests and check coverage
+        run: |
+          echo "Running unit tests..."
+          coverage run manage.py test  # Run tests
+          echo "Exporting results to htmlcov/coverage.html..."
+          coverage html  # Export to HTML
+          echo "Coverage exported. Total coverage:"
+          grep -oP '<span class="pc_cov">\K[^<]+%' ./htmlcov/index.html
+          coverage report  # Print coverage in the console
+          coverage xml  # Generate coverage.xml
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  sonarcloud-check:
+    name: Run SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Run SonarQube analysis
+        env:
+          SONAR_CLOUD_TOKEN: ${{ secrets.SONAR_CLOUD_TOKEN }}
+        run: |
+          npx sonar-scanner
