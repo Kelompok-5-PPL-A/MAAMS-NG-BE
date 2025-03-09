@@ -27,12 +27,18 @@ class QuestionService():
             mode=mode
         )
 
-        tag_objects = []
+        tags_object = []
         for tag_name in tags:
-            tag_obj, _ = Tag.objects.get_or_create(name=tag_name)  
-            tag_objects.append(tag_obj)
+                try:
+                    tag = Tag.objects.get(name=tag_name)
+                    if tag in tags_object:
+                        raise UniqueTagException(ErrorMsg.TAG_MUST_BE_UNIQUE)
+                except Tag.DoesNotExist:
+                    tag = Tag.objects.create(name=tag_name)
+                finally:
+                    tags_object.append(tag)
 
         # Add tags to the question
-        question_object.tags.set(tag_objects)
+        question_object.tags.set(tags_object)
 
         return question_object
