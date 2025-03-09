@@ -74,32 +74,52 @@ class ProblemModelTests(TestCase):
         self.assertEqual(str(problem), 'Different question content')
 
     def test_remove_question_success(self):
-        """Positive test: Remove a question successfully"""
+        """Positive test: Remove a question successfully using POST method"""
+        problem = Problem.objects.create(
+            user_email='test@example.com',
+            question='Test question content'
+        )
+        response = self.client.post(reverse('remove_question', kwargs={'question_id': problem.id}))
+        self.assertEqual(response.status_code, 302)  # Redirect after removal
+        self.assertRedirects(response, reverse('remove_success'))
+        self.assertEqual(Problem.objects.count(), 0)  # Check that the question was removed
+
+    def test_remove_question_get_method_not_allowed(self):
+        """Test that GET requests to remove_question are not allowed"""
         problem = Problem.objects.create(
             user_email='test@example.com',
             question='Test question content'
         )
         response = self.client.get(reverse('remove_question', kwargs={'question_id': problem.id}))
-        self.assertEqual(response.status_code, 302)  # Redirect after removal
-        self.assertRedirects(response, reverse('remove_success'))
-        self.assertEqual(Problem.objects.count(), 0)  # Check that the question was removed
+        self.assertEqual(response.status_code, 405)  # Method Not Allowed
+        self.assertEqual(Problem.objects.count(), 1)  # Question should not be removed
 
     def test_remove_question_not_found(self):
         """Negative test: Attempt to remove a question that does not exist"""
-        response = self.client.get(reverse('remove_question', kwargs={'question_id': uuid.uuid4()}))
+        response = self.client.post(reverse('remove_question', kwargs={'question_id': uuid.uuid4()}))
         self.assertEqual(response.status_code, 404)  # Should return 404 for non-existent question
 
     def test_success_page(self):
-        """Test the success page"""
+        """Test the success page with GET method"""
         response = self.client.get(self.success_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Your question has been successfully submitted!")
 
+    def test_success_page_post_not_allowed(self):
+        """Test that POST requests to success page are not allowed"""
+        response = self.client.post(self.success_url)
+        self.assertEqual(response.status_code, 405)  # Method Not Allowed
+
     def test_remove_success_page(self):
-        """Test the remove success page"""
+        """Test the remove success page with GET method"""
         response = self.client.get(reverse('remove_success'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "The question has been successfully removed!")
+
+    def test_remove_success_page_post_not_allowed(self):
+        """Test that POST requests to remove_success page are not allowed"""
+        response = self.client.post(reverse('remove_success'))
+        self.assertEqual(response.status_code, 405)  # Method Not Allowed
 
 
 class QuestionViewTests(TestCase):
@@ -168,3 +188,8 @@ class QuestionViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'submit_question.html')
         self.assertIn('form', response.context)
+
+    def test_invalid_method_not_allowed(self):
+        """Menguji bahwa metode HTTP yang tidak diizinkan akan ditolak"""
+        response = self.client.put(self.submit_url, self.valid_data)
+        self.assertEqual(response.status_code, 405)  # Method Not Allowed
