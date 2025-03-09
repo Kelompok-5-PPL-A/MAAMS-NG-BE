@@ -55,7 +55,7 @@ jobs:
           path: coverage.xml
 
   sonarcloud-check:
-    name: Run SonarQube Analysis
+    name: Run SonarCloud Analysis
     runs-on: ubuntu-latest
     needs: test
     steps:
