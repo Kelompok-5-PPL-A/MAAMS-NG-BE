@@ -13,7 +13,6 @@ class Question(models.Model):
         PENGAWASAN = "PENGAWASAN", "pengawasan"
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    #user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, default=None)  #untuk guest
     title = models.CharField(max_length=40, default='')
     question = models.CharField(max_length=255)
     mode = models.CharField(max_length=20, choices=ModeChoices.choices, default=ModeChoices.PRIBADI)
