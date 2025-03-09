@@ -79,5 +79,5 @@ jobs:
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.sources=.
             -Dsonar.exclusions=**/tests/**,**/migrations/**,**/__pycache__/**,**/admin.py,**/apps.py,**/__init__.py,manage.py,**/settings.py,**/urls.py,**/wsgi.py,**/asgi.py
-            -Dsonar.tests=**/tests/**
+            -Dsonar.tests=.
             -Dsonar.verbose=true
