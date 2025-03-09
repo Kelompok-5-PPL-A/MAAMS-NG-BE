@@ -123,3 +123,96 @@ class CausesServiceTest(TestCase):
         user_prompt = "Test prompt"
         with self.assertRaises(Exception):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
+
+    @patch('validator.services.causes.Groq')
+    def test_api_call_other_validation_type_returns_1(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='Option 1 is correct'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        system_message = "You are an AI model. You are asked to select the correct option."
+        user_prompt = "Which option is correct? Answer with the option number."
+        response = service.api_call(system_message, user_prompt, ValidationType.FALSE)
+
+        self.assertEqual(response, 1)
+        mock_client.chat.completions.create.assert_called_once_with(
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_message,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ],
+            model="llama-3.3-70b-specdec",
+            temperature=0.1,
+            max_tokens=50,
+            seed=42
+        )
+
+    @patch('validator.services.causes.Groq')
+    def test_api_call_other_validation_type_returns_2(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='I choose option 2'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        system_message = "You are an AI model. You are asked to select the correct option."
+        user_prompt = "Which option is correct? Answer with the option number."
+        response = service.api_call(system_message, user_prompt, ValidationType.ROOT_TYPE)
+
+        self.assertEqual(response, 2)
+        mock_client.chat.completions.create.assert_called_once_with(
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_message,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ],
+            model="llama-3.3-70b-specdec",
+            temperature=0.1,
+            max_tokens=50,
+            seed=42
+        )
+
+    @patch('validator.services.causes.Groq')
+    def test_api_call_other_validation_type_returns_3(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='The answer is 3'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        system_message = "You are an AI model. You are asked to select the correct option."
+        user_prompt = "Which option is correct? Answer with the option number."
+        response = service.api_call(system_message, user_prompt, ValidationType.FALSE)
+
+        self.assertEqual(response, 3)
+        mock_client.chat.completions.create.assert_called_once_with(
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_message,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ],
+            model="llama-3.3-70b-specdec",
+            temperature=0.1,
+            max_tokens=50,
+            seed=42
+        )

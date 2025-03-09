@@ -1,0 +1,15 @@
+[run]
+# Exclude paths from coverage analysis
+omit =
+    */migrations/*,    
+    manage.py,       
+    */apps.py,          
+    */models/__init__.py, 
+    */admin.py,       
+    */base_model.py,
+    */settings.py,
+    */site-packages/*
+
+[report]
+# Show coverage statistics in terminal
+show_missing = true
