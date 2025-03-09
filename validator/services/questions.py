@@ -13,21 +13,26 @@ from validator.dataclasses.create_question import CreateQuestionDataClass
 from validator.models.causes import Causes
 from validator.models.questions import Question
 from validator.models.tag import Tag
+from validator.exceptions import UniqueTagException
+from validator.constants import ErrorMsg
 
 
 class QuestionService():
     def create(self, user: None, title: str, question: str, mode: str, tags: List[str]): 
-        tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
-            user=user if user else None,  # Jika guest, user None
+            # user=user if user else None,  # Jika guest, user None
             title=title,
             question=question,
             mode=mode
         )
 
-        for tag in tags_object:
-            question_object.tags.add(tag)
+        tag_objects = []
+        for tag_name in tags:
+            tag_obj, _ = Tag.objects.get_or_create(name=tag_name)  
+            tag_objects.append(tag_obj)
 
-        response = self._make_question_response([question_object])
-        return response[0]
+        # Add tags to the question
+        question_object.tags.set(tag_objects)
+
+        return question_object
