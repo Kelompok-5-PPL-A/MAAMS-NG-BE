@@ -1,4 +1,10 @@
-# MAAMS-NG
+## SonarCloud Analysis
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Kelompok-5-PPL-A_MAAMS-NG-BE&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Kelompok-5-PPL-A_MAAMS-NG-BE)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Kelompok-5-PPL-A_MAAMS-NG-BE&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=Kelompok-5-PPL-A_MAAMS-NG-BE)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Kelompok-5-PPL-A_MAAMS-NG-BE&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Kelompok-5-PPL-A_MAAMS-NG-BE)
+
+## MAAMS-NG
 
 **Kelompok-5 PPL A**
 
