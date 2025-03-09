@@ -1,7 +1,7 @@
 from django.conf import settings
 from groq import Groq
 import requests
-from validator.constans import ErrorMsg
+from validator.constants import ErrorMsg
 from validator.dataclasses.create_cause import CreateCauseDataClass
 from validator.enums import ValidationType
 from validator.models import questions
