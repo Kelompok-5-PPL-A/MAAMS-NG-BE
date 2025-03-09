@@ -51,36 +51,44 @@ class CausesService:
                 return 3
             
     def retrieve_feedback(self, cause: Causes, problem: questions.Question, prev_cause: None|Causes):
-        system_message = "You are a helpful assistant that evaluates causes."
-        user_prompt = f"Problem: {problem.question}\nCause: {cause.cause}"
+        retrieve_feedback_user_prompt = ""
+        retrieve_feedback_system_message = ""
         
         if prev_cause:
-            user_prompt += f"\nPrevious cause: {prev_cause.cause}"
-   
-        result = self.api_call(system_message, user_prompt, ValidationType.FALSE)
-        column_letter = chr(65 + cause.column)
-
-        if result == 1:  # Not a cause
-            if cause.row == 1:
-                cause.feedback = FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column=column_letter)
-            else:
-                cause.feedback = FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(
-                    column=column_letter, 
-                    row=cause.row, 
-                    prev_row=prev_cause.row if prev_cause else cause.row-1
-                )
-        elif result == 2:  # Positive/Neutral cause
-            cause.feedback = FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(
-                column=column_letter, 
-                row=cause.row
+            retrieve_feedback_user_prompt = (
+                f"'{cause.cause}' is the FALSE cause for '{prev_cause.cause}'. "
+                "Now determine if it is false because it is NOT THE CAUSE, because it is a POSITIVE OR NEUTRAL cause, or because it is SIMILAR TO THE PREVIOUS cause. "
+                "Answer ONLY WITH '1' if it is NOT THE CAUSE,  "
+                "ONLY WITH '2' if it is POSITIVE OR NEUTRAL, or "
+                "ONLY WITH '3' if it is SIMILAR TO THE PREVIOUS cause."
             )
-        elif result == 3:  # Similar to previous
-            cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(
-                column=column_letter, 
-                row=cause.row
+            retrieve_feedback_system_message = (
+                "You are an AI model. You are asked to determine the relationship between the given causes. "
+                "Please respond ONLY WITH '1' if the cause is NOT THE CAUSE of the previous cause, "
+                "ONLY WITH '2' if the cause is POSITIVE OR NEUTRAL, or "
+                "ONLY WITH '3' if the cause is SIMILAR TO THE PREVIOUS cause."
+            )        
+        else:
+            retrieve_feedback_user_prompt = (
+                f"'{cause.cause}' is the FALSE cause for this question '{problem.question}'. "
+                "Now determine if it is false because it is NOT THE CAUSE or because it is a POSITIVE OR NEUTRAL CAUSE. "
+                "Answer ONLY with '1' if it is NOT THE CAUSE, '2' if it is POSITIVE OR NEUTRAL."
+            )
+            retrieve_feedback_system_message = (
+                "You are an AI model. You are asked to determine the relationship between problem and cause. "
+                "Please respond ONLY WITH '1' if the cause is NOT THE CAUSE of the question, ONLY WITH '2' if the cause is positive or neutral"
             )
         
-        return cause
+        feedback_type = CausesService.api_call(self=self, system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE)
+            
+        if feedback_type == 1 and prev_cause:
+            cause.feedback = FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='ABCDE'[cause.column], row=cause.row, prev_row=cause.row-1)
+        elif feedback_type == 1:
+            cause.feedback = FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='ABCDE'[cause.column])
+        elif feedback_type == 2:
+            cause.feedback = FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='ABCDE'[cause.column], row=cause.row)     
+        elif feedback_type == 3:
+            cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
         
     def create(self, question_id: uuid, cause: str, row: int, column: int, mode: str) -> CreateCauseDataClass:
         cause = Causes.objects.create(
