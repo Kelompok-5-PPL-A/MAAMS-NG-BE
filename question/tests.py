@@ -127,17 +127,31 @@ class QuestionViewTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.client = Client()
-        cls.submit_url = reverse('submit_question')
+        cls.display_form_url = reverse('display_question_form')
+        cls.process_form_url = reverse('process_question_form')
         cls.success_url = reverse('success')
         cls.valid_data = {
             'title': 'Test Title',
             'question': 'Test Question',
-            'status': 'PRIBADI'
+            'status': 'PRIBADI',
+            'user_email': 'test@example.com'  # Add user_email
         }
 
-    def test_submit_question_success(self):
-        """Menguji pengiriman form yang valid"""
-        response = self.client.post(self.submit_url, self.valid_data)            
+    def test_display_question_form(self):
+        """Test that GET request to display_question_form renders the form"""
+        response = self.client.get(self.display_form_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'submit_question.html')
+        self.assertIn('form', response.context)
+    
+    def test_display_question_form_post_not_allowed(self):
+        """Test that POST requests to display_question_form are not allowed"""
+        response = self.client.post(self.display_form_url, self.valid_data)
+        self.assertEqual(response.status_code, 405)  # Method Not Allowed
+        
+    def test_process_question_form_success(self):
+        """Test successful form submission"""
+        response = self.client.post(self.process_form_url, self.valid_data)            
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, self.success_url)
         
@@ -148,48 +162,46 @@ class QuestionViewTests(TestCase):
         self.assertEqual(problem.question, self.valid_data['question'])
         self.assertEqual(problem.status, self.valid_data['status'])
 
-    def test_submit_question_with_pengawasan_status(self):
+    def test_process_question_form_get_not_allowed(self):
+        """Test that GET requests to process_question_form are not allowed"""
+        response = self.client.get(self.process_form_url)
+        self.assertEqual(response.status_code, 405)  # Method Not Allowed
+
+    def test_process_question_with_pengawasan_status(self):
         """Menguji pengiriman form dengan status PENGAWASAN"""
         data = self.valid_data.copy()
         data['status'] = 'PENGAWASAN'
-        response = self.client.post(self.submit_url, data, follow=True)
+        response = self.client.post(self.process_form_url, data, follow=True)
         self.assertEqual(response.status_code, 200)
 
-    def test_submit_question_empty_title_fails(self):
+    def test_process_question_empty_title_fails(self):
         """Menguji validasi title kosong"""
         data = self.valid_data.copy()
         data['title'] = ''
-        response = self.client.post(self.submit_url, data)
+        response = self.client.post(self.process_form_url, data)
         self.assertEqual(response.status_code, 200)  # Form dikembalikan dengan error
         self.assertContains(response, 'This field is required.')
         self.assertEqual(Problem.objects.count(), 0)
 
-    def test_submit_question_empty_question_fails(self):
+    def test_process_question_empty_question_fails(self):
         """Menguji validasi question kosong"""
         data = self.valid_data.copy()
         data['question'] = ''
-        response = self.client.post(self.submit_url, data)
+        response = self.client.post(self.process_form_url, data)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'This field is required.')
         self.assertEqual(Problem.objects.count(), 0)
 
-    def test_submit_question_invalid_status_fails(self):
+    def test_process_question_invalid_status_fails(self):
         """Menguji validasi status yang tidak valid"""
         data = self.valid_data.copy()
         data['status'] = 'INVALID'
-        response = self.client.post(self.submit_url, data)
+        response = self.client.post(self.process_form_url, data)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Select a valid choice.')
         self.assertEqual(Problem.objects.count(), 0)
 
-    def test_get_request_renders_form(self):
-        """Menguji apakah GET request menampilkan form dengan benar"""
-        response = self.client.get(self.submit_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'submit_question.html')
-        self.assertIn('form', response.context)
-
     def test_invalid_method_not_allowed(self):
         """Menguji bahwa metode HTTP yang tidak diizinkan akan ditolak"""
-        response = self.client.put(self.submit_url, self.valid_data)
+        response = self.client.put(self.process_form_url, self.valid_data)
         self.assertEqual(response.status_code, 405)  # Method Not Allowed
