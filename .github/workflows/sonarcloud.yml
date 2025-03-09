@@ -62,25 +62,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-      - name: Run SonarQube analysis
-        uses: SonarSource/sonarqube-scan-action@v5
+          name: coverage-report
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
         env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
             -Dsonar.organization=kelompok-5-ppl-a-1
             -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.login=$SONAR_TOKEN
-            -Dsonar.sources=MAAMS_NG_BE,question,tag,validator
-            -Dsonar.tests=MAAMS_NG_BE,question,tag,validator
-            -Dsonar.test.inclusions=**/tests/**/*.py
-            -Dsonar.test.exclusions=**/migrations/*.py
             -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.coverage.exclude=**/apps.py,**/admin.py,**/__init__.py,**/migrations/*.py,manage.py
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/tests/**,**/migrations/**,**/__pycache__/**,**/admin.py,**/apps.py,**/__init__.py,manage.py,**/settings.py,**/urls.py,**/wsgi.py,**/asgi.py
+            -Dsonar.tests=**/tests/**
+            -Dsonar.verbose=true
