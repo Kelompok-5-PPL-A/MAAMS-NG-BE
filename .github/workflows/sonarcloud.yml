@@ -6,6 +6,7 @@ on:
       - staging
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
   build:
     name: Build the project
@@ -23,6 +24,7 @@ jobs:
           echo "Installing requirements..."
           pip install -r requirements.txt
           pip install coverage
+
   test:
     name: Run tests and check coverage
     runs-on: ubuntu-latest
@@ -51,6 +53,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage.xml
+
   sonarcloud-check:
     name: Run SonarQube Analysis
     runs-on: ubuntu-latest
@@ -66,16 +69,18 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
       - name: Run SonarQube analysis
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          npx sonar-scanner -Dsonar.host.url=https://sonarcloud.io \
-                        -Dsonar.login=$SONAR_TOKEN \
-                        -Dsonar.python.coverage.reportPaths=coverage.xml \
-                        -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE \
-                        -Dsonar.organization=kelompok-5-ppl-a-1 \
-                        -Dsonar.sources=MAAMS_NG_BE,question,tag,validator \
-                        -Dsonar.tests=MAAMS_NG_BE,question,tag,validator \
-                        -Dsonar.test.inclusions=**/tests/**/*.py \
-                        -Dsonar.test.exclusions=**/migrations/*.py \
-                        -Dsonar.coverage.exclude=**/apps.py,**/admin.py,**/__init__.py,**/migrations/*.py,manage.py
+        with:
+          args: >
+            -Dsonar.projectKey=Kelompok-5-PPL-A_MAAMS-NG-BE
+            -Dsonar.organization=kelompok-5-ppl-a-1
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.login=$SONAR_TOKEN
+            -Dsonar.sources=MAAMS_NG_BE,question,tag,validator
+            -Dsonar.tests=MAAMS_NG_BE,question,tag,validator
+            -Dsonar.test.inclusions=**/tests/**/*.py
+            -Dsonar.test.exclusions=**/migrations/*.py
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.coverage.exclude=**/apps.py,**/admin.py,**/__init__.py,**/migrations/*.py,manage.py
