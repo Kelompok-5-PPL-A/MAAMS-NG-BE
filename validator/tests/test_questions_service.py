@@ -50,4 +50,3 @@ class QuestionServiceTest(TestCase):
 
         with self.assertRaises(UniqueTagException):
             self.service.create(user=None, title=title, question=question_text, mode=mode, tags=tags)
-            self.fail("Should raise UniqueTagException")
