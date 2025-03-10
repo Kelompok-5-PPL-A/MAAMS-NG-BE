@@ -21,8 +21,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
-
 RUN if [ "$ENVIRONMENT" = "staging" ] || [ "$ENVIRONMENT" = "development" ]; then \
     python manage.py migrate; \
     fi
