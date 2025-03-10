@@ -16,8 +16,8 @@ class QuestionServiceTest(TestCase):
         mode = Question.ModeChoices.PRIBADI
         tags = ["economy", "love"]
 
-        # Call service with guest user
-        created_question = self.service.create(user=None, title=title, question=question_text, mode=mode, tags=tags)
+        # Call service with guest user (user=None)
+        created_question = self.service.create(title=title, question=question_text, mode=mode, tags=tags)
 
         # Check if question is created
         self.assertEqual(created_question.title, title)
@@ -34,7 +34,8 @@ class QuestionServiceTest(TestCase):
         question_text = "Mengapa bahan pokok mahal?"
         mode = Question.ModeChoices.PRIBADI
 
-        created_question = self.service.create(user=None, title=title, question=question_text, mode=mode, tags=[])
+        # Call service with guest user (user=None)
+        created_question = self.service.create(title=title, question=question_text, mode=mode, tags=[])
 
         self.assertEqual(created_question.title, title)
         self.assertEqual(created_question.question, question_text)
@@ -48,5 +49,6 @@ class QuestionServiceTest(TestCase):
         mode = Question.ModeChoices.PRIBADI
         tags = ["economy", "economy"]
 
+        # Call service with guest user (user=None)
         with self.assertRaises(UniqueTagException):
-            self.service.create(user=None, title=title, question=question_text, mode=mode, tags=tags)
+            self.service.create(title=title, question=question_text, mode=mode, tags=tags)
