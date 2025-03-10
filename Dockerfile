@@ -18,6 +18,8 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade typing-extensions
+RUN pip install --upgrade groq
 
 COPY . .
 
