@@ -16,9 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('question/', include('question.urls')),
     path('api/', include('validator.urls', namespace='validator')),
+    path('', RedirectView.as_view(url='https://maams-ng-staging.vercel.app')),  # Redirect root URL
 ]
