@@ -22,7 +22,7 @@ class QuestionService():
         tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
-            # user=user if user else None,  # Jika guest, user None
+            # User not yet implemented, but it should be none if the role is guest
             title=title,
             question=question,
             mode=mode
