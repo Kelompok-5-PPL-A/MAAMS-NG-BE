@@ -18,11 +18,11 @@ from validator.constants import ErrorMsg
 
 
 class QuestionService():
-    def create(self, user: None, title: str, question: str, mode: str, tags: List[str]): 
+    # User not yet implemented, but it should be none if the role is guest
+    def create(self, title: str, question: str, mode: str, tags: List[str]): 
         tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
-            # User not yet implemented, but it should be none if the role is guest
             title=title,
             question=question,
             mode=mode
