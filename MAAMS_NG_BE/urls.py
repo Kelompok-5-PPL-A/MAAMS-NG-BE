@@ -22,5 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('question/', include('question.urls')),
     path('api/', include('validator.urls', namespace='validator')),
-    path('/', RedirectView.as_view(url='https://maams-ng-staging.vercel.app', permanent=True)),  # Redirect root URL
+    path('/', RedirectView.as_view(url='https://maams-ng-staging.vercel.app')),  # Redirect root URL
 ]
