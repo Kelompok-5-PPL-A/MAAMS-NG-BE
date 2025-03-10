@@ -13,14 +13,16 @@ from validator.dataclasses.create_question import CreateQuestionDataClass
 from validator.models.causes import Causes
 from validator.models.questions import Question
 from validator.models.tag import Tag
+from validator.exceptions import UniqueTagException
+from validator.constants import ErrorMsg
 
 
 class QuestionService():
-    def create(self, user: None, title: str, question: str, mode: str, tags: List[str]): 
+    # User not yet implemented, but it should be none if the role is guest
+    def create(self, title: str, question: str, mode: str, tags: List[str]): 
         tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
-            user=user if user else None,  # Jika guest, user None
             title=title,
             question=question,
             mode=mode
@@ -29,5 +31,19 @@ class QuestionService():
         for tag in tags_object:
             question_object.tags.add(tag)
 
-        response = self._make_question_response([question_object])
-        return response[0]
+        return question_object
+    
+    
+    def _validate_tags(self, new_tags: List[str]):
+        tags_object = []
+        for tag_name in new_tags:
+                try:
+                    tag = Tag.objects.get(name=tag_name)
+                    if tag in tags_object:
+                        raise UniqueTagException(ErrorMsg.TAG_MUST_BE_UNIQUE)
+                except Tag.DoesNotExist:
+                    tag = Tag.objects.create(name=tag_name)
+                finally:
+                    tags_object.append(tag)
+        
+        return tags_object
