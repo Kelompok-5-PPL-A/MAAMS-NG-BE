@@ -1,8 +1,12 @@
+import uuid
 from django.test import TestCase
 from unittest.mock import patch, Mock
 from requests.exceptions import RequestException
+from validator.constants import FeedbackMsg
 from validator.enums import ValidationType
 from validator.exceptions import AIServiceErrorException
+from validator.models.causes import Causes
+from validator.models.questions import Question
 from validator.services.causes import CausesService
 
 class CausesServiceTest(TestCase):
@@ -216,3 +220,81 @@ class CausesServiceTest(TestCase):
             max_tokens=50,
             seed=42
         )
+
+    @patch('validator.services.causes.Groq')
+    def test_retrieve_feedback_not_cause_1_row(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='1'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        cause = Causes(problem_id=uuid.uuid4(), cause="False Cause", row=1, column=1)
+        problem = Question(question="Test problem")
+
+        service.retrieve_feedback(cause, problem, None)
+        self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='B'))
+
+    @patch('validator.services.causes.Groq')
+    def test_retrieve_feedback_positive_neutral_1_row(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='2'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        cause = Causes(problem_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=1, column=1)
+        problem = Question(question="Test problem")
+
+        service.retrieve_feedback(cause, problem, None)
+        self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=1))
+
+    @patch('validator.services.causes.Groq')
+    def test_retrieve_feedback_not_cause_n_row(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='1'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        prev_cause = Causes(problem_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
+        cause = Causes(problem_id=uuid.uuid4(), cause="False Cause", row=2, column=1)
+        problem = Question(question="Test problem")
+
+        service.retrieve_feedback(cause, problem, prev_cause)
+        self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='B', row=2, prev_row=1))
+
+    @patch('validator.services.causes.Groq')
+    def test_retrieve_feedback_positive_neutral_n_row(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='2'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        prev_cause = Causes(problem_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
+        cause = Causes(problem_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=2, column=1)
+        problem = Question(question="Test problem")
+
+        service.retrieve_feedback(cause, problem, prev_cause)
+        self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=2))
+
+    @patch('validator.services.causes.Groq')
+    def test_retrieve_feedback_similar_previous_n_row(self, mock_groq):
+        mock_client = Mock()
+        mock_chat_completion = Mock()
+        mock_chat_completion.choices = [Mock(message=Mock(content='3'))]
+        mock_client.chat.completions.create.return_value = mock_chat_completion
+        mock_groq.return_value = mock_client
+
+        service = CausesService()
+        cause = Causes(problem_id=uuid.uuid4(), cause="Similar Cause", row=2, column=1)
+        prev_cause = Causes(problem_id=uuid.uuid4(), cause="Previous Cause", row=1, column=1)
+        problem = Question(question="Test problem")
+
+        service.retrieve_feedback(cause, problem, prev_cause)
+        self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='B', row=2))
