@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Form Analisis</title>
+    <title>Submit Question</title>
 </head>
 <body>
-    <h2>Ingin menganalisis masalah apa hari ini?</h2>
-
-    <form method="post" action="{% url 'submit_question' %}">
+    <h1>Submit Your Question</h1>
+    <form action="{% url 'process_question_form' %}" method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Kirim</button>
+        <button type="submit">Submit</button>
     </form>
 </body>
 </html>
