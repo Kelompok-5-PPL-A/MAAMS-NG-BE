@@ -17,9 +17,9 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --upgrade typing-extensions
-RUN pip install --upgrade groq
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --upgrade typing-extensions && \
+    pip install --upgrade groq
 
 COPY . .
 
