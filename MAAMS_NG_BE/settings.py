@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'question',
     'tag',
+    'cause'
 ]
 
 MIDDLEWARE = [
