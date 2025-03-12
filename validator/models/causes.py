@@ -1,6 +1,6 @@
 from django.db import models
 import uuid
-from validator.models import Question
+from question.models import Question
 
 
 class Causes(models.Model):

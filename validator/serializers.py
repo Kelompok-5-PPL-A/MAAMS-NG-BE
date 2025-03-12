@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from validator.models.causes import Causes
-from validator.models.questions import Question
+from question.models import Question
 
 
 class BaseQuestion(serializers.Serializer):

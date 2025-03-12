@@ -6,7 +6,7 @@ from validator.constants import FeedbackMsg
 from validator.enums import ValidationType
 from validator.exceptions import AIServiceErrorException
 from validator.models.causes import Causes
-from validator.models.questions import Question
+from question.models import Question
 from validator.services.causes import CausesService
 
 class CausesServiceTest(TestCase):

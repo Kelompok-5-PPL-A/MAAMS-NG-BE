@@ -4,9 +4,9 @@ import requests
 from validator.constants import ErrorMsg, FeedbackMsg
 from validator.dataclasses.create_cause import CreateCauseDataClass
 from validator.enums import ValidationType
-from validator.models import questions
+from question.models import Question
 from validator.models.causes import Causes
-from validator.services import questions
+from question.services import QuestionService
 from validator.exceptions import AIServiceErrorException
 import uuid
 
@@ -50,7 +50,7 @@ class CausesService:
             elif answer.__contains__('3'):  
                 return 3
             
-    def retrieve_feedback(self, cause: Causes, problem: questions.Question, prev_cause: None|Causes):
+    def retrieve_feedback(self, cause: Causes, problem: Question, prev_cause: None|Causes):
         retrieve_feedback_user_prompt = ""
         retrieve_feedback_system_message = ""
         
@@ -92,7 +92,7 @@ class CausesService:
         
     def create(self, question_id: uuid, cause: str, row: int, column: int, mode: str) -> CreateCauseDataClass:
         cause = Causes.objects.create(
-            problem=questions.Question.objects.get(pk=question_id),
+            problem=Question.objects.get(pk=question_id),
             row=row,
             column=column,
             mode=mode,
