@@ -7,10 +7,10 @@ from validator.enums import ValidationType
 from validator.exceptions import AIServiceErrorException
 from cause.models import Causes
 from question.models import Question
-from validator.services.causes import CausesService
+from .services import CausesService
 
 class CausesServiceTest(TestCase):
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_positive(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -41,7 +41,7 @@ class CausesServiceTest(TestCase):
             seed=42
         )
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_returns_false(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -72,7 +72,7 @@ class CausesServiceTest(TestCase):
             seed=42
         )
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_request_exception(self, mock_groq):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = RequestException("Network error")
@@ -104,7 +104,7 @@ class CausesServiceTest(TestCase):
 
         self.assertTrue("Failed to call the AI service." in str(context.exception))
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_negative(self, mock_groq):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("API call failed")
@@ -116,7 +116,7 @@ class CausesServiceTest(TestCase):
         with self.assertRaises(Exception):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_forbidden_access(self, mock_groq):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("Unauthorized: Invalid API key")
@@ -128,7 +128,7 @@ class CausesServiceTest(TestCase):
         with self.assertRaises(Exception):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_other_validation_type_returns_1(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -159,7 +159,7 @@ class CausesServiceTest(TestCase):
             seed=42
         )
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_other_validation_type_returns_2(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -190,7 +190,7 @@ class CausesServiceTest(TestCase):
             seed=42
         )
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_api_call_other_validation_type_returns_3(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -221,7 +221,7 @@ class CausesServiceTest(TestCase):
             seed=42
         )
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_retrieve_feedback_not_cause_1_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -236,7 +236,7 @@ class CausesServiceTest(TestCase):
         service.retrieve_feedback(cause, problem, None)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='B'))
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_retrieve_feedback_positive_neutral_1_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -251,7 +251,7 @@ class CausesServiceTest(TestCase):
         service.retrieve_feedback(cause, problem, None)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=1))
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_retrieve_feedback_not_cause_n_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -267,7 +267,7 @@ class CausesServiceTest(TestCase):
         service.retrieve_feedback(cause, problem, prev_cause)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='B', row=2, prev_row=1))
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_retrieve_feedback_positive_neutral_n_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -283,7 +283,7 @@ class CausesServiceTest(TestCase):
         service.retrieve_feedback(cause, problem, prev_cause)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=2))
 
-    @patch('validator.services.causes.Groq')
+    @patch('validator.services.Groq')
     def test_retrieve_feedback_similar_previous_n_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
