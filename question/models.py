@@ -4,7 +4,8 @@ from tag.models import Tag
 
 class Question(models.Model):
     class Meta:
-        app_label = 'validator'
+        app_label = 'question'
+        db_table = 'question_question'
         
     class ModeChoices(models.TextChoices):
         PRIBADI = "PRIBADI", "pribadi"
