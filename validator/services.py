@@ -1,3 +1,4 @@
+import uuid
 from django.conf import settings
 from groq import Groq
 import requests
@@ -23,9 +24,12 @@ class CausesService:
                         "content": user_prompt
                     }
                 ],
-                model="llama-3.3-70b-specdec",
-                temperature=0.1,
-                max_tokens=50,
+                model="deepseek-r1-distill-llama-70b",
+                temperature=0.7,
+                max_completion_tokens=1024,
+                top_p=0.95,
+                stream=False,
+                reasoning_format="hidden",
                 seed=42
             )
             
@@ -86,3 +90,72 @@ class CausesService:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='ABCDE'[cause.column], row=cause.row)     
         elif feedback_type == 3:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
+
+    def validate(self, question_id: uuid):
+        max_row = Causes.objects.filter(problem_id=question_id).order_by('-row').values_list('row', flat=True).first()
+        causes = Causes.objects.filter(problem_id=question_id, row=max_row)
+        problem = Question.objects.get(pk=question_id)
+
+        for cause in causes:
+            if cause.status:
+                continue
+            
+            user_prompt = ""
+            prev_cause = None
+            system_message = "You are an AI model. You are asked to determine whether the given cause is the cause of the given problem."
+            
+            if max_row == 1:
+                user_prompt = f"Is '{cause.cause}' the cause of this question: '{problem.question}'? Answer only with True/False"
+                
+            else:
+                prev_cause = Causes.objects.filter(problem_id=question_id, row=max_row-1, column=cause.column).first()
+                user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
+                
+            if self.api_call(self=self, system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL) == 1:
+                cause.status = True
+                cause.feedback = ""
+                if max_row > 1:
+                    CausesService.check_root_cause(self=self, cause=cause, problem=problem)
+
+            else:
+                CausesService.retrieve_feedback(self=self, cause=cause, problem=problem, prev_cause = prev_cause)
+            
+            cause.save()
+    
+    def check_root_cause(self, cause: Causes, problem: Question):
+        root_check_user_prompt = f"Is the cause '{cause.cause}' the fundamental reason behind the problem '{problem.question}'? Answer only with True or False."
+        root_check_system_message = (
+            "You are an AI model. You are asked to determine whether the given cause is a root cause of the given problem. "
+            "A root cause is the fundamental underlying reason for a problem, which, if addressed, would prevent recurrence of the problem. "
+            "Not all direct causes are root causes; while direct causes contribute to the problem, root causes are the deepest level of causation. "
+            "Your task is to distinguish between direct causes and root causes, identifying whether the given cause is indeed the fundamental issue driving the problem."
+        )
+        
+        if CausesService.api_call(self=self, system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT) == 1:
+            cause.root_status = True
+    
+            korupsi_check_user_prompt = (
+                f"Please categorize the root cause '{cause.cause}' into one of the following corruption categories: "
+                "'Harta' (corruption of wealth), 'Tahta' (corruption of power), or 'Cinta' (corruption of love). "
+                "Answer ONLY with '1' for Harta, '2' for Tahta, or '3' for Cinta."
+            )
+
+            korupsi_check_system_message = (
+                "You are an AI model. Your task is to categorize the root cause into one of three corruption categories: "
+                "'Harta' for corruption of wealth, 'Tahta' for corruption of power, or 'Cinta' for corruption of love. "
+                "You must choose one of these categories, even if the fit seems partial. "
+                "Answer ONLY with '1' for Harta, '2' for Tahta, or '3' for Cinta."
+            )
+            
+            korupsi_category = CausesService.api_call(self=self, system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE)
+            
+            if korupsi_category == 1:
+                cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."
+            elif korupsi_category == 2:
+                cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Tahta."
+            elif korupsi_category == 3:
+                cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Cinta."
+            else:
+                cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."
+            
+            cause.save()
