@@ -2,13 +2,10 @@ from django.conf import settings
 from groq import Groq
 import requests
 from validator.constants import ErrorMsg, FeedbackMsg
-from validator.dataclasses.create_cause import CreateCauseDataClass
 from validator.enums import ValidationType
 from question.models import Question
-from validator.models.causes import Causes
-from question.services import QuestionService
+from cause.models import Causes
 from validator.exceptions import AIServiceErrorException
-import uuid
 
 class CausesService:
     def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType) -> int:
@@ -89,23 +86,3 @@ class CausesService:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='ABCDE'[cause.column], row=cause.row)     
         elif feedback_type == 3:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
-        
-    def create(self, question_id: uuid, cause: str, row: int, column: int, mode: str) -> CreateCauseDataClass:
-        cause = Causes.objects.create(
-            problem=Question.objects.get(pk=question_id),
-            row=row,
-            column=column,
-            mode=mode,
-            cause=cause
-        )
-        return CreateCauseDataClass(
-            question_id=cause.problem.id,
-            id=cause.id,
-            row=cause.row,
-            column=cause.column,
-            mode=cause.mode,
-            cause=cause.cause,
-            status=cause.status,
-            root_status=cause.root_status,
-            feedback = cause.feedback
-        )

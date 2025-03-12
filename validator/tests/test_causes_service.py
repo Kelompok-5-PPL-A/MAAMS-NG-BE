@@ -5,7 +5,7 @@ from requests.exceptions import RequestException
 from validator.constants import FeedbackMsg
 from validator.enums import ValidationType
 from validator.exceptions import AIServiceErrorException
-from validator.models.causes import Causes
+from cause.models import Causes
 from question.models import Question
 from validator.services.causes import CausesService
 
@@ -230,7 +230,7 @@ class CausesServiceTest(TestCase):
         mock_groq.return_value = mock_client
 
         service = CausesService()
-        cause = Causes(problem_id=uuid.uuid4(), cause="False Cause", row=1, column=1)
+        cause = Causes(question_id=uuid.uuid4(), cause="False Cause", row=1, column=1)
         problem = Question(question="Test problem")
 
         service.retrieve_feedback(cause, problem, None)
@@ -245,7 +245,7 @@ class CausesServiceTest(TestCase):
         mock_groq.return_value = mock_client
 
         service = CausesService()
-        cause = Causes(problem_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=1, column=1)
+        cause = Causes(question_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=1, column=1)
         problem = Question(question="Test problem")
 
         service.retrieve_feedback(cause, problem, None)
@@ -260,8 +260,8 @@ class CausesServiceTest(TestCase):
         mock_groq.return_value = mock_client
 
         service = CausesService()
-        prev_cause = Causes(problem_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
-        cause = Causes(problem_id=uuid.uuid4(), cause="False Cause", row=2, column=1)
+        prev_cause = Causes(question_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
+        cause = Causes(question_id=uuid.uuid4(), cause="False Cause", row=2, column=1)
         problem = Question(question="Test problem")
 
         service.retrieve_feedback(cause, problem, prev_cause)
@@ -276,8 +276,8 @@ class CausesServiceTest(TestCase):
         mock_groq.return_value = mock_client
 
         service = CausesService()
-        prev_cause = Causes(problem_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
-        cause = Causes(problem_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=2, column=1)
+        prev_cause = Causes(question_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
+        cause = Causes(question_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=2, column=1)
         problem = Question(question="Test problem")
 
         service.retrieve_feedback(cause, problem, prev_cause)
@@ -292,8 +292,8 @@ class CausesServiceTest(TestCase):
         mock_groq.return_value = mock_client
 
         service = CausesService()
-        cause = Causes(problem_id=uuid.uuid4(), cause="Similar Cause", row=2, column=1)
-        prev_cause = Causes(problem_id=uuid.uuid4(), cause="Previous Cause", row=1, column=1)
+        cause = Causes(question_id=uuid.uuid4(), cause="Similar Cause", row=2, column=1)
+        prev_cause = Causes(question_id=uuid.uuid4(), cause="Previous Cause", row=1, column=1)
         problem = Question(question="Test problem")
 
         service.retrieve_feedback(cause, problem, prev_cause)
