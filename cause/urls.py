@@ -4,6 +4,9 @@ from .views import (
     CausesGet,
     CausesPatch,
     CausesPost,
+)
+
+from validator.views import (
     ValidateView
 )
 
