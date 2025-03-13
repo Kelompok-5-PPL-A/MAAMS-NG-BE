@@ -2,10 +2,7 @@ from django.db import models
 import uuid
 from question.models import Question
 
-class Causes(models.Model):
-    class Meta:
-        app_label = 'validator'
-        
+class Causes(models.Model):        
     class ModeChoices(models.TextChoices):
         PRIBADI = "PRIBADI", "pribadi"
         PENGAWASAN = "PENGAWASAN", "pengawasan"
