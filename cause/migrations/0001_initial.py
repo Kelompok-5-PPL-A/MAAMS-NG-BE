@@ -9,22 +9,20 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tag', '0001_initial'),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Question',
+            name='Causes',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ('title', models.CharField(default='', max_length=40)),
-                ('question', models.CharField(max_length=255)),
+                ('row', models.IntegerField()),
+                ('column', models.IntegerField()),
                 ('mode', models.CharField(choices=[('PRIBADI', 'pribadi'), ('PENGAWASAN', 'pengawasan')], default='PRIBADI', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('tags', models.ManyToManyField(to='tag.tag')),
+                ('cause', models.CharField(max_length=120)),
+                ('status', models.BooleanField(default=False)),
+                ('root_status', models.BooleanField(default=False)),
+                ('feedback', models.CharField(default='', max_length=50)),
             ],
-            options={
-                'db_table': 'question_question',
-            },
         ),
     ]

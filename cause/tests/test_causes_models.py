@@ -1,6 +1,6 @@
 from django.test import TestCase
-from validator.models.questions import Question
-from validator.models.causes import Causes
+from question.models import Question
+from ..models import Causes
 import uuid
 
 class CausesModelTest(TestCase):

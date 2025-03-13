@@ -1,8 +1,7 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
-from validator.models.causes import Causes
-from validator.models.questions import Question
+from question.models import Question
 import uuid
 
 class CausesViewGuestTest(APITestCase):

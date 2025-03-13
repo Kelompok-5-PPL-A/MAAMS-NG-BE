@@ -1,6 +1,6 @@
 from django.test import TestCase
-from validator.models.questions import Question
-from validator.models.tag import Tag
+from models import Question
+from tag.models import Tag
 import uuid
 
 class QuestionModelTest(TestCase):
