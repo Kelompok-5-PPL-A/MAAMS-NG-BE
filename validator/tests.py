@@ -35,9 +35,12 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-specdec",
-            temperature=0.1,
-            max_tokens=50,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=0.95,
+            stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 
@@ -66,9 +69,12 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-specdec",
-            temperature=0.1,
-            max_tokens=50,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=0.95,
+            stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 
@@ -96,9 +102,12 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-specdec",
-            temperature=0.1,
-            max_tokens=50,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=0.95,
+            stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 
@@ -153,9 +162,12 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-specdec",
-            temperature=0.1,
-            max_tokens=50,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=0.95,
+            stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 
@@ -184,9 +196,12 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-specdec",
-            temperature=0.1,
-            max_tokens=50,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=0.95,
+            stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 
@@ -215,9 +230,12 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-specdec",
-            temperature=0.1,
-            max_tokens=50,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=0.95,
+            stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 
