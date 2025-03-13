@@ -122,8 +122,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development!
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ORIGINS = [os.getenv("HOST_FE")]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
