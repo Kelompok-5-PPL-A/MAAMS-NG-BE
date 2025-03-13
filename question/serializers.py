@@ -29,7 +29,7 @@ class QuestionRequest(BaseQuestion):
         ref_name = 'QuestionRequest'
 
     title = serializers.CharField(max_length=40)
-    question = serializers.CharField(max_length=255)
+    question = serializers.CharField()
     tags = serializers.ListField(
         min_length=1,
         max_length=3,
@@ -43,9 +43,4 @@ class QuestionResponse(BaseQuestion):
     title = serializers.CharField(max_length=40)
     question = serializers.CharField()
     created_at = serializers.DateTimeField()
-    tags = serializers.SerializerMethodField()
-
-    def get_tags(self, obj):
-        if hasattr(obj.tags, 'all'):
-            return [tag.name for tag in obj.tags.all()]
-        return obj.tags
+    tags = serializers.ListField(child=serializers.CharField())    
