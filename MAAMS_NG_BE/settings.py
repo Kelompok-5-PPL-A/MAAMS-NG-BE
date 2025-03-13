@@ -96,7 +96,6 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -129,7 +128,17 @@ USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_ORIGINS = [
+    "https://maams-ng-staging.vercel.app",
     os.getenv("HOST_FE")
+]
+
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT", 
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
 ]
 
 # Static files (CSS, JavaScript, Images)
