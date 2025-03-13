@@ -92,8 +92,8 @@ class CausesService:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
 
     def validate(self, question_id: uuid):
-        max_row = Causes.objects.filter(problem_id=question_id).order_by('-row').values_list('row', flat=True).first()
-        causes = Causes.objects.filter(problem_id=question_id, row=max_row)
+        max_row = Causes.objects.filter(question_id=question_id).order_by('-row').values_list('row', flat=True).first()
+        causes = Causes.objects.filter(question_id=question_id, row=max_row)
         problem = Question.objects.get(pk=question_id)
 
         for cause in causes:
@@ -108,7 +108,7 @@ class CausesService:
                 user_prompt = f"Is '{cause.cause}' the cause of this question: '{problem.question}'? Answer only with True/False"
                 
             else:
-                prev_cause = Causes.objects.filter(problem_id=question_id, row=max_row-1, column=cause.column).first()
+                prev_cause = Causes.objects.filter(question_id=question_id, row=max_row-1, column=cause.column).first()
                 user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
                 
             if self.api_call(self=self, system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL) == 1:
