@@ -19,7 +19,10 @@ RUN rm -rf .git .env* .vscode secrets* && \
 USER appuser
 
 ARG ENVIRONMENT
+ARG SECRET_KEY
+
 ENV ENVIRONMENT=${ENVIRONMENT}
+ENV SECRET_KEY=${SECRET_KEY}
 
 RUN if [ "$ENVIRONMENT" = "staging" ] || [ "$ENVIRONMENT" = "development" ]; then \
     python manage.py migrate; \
