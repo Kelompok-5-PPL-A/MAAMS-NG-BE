@@ -19,12 +19,11 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vv6@i-05#(1k&p8*mrixezpjmgdx0p_&c=o#4er_=fnd@xp1a+'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 ALLOWED_HOSTS = ["*"]
 
@@ -122,7 +121,9 @@ USE_I18N = True
 USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOW_ORIGINS = [os.getenv("HOST_FE")]
+CORS_ALLOW_ORIGINS = [ 
+    os.getenv("HOST_FE") 
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
