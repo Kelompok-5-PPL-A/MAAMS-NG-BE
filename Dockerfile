@@ -1,6 +1,18 @@
 FROM python:3.10-slim
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+ARG ENVIRONMENT
+ARG DATABASE_URL
+ARG DATABASE_USERNAME
+ARG DATABASE_PASSWORD
+ARG SECRET_KEY
+
+ENV ENVIRONMENT=${ENVIRONMENT}
+ENV DATABASE_URL=${DATABASE_URL}
+ENV DATABASE_USERNAME=${DATABASE_USERNAME}
+ENV DATABASE_PASSWORD=${DATABASE_PASSWORD}
+ENV SECRET_KEY=${SECRET_KEY}
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -9,24 +21,12 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --upgrade typing-extensions && \
     pip install --upgrade groq
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-COPY --chown=appuser:appuser . .
-RUN rm -rf .git .env* .vscode secrets* && \
-    find . -type f -name "*.log" -delete
-
-USER appuser
-
-ARG ENVIRONMENT
-ARG SECRET_KEY
-
-ENV ENVIRONMENT=${ENVIRONMENT}
-ENV SECRET_KEY=${SECRET_KEY}
+COPY . .
 
 RUN if [ "$ENVIRONMENT" = "staging" ] || [ "$ENVIRONMENT" = "development" ]; then \
     python manage.py migrate; \
     fi
 
 EXPOSE 8000
+
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "MAAMS_NG_BE.wsgi:application"]
