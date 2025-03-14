@@ -70,6 +70,9 @@ jobs:
           pip install coverage
           pip install --upgrade typing-extensions
           pip install --upgrade groq
+      - name: Setup Environment Variables
+        run: |
+          echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> $GITHUB_ENV
       - name: Run tests and generate coverage
         run: |
           coverage run manage.py test
