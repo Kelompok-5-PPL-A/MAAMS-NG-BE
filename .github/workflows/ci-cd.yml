@@ -134,7 +134,7 @@ jobs:
             DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
             DATABASE_USERNAME=${{ secrets.STAGING_DATABASE_USERNAME }}
             DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }}
-            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
   
   publish-production:
     name: Publish Production Docker Image
@@ -190,7 +190,7 @@ jobs:
             -e DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }} \
             -e DATABASE_USERNAME=${{ secrets.STAGING_DATABASE_USERNAME }} \
             -e DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }} \
-            -e SECRET_KEY=${{ secrets.SECRET_KEY }} \
+            -e SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }} \
             -e DEBUG=True \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging"
   
