@@ -127,7 +127,10 @@ jobs:
             DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
             DATABASE_USERNAME=${{ secrets.STAGING_DATABASE_USERNAME }}
             DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }}
+            HOST_FE=${{ secrets.STAGING_HOST_FE }}
             SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
   
   publish-production:
     name: Publish Production Docker Image
