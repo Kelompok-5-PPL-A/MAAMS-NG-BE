@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+import sentry_sdk
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 
@@ -162,3 +163,9 @@ REST_FRAMEWORK = {
 }
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    traces_sample_rate=1.0,
+    send_default_pii=True,
+)
