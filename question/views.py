@@ -26,10 +26,7 @@ class QuestionPost(APIView):
                 **request_serializer.validated_data
             )
             response_serializer = QuestionResponse(question)
-            if (not question.title) or (not question.question) or (question.mode not in [Question.ModeChoices.PENGAWASAN, Question.ModeChoices.PRIBADI]):
-                return Response(status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except serializers.ValidationError:
             return Response(
                 {"error": "Invalid input"},
