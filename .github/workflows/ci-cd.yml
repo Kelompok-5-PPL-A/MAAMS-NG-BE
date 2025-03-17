@@ -159,7 +159,9 @@ jobs:
             DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             DATABASE_USERNAME=${{ secrets.PROD_DATABASE_USERNAME }}
             DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }}
+            HOST_FE=${{ secrets.PROD_HOST_FE }}
             SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
   
   deploy-staging:
     name: Deploy to Staging
