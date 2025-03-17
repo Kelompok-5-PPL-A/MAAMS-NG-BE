@@ -56,11 +56,6 @@ class QuestionGet(ViewSet):
             question = self.service_class.get(pk=pk)
             serializer = QuestionResponse(question)
             return Response(serializer.data)
-        except Question.DoesNotExist:
-            return Response(
-                {"error": "Question not found"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Exception:
             return Response(
                 {"error": "An unexpected error occurred"}, 
