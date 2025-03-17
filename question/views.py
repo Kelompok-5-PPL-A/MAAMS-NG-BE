@@ -1,4 +1,4 @@
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
@@ -17,18 +17,29 @@ class QuestionPost(APIView):
         responses=QuestionResponse,
     )
     def post(self, request):
-                request_serializer = QuestionRequest(data=request.data)
-                request_serializer.is_valid(raise_exception=True)
+        try:
+            request_serializer = QuestionRequest(data=request.data)
+            request_serializer.is_valid(raise_exception=True)
 
-                service_class = QuestionService()
-                question = service_class.create(
-                    **request_serializer.validated_data
-                )
-                response_serializer = QuestionResponse(question)
-                if (not question.title) or (not question.question) or (question.mode not in [Question.ModeChoices.PENGAWASAN, Question.ModeChoices.PRIBADI]):
-                    return Response(status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            service_class = QuestionService()
+            question = service_class.create(
+                **request_serializer.validated_data
+            )
+            response_serializer = QuestionResponse(question)
+            if (not question.title) or (not question.question) or (question.mode not in [Question.ModeChoices.PENGAWASAN, Question.ModeChoices.PRIBADI]):
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        except serializers.ValidationError:
+            return Response(
+                {"error": "Invalid input"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception:
+            return Response(
+                {"error": "An unexpected error occurred"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @permission_classes([])
