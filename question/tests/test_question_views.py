@@ -4,6 +4,7 @@ from rest_framework import status
 from unittest.mock import patch, Mock
 from question.models import Question
 from tag.models import Tag
+from datetime import datetime
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -23,8 +24,9 @@ class TestQuestionPostView(TestCase):
         mock_question.title = self.valid_payload['title']
         mock_question.question = self.valid_payload['question']
         mock_question.mode = self.valid_payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
         mock_question.tags.all.return_value = [
-            Mock(spec=Tag, name=tag) for tag in self.valid_payload['tags']
+            Tag(name=tag) for tag in self.valid_payload['tags']
         ]
         
 
@@ -115,6 +117,7 @@ class TestQuestionPostView(TestCase):
 
         # Assert
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
 
     def test_create_question_service_error(self):
         # Arrange
@@ -129,3 +132,6 @@ class TestQuestionPostView(TestCase):
 
             # Assert
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    
