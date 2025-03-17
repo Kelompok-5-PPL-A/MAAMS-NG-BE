@@ -50,7 +50,6 @@ class CausesService:
     def get_list(self, question_id: uuid) -> List[CreateCauseDataClass]:
         try:
             cause = Causes.objects.filter(question_id=question_id)
-            current_question = Question.objects.get(pk=question_id)
         except ObjectDoesNotExist:
             raise NotFoundRequestException(ErrorMsg.CAUSE_NOT_FOUND)
 
