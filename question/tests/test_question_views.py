@@ -5,6 +5,7 @@ from unittest.mock import patch, Mock
 from question.models import Question
 from tag.models import Tag
 from datetime import datetime
+import uuid
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -132,6 +133,42 @@ class TestQuestionPostView(TestCase):
 
             # Assert
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+class TestQuestionGet(TestCase):
+    def setUp(self):
+        # Create test tags
+        self.tag1 = Tag.objects.create(name="test_tag1")
+        self.tag2 = Tag.objects.create(name="test_tag2")
+        self.client = APIClient()
+        
+        # Create test question
+        self.question = Question.objects.create(
+            title="Test Question",
+            question="Test Question Content",
+            mode=Question.ModeChoices.PENGAWASAN,
+            id=uuid.uuid4()
+        )
+        self.question.tags.add(self.tag1, self.tag2)
+        self.url = f'/question/{self.question.id}/'
+
+    def test_get_question_not_found(self):
+        """Test retrieval of non-existent question"""
+        non_existent_id = uuid.uuid4()
+        response = self.client.get(f'/api/questions/{non_existent_id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+
+    def test_get_question_unexpected_error(self):
+        """Test unexpected error during question retrieval"""
+        with patch('question.services.QuestionService.get') as mock_get:
+            mock_get.side_effect = Exception('Unexpected error')
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    
     
 
     
