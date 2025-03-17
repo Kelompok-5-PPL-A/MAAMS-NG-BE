@@ -133,7 +133,7 @@ class TestQuestionPostView(TestCase):
 
             # Assert
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
 
 class TestQuestionGet(TestCase):
     def setUp(self):
@@ -166,6 +166,18 @@ class TestQuestionGet(TestCase):
             mock_get.side_effect = Exception('Unexpected error')
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    def test_get_question_success(self):
+        """Test successful retrieval of a question"""
+        response = self.client.get(f'/question/{self.question.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], str(self.question.id))
+        self.assertEqual(response.data['title'], self.question.title)
+        self.assertEqual(response.data['question'], self.question.question)
+        self.assertEqual(response.data['mode'], self.question.mode)
+        self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
     
 
     
