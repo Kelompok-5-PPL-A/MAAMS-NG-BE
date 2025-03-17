@@ -52,7 +52,17 @@ class QuestionGet(ViewSet):
         responses=QuestionResponse,
     )
     def get(self, request, pk):
-        question = self.service_class.get(pk=pk)
-        serializer = QuestionResponse(question)
-        
-        return Response(serializer.data)
+        try:
+            question = self.service_class.get(pk=pk)
+            serializer = QuestionResponse(question)
+            return Response(serializer.data)
+        except Question.DoesNotExist:
+            return Response(
+                {"error": "Question not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception:
+            return Response(
+                {"error": "An unexpected error occurred"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
