@@ -133,7 +133,93 @@ class TestQuestionPostView(TestCase):
 
             # Assert
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+    def test_create_question_maximum_length_title(self):
+        # Arrange
+        payload = {
+            'title': 'A' * 40,
+            'question': 'Test Question',
+            'mode': Question.ModeChoices.PRIBADI,
+            'tags': ['tag1']
+        }
 
+        # Arrange
+        mock_question = Mock(spec=Question)
+        mock_question.id = '123e4567-e89b-12d3-a456-426614174921'
+        mock_question.title = payload['title']
+        mock_question.question = payload['question']
+        mock_question.mode = payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.tags.all.return_value = [
+            Tag(name=tag) for tag in payload['tags']
+        ]
+
+        # Act
+        response = self.client.post(
+            self.url,
+            data=payload,
+            format='json'
+        )
+
+        with patch('question.services.QuestionService.create') as mock_create:
+            mock_create.return_value = mock_question
+            
+            # Act
+            response = self.client.post(
+                self.url,
+                data=payload,
+                format='json'
+            )
+
+            # Assert
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['title'], payload['title'])
+            mock_create.assert_called_once_with(**payload)
+    
+
+    def test_create_question_maximum_length_question(self):
+        # Arrange
+        payload = {
+            'title': 'Test Title',
+            'question': 'A' * 255,
+            'mode': Question.ModeChoices.PRIBADI,
+            'tags': ['tag1']
+        }
+
+        # Arrange
+        mock_question = Mock(spec=Question)
+        mock_question.id = '123e4567-e89b-12d3-a456-426614174921'
+        mock_question.title = payload['title']
+        mock_question.question = payload['question']
+        mock_question.mode = payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.tags.all.return_value = [
+            Tag(name=tag) for tag in payload['tags']
+        ]
+
+        # Act
+        response = self.client.post(
+            self.url,
+            data=payload,
+            format='json'
+        )
+
+        with patch('question.services.QuestionService.create') as mock_create:      
+            mock_create.return_value = mock_question
+            
+            # Act
+            response = self.client.post(
+                self.url,
+                data=payload,
+                format='json'
+            )
+
+            # Assert
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['title'], payload['title'])
+            mock_create.assert_called_once_with(**payload)
+    
 
 class TestQuestionGet(TestCase):
     def setUp(self):
