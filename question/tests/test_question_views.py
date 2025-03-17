@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, Mock
-from models import Question
+from question.models import Question
 from tag.models import Tag
 
 class TestQuestionPostView(TestCase):
@@ -26,8 +26,9 @@ class TestQuestionPostView(TestCase):
         mock_question.tags.all.return_value = [
             Mock(spec=Tag, name=tag) for tag in self.valid_payload['tags']
         ]
+        
 
-        with patch('services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create:
             mock_create.return_value = mock_question
             
             # Act
@@ -117,9 +118,8 @@ class TestQuestionPostView(TestCase):
 
     def test_create_question_service_error(self):
         # Arrange
-        with patch('services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create:
             mock_create.side_effect = Exception('Service error')
-            
             # Act
             response = self.client.post(
                 self.url,

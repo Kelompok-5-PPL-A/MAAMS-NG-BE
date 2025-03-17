@@ -3,8 +3,8 @@ from validator.exceptions import UniqueTagException
 from validator.constants import ErrorMsg
 import pytest
 from unittest.mock import Mock, patch
-from models import Question 
-from services import QuestionService
+from question.models import Question 
+from question.services import QuestionService
 
 class TestQuestionService():
 
