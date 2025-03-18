@@ -2,8 +2,10 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, Mock
-from models import Question
+from question.models import Question
 from tag.models import Tag
+from datetime import datetime
+import uuid
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -23,11 +25,13 @@ class TestQuestionPostView(TestCase):
         mock_question.title = self.valid_payload['title']
         mock_question.question = self.valid_payload['question']
         mock_question.mode = self.valid_payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
         mock_question.tags.all.return_value = [
-            Mock(spec=Tag, name=tag) for tag in self.valid_payload['tags']
+            Tag(name=tag) for tag in self.valid_payload['tags']
         ]
+        
 
-        with patch('services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create:
             mock_create.return_value = mock_question
             
             # Act
@@ -114,12 +118,12 @@ class TestQuestionPostView(TestCase):
 
         # Assert
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
 
     def test_create_question_service_error(self):
         # Arrange
-        with patch('services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create:
             mock_create.side_effect = Exception('Service error')
-            
             # Act
             response = self.client.post(
                 self.url,
@@ -129,3 +133,140 @@ class TestQuestionPostView(TestCase):
 
             # Assert
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+    def test_create_question_maximum_length_title(self):
+        # Arrange
+        payload = {
+            'title': 'A' * 40,
+            'question': 'Test Question',
+            'mode': Question.ModeChoices.PRIBADI,
+            'tags': ['tag1']
+        }
+
+        # Arrange
+        mock_question = Mock(spec=Question)
+        mock_question.id = '123e4567-e89b-12d3-a456-426614174921'
+        mock_question.title = payload['title']
+        mock_question.question = payload['question']
+        mock_question.mode = payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.tags.all.return_value = [
+            Tag(name=tag) for tag in payload['tags']
+        ]
+
+        # Act
+        response = self.client.post(
+            self.url,
+            data=payload,
+            format='json'
+        )
+
+        with patch('question.services.QuestionService.create') as mock_create:
+            mock_create.return_value = mock_question
+            
+            # Act
+            response = self.client.post(
+                self.url,
+                data=payload,
+                format='json'
+            )
+
+            # Assert
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['title'], payload['title'])
+            mock_create.assert_called_once_with(**payload)
+    
+
+    def test_create_question_maximum_length_question(self):
+        # Arrange
+        payload = {
+            'title': 'Test Title',
+            'question': 'A' * 255,
+            'mode': Question.ModeChoices.PRIBADI,
+            'tags': ['tag1']
+        }
+
+        # Arrange
+        mock_question = Mock(spec=Question)
+        mock_question.id = '123e4567-e89b-12d3-a456-426614174921'
+        mock_question.title = payload['title']
+        mock_question.question = payload['question']
+        mock_question.mode = payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.tags.all.return_value = [
+            Tag(name=tag) for tag in payload['tags']
+        ]
+
+        # Act
+        response = self.client.post(
+            self.url,
+            data=payload,
+            format='json'
+        )
+
+        with patch('question.services.QuestionService.create') as mock_create:      
+            mock_create.return_value = mock_question
+            
+            # Act
+            response = self.client.post(
+                self.url,
+                data=payload,
+                format='json'
+            )
+
+            # Assert
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['title'], payload['title'])
+            mock_create.assert_called_once_with(**payload)
+    
+
+class TestQuestionGet(TestCase):
+    def setUp(self):
+        # Create test tags
+        self.tag1 = Tag.objects.create(name="test_tag1")
+        self.tag2 = Tag.objects.create(name="test_tag2")
+        self.client = APIClient()
+        
+        # Create test question
+        self.question = Question.objects.create(
+            title="Test Question",
+            question="Test Question Content",
+            mode=Question.ModeChoices.PENGAWASAN,
+            id=uuid.uuid4()
+        )
+        self.question.tags.add(self.tag1, self.tag2)
+        self.url = f'/question/{self.question.id}/'
+
+    def test_get_question_not_found(self):
+        """Test retrieval of non-existent question"""
+        non_existent_id = uuid.uuid4()
+        response = self.client.get(f'/api/questions/{non_existent_id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+
+    def test_get_question_unexpected_error(self):
+        """Test unexpected error during question retrieval"""
+        with patch('question.services.QuestionService.get') as mock_get:
+            mock_get.side_effect = Exception('Unexpected error')
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    def test_get_question_success(self):
+        """Test successful retrieval of a question"""
+        response = self.client.get(f'/question/{self.question.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], str(self.question.id))
+        self.assertEqual(response.data['title'], self.question.title)
+        self.assertEqual(response.data['question'], self.question.question)
+        self.assertEqual(response.data['mode'], self.question.mode)
+        self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
+    
+
+    
+    
+
+    
