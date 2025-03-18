@@ -1,6 +1,6 @@
 from typing import List
 from validator.constants import ErrorMsg
-from validator.exceptions import ForbiddenRequestException, NotFoundRequestException
+from validator.exceptions import NotFoundRequestException
 from django.core.exceptions import ObjectDoesNotExist
 from .dataclasses.create_cause import CreateCauseDataClass
 from question.models import Question
@@ -50,7 +50,6 @@ class CausesService:
     def get_list(self, question_id: uuid) -> List[CreateCauseDataClass]:
         try:
             cause = Causes.objects.filter(question_id=question_id)
-            current_question = Question.objects.get(pk=question_id)
         except ObjectDoesNotExist:
             raise NotFoundRequestException(ErrorMsg.CAUSE_NOT_FOUND)
 
