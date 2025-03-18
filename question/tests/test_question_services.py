@@ -5,6 +5,10 @@ import pytest
 from unittest.mock import Mock, patch
 from question.models import Question 
 from question.services import QuestionService
+from django.test import TestCase
+import uuid
+from django.core.exceptions import ObjectDoesNotExist
+from validator.exceptions import NotFoundRequestException
 
 class TestQuestionService():
 
@@ -99,3 +103,36 @@ class TestQuestionService():
             # Assert
             mock_create.assert_called_once()
             assert result == mock_question
+
+class QuestionServiceTest(TestCase):
+    def setUp(self):
+        self.service = QuestionService()
+        self.question_id = uuid.uuid4()
+        self.question = Question.objects.create(
+            id=self.question_id,
+            title="Test Title",
+            question="Test Question",
+            mode="Test Mode"
+        )
+        self.tag = Tag.objects.create(name="test_tag")
+        self.question.tags.add(self.tag)
+
+    def test_get_question_not_found(self):
+        # Test getting a question with non-existent ID
+        with self.assertRaises(NotFoundRequestException) as context:
+            self.service.get(uuid.uuid4())
+        self.assertEqual(str(context.exception), ErrorMsg.NOT_FOUND)
+
+    def test_make_question_response_empty_list(self):
+        # Test _make_question_response with empty list
+        response = self.service._make_question_response([])
+        self.assertEqual(response, [])
+
+    def test_validate_tags_duplicate_tag(self):
+        # Test _validate_tags with duplicate tag
+        tag_name = "duplicate_tag"
+        Tag.objects.create(name=tag_name)
+        
+        with self.assertRaises(UniqueTagException) as context:
+            self.service._validate_tags([tag_name, tag_name])
+        self.assertEqual(str(context.exception), ErrorMsg.TAG_MUST_BE_UNIQUE)
