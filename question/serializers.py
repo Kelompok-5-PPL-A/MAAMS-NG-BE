@@ -41,7 +41,7 @@ class QuestionResponse(BaseQuestion):
     
     id = serializers.UUIDField()
     title = serializers.CharField(max_length=40)
-    question = serializers.CharField()
+    question = serializers.CharField(max_length=255)
     created_at = serializers.DateTimeField()
     tags = serializers.SerializerMethodField()
 
