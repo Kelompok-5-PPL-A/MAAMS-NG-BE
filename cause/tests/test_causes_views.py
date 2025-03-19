@@ -121,8 +121,9 @@ class TestCausesGetView(TestCase):
         # Assert
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_get.assert_called_once_with(
-            question_id=self.question_id,
-            pk=self.cause_id
+            self=CausesService,
+            question_id=uuid.UUID(self.question_id),
+            pk=uuid.UUID(self.cause_id)
         )
         # Verify key data fields are present
         self.assertEqual(response.data['id'], str(self.cause_id))
@@ -165,7 +166,8 @@ class TestCausesGetView(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
         mock_get_list.assert_called_once_with(
-            question_id=self.question_id
+            self=CausesService,
+            question_id=uuid.UUID(self.question_id)
         )
         
     @patch('cause.services.CausesService.get')
@@ -238,8 +240,9 @@ class TestCausesPatchView(TestCase):
         # Assert
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_patch_cause.assert_called_once_with(
-            question_id=self.question_id,
-            pk=self.cause_id,
+            self=CausesService,
+            question_id=uuid.UUID(self.question_id),
+            pk=uuid.UUID(self.cause_id),
             **self.valid_payload
         )
         # Verify key data is present
