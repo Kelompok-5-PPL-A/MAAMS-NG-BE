@@ -14,6 +14,7 @@ class TestCausesService(TestCase):
     def setUp(self):
         self.service = CausesService()
         self.valid_question_id = uuid.uuid4()
+        self.valid_cause_id = uuid.uuid4()
         self.valid_cause_data = {
             'cause': 'Test Cause',
             'row': 1,
@@ -69,6 +70,8 @@ class TestCausesService(TestCase):
                     question_id=self.valid_question_id,
                     **self.valid_cause_data
                 )
+            
+            mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
     def test_create_cause_invalid_data(self):
         # Arrange
@@ -85,7 +88,7 @@ class TestCausesService(TestCase):
         with patch('question.models.Question.objects.get') as mock_get_question:
             mock_get_question.return_value = mock_question
             with patch('cause.models.Causes.objects.create') as mock_create_cause:
-                mock_create_cause.side_effect = ValueError()
+                mock_create_cause.side_effect = ValueError("Invalid data")
 
                 # Act & Assert
                 with self.assertRaises(ValueError):
@@ -96,9 +99,8 @@ class TestCausesService(TestCase):
 
     def test_get_cause_success(self):
         # Arrange
-        cause_id = uuid.uuid4()
         mock_cause = Mock(spec=Causes)
-        mock_cause.id = cause_id
+        mock_cause.id = self.valid_cause_id
         mock_cause.question_id = self.valid_question_id
         mock_cause.row = 1
         mock_cause.column = 1
@@ -114,21 +116,20 @@ class TestCausesService(TestCase):
             # Act
             result = self.service.get(
                 question_id=self.valid_question_id,
-                pk=cause_id
+                pk=self.valid_cause_id
             )
 
             # Assert
             self.assertIsInstance(result, CreateCauseDataClass)
             self.assertEqual(result.question_id, self.valid_question_id)
-            self.assertEqual(result.id, cause_id)
+            self.assertEqual(result.id, self.valid_cause_id)
             mock_get_cause.assert_called_once_with(
-                pk=cause_id, 
+                pk=self.valid_cause_id, 
                 question_id=self.valid_question_id
             )
 
     def test_get_cause_not_found(self):
         # Arrange
-        cause_id = uuid.uuid4()
         with patch('cause.models.Causes.objects.get') as mock_get_cause:
             mock_get_cause.side_effect = ObjectDoesNotExist()
 
@@ -136,10 +137,14 @@ class TestCausesService(TestCase):
             with self.assertRaises(NotFoundRequestException) as context:
                 self.service.get(
                     question_id=self.valid_question_id,
-                    pk=cause_id
+                    pk=self.valid_cause_id
                 )
             
             self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
+            mock_get_cause.assert_called_once_with(
+                pk=self.valid_cause_id, 
+                question_id=self.valid_question_id
+            )
 
     def test_get_list_success(self):
         # Arrange
@@ -188,111 +193,21 @@ class TestCausesService(TestCase):
                 mock_filter_causes.assert_called_once_with(question_id=self.valid_question_id)
                 mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
-    def test_get_list_not_found(self):
-        # Arrange
-        with patch('cause.models.Causes.objects.filter') as mock_filter_causes:
-            with patch('question.models.Question.objects.get') as mock_get_question:
-                mock_get_question.side_effect = ObjectDoesNotExist()
-
-                # Act & Assert
-                with self.assertRaises(NotFoundRequestException) as context:
-                    self.service.get_list(question_id=self.valid_question_id)
-                
-                self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
-
-    def test_patch_cause_success(self):
-        # Arrange
-        cause_id = uuid.uuid4()
-        new_cause_text = "Updated Cause Text"
-        
-        mock_cause = Mock(spec=Causes)
-        mock_cause.id = cause_id
-        mock_cause.question_id = self.valid_question_id
-        mock_cause.row = 1
-        mock_cause.column = 1
-        mock_cause.mode = 'PRIBADI'
-        mock_cause.cause = new_cause_text  # Updated text
-        mock_cause.status = False
-        mock_cause.root_status = False
-        mock_cause.feedback = ''
-
-        with patch('cause.models.Causes.objects.get') as mock_get_cause:
-            mock_get_cause.return_value = mock_cause
-
-            # Act
-            result = self.service.patch_cause(
-                question_id=self.valid_question_id,
-                pk=cause_id,
-                cause=new_cause_text
-            )
-
-            # Assert
-            self.assertIsInstance(result, CreateCauseDataClass)
-            self.assertEqual(result.cause, new_cause_text)
-            mock_get_cause.assert_called_once_with(
-                question_id=self.valid_question_id,
-                pk=cause_id
-            )
-            self.assertTrue(mock_cause.save.called)
-
-    def test_patch_cause_not_found(self):
-        # Arrange
-        cause_id = uuid.uuid4()
-        new_cause_text = "Updated Cause Text"
-        
-        with patch('cause.models.Causes.objects.get') as mock_get_cause:
-            mock_get_cause.side_effect = ObjectDoesNotExist()
-
-            # Act & Assert
-            with self.assertRaises(NotFoundRequestException) as context:
-                self.service.patch_cause(
-                    question_id=self.valid_question_id,
-                    pk=cause_id,
-                    cause=new_cause_text
-                )
-            
-            self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
-
-    def test_get_cause_object_does_not_exist(self):
-        """Test get method when cause doesn't exist in database"""
-        # Arrange
-        with patch('cause.models.Causes.objects.get') as mock_get_cause:
-            # Simulate Django's ObjectDoesNotExist exception
-            mock_get_cause.side_effect = ObjectDoesNotExist()
-            
-            # Act & Assert
-            with self.assertRaises(NotFoundRequestException) as context:
-                self.service.get(
-                    question_id=self.valid_question_id,
-                    pk=self.valid_cause_id
-                )
-            
-            # Verify the correct error message is included
-            self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
-            mock_get_cause.assert_called_once_with(
-                pk=self.valid_cause_id, 
-                question_id=self.valid_question_id
-            )
-
-    def test_get_list_question_does_not_exist(self):
-        """Test get_list method when question doesn't exist"""
+    def test_get_list_question_not_found(self):
         # Arrange
         with patch('cause.models.Causes.objects.filter') as mock_filter_causes:
             mock_filter_causes.return_value = []
             with patch('question.models.Question.objects.get') as mock_get_question:
-                # Simulate Django's ObjectDoesNotExist exception
                 mock_get_question.side_effect = ObjectDoesNotExist()
                 
                 # Act & Assert
                 with self.assertRaises(NotFoundRequestException) as context:
                     self.service.get_list(question_id=self.valid_question_id)
                 
-                # Verify the correct error message is included
                 self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
                 mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
-    def test_get_list_causes_empty_but_no_error(self):
-        """Test get_list method when causes are empty but question exists"""
+    def test_get_list_empty_causes(self):
         # Arrange
         mock_question = Mock(spec=Question)
         mock_question.id = self.valid_question_id
@@ -313,15 +228,47 @@ class TestCausesService(TestCase):
                 mock_filter_causes.assert_called_once_with(question_id=self.valid_question_id)
                 mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
-    def test_patch_cause_object_does_not_exist(self):
-        """Test patch_cause method when cause doesn't exist"""
+    def test_patch_cause_success(self):
+        # Arrange
+        new_cause_text = "Updated Cause Text"
+        
+        mock_cause = Mock(spec=Causes)
+        mock_cause.id = self.valid_cause_id
+        mock_cause.question_id = self.valid_question_id
+        mock_cause.row = 1
+        mock_cause.column = 1
+        mock_cause.mode = 'PRIBADI'
+        mock_cause.cause = new_cause_text  # Updated text
+        mock_cause.status = False
+        mock_cause.root_status = False
+        mock_cause.feedback = ''
+
+        with patch('cause.models.Causes.objects.get') as mock_get_cause:
+            mock_get_cause.return_value = mock_cause
+
+            # Act
+            result = self.service.patch_cause(
+                question_id=self.valid_question_id,
+                pk=self.valid_cause_id,
+                cause=new_cause_text
+            )
+
+            # Assert
+            self.assertIsInstance(result, CreateCauseDataClass)
+            self.assertEqual(result.cause, new_cause_text)
+            mock_get_cause.assert_called_once_with(
+                question_id=self.valid_question_id,
+                pk=self.valid_cause_id
+            )
+            self.assertTrue(mock_cause.save.called)
+
+    def test_patch_cause_not_found(self):
         # Arrange
         new_cause_text = "Updated Cause Text"
         
         with patch('cause.models.Causes.objects.get') as mock_get_cause:
-            # Simulate Django's ObjectDoesNotExist exception
             mock_get_cause.side_effect = ObjectDoesNotExist()
-            
+
             # Act & Assert
             with self.assertRaises(NotFoundRequestException) as context:
                 self.service.patch_cause(
@@ -330,25 +277,8 @@ class TestCausesService(TestCase):
                     cause=new_cause_text
                 )
             
-            # Verify the correct error message is included
             self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
             mock_get_cause.assert_called_once_with(
                 question_id=self.valid_question_id,
                 pk=self.valid_cause_id
             )
-
-    def test_create_question_does_not_exist(self):
-        """Test create method when the referenced question doesn't exist"""
-        # Arrange
-        with patch('question.models.Question.objects.get') as mock_get_question:
-            # Simulate Django's ObjectDoesNotExist exception
-            mock_get_question.side_effect = ObjectDoesNotExist()
-            
-            # Act & Assert
-            with self.assertRaises(ObjectDoesNotExist):
-                self.service.create(
-                    question_id=self.valid_question_id,
-                    **self.valid_cause_data
-                )
-            
-            mock_get_question.assert_called_once_with(pk=self.valid_question_id)
