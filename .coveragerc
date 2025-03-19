@@ -8,8 +8,9 @@ omit =
     */admin.py,       
     */base_model.py,
     */settings.py,
-    */site-packages/*
-    */dist-packages/*
+    */site-packages/*,
+    */dist-packages/*,
+    */tests/*
 
 [report]
 # Show coverage statistics in terminal

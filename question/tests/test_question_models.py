@@ -1,5 +1,5 @@
 from django.test import TestCase
-from models import Question
+from question.models import Question
 from tag.models import Tag
 import uuid
 
