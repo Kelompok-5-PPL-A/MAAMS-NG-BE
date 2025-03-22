@@ -11,14 +11,20 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+import sentry_sdk
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+env_file = find_dotenv(
+     filename=".env",
+     raise_error_if_not_found=False,
+     usecwd=False
+)
+if env_file:
+    load_dotenv(env_file, verbose=True)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -90,7 +96,6 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -122,7 +127,9 @@ USE_I18N = True
 USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOW_ORIGINS = [os.getenv("HOST_FE")]
+CORS_ALLOW_ORIGINS = [ 
+    os.getenv("HOST_FE") 
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
@@ -145,3 +152,9 @@ REST_FRAMEWORK = {
 }
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    traces_sample_rate=1.0,
+    send_default_pii=True,
+)
