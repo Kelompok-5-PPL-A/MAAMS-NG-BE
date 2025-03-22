@@ -175,6 +175,7 @@ class TestCausesService(TestCase):
 
         mock_causes = [mock_cause1, mock_cause2]
         mock_question = Mock(spec=Question)
+        mock_question.id = self.valid_question_id
 
         with patch('question.models.Question.objects.get') as mock_get_question:
             with patch('cause.models.Causes.objects.filter') as mock_filter_causes:
@@ -182,7 +183,7 @@ class TestCausesService(TestCase):
                 mock_get_question.return_value = mock_question
 
                 # Act
-                results = self.service.get_list(question_id=self.valid_question_id)
+                results = self.service.get_list(question_id=mock_question.id)
 
                 # Assert
                 self.assertEqual(len(results), 2)
@@ -191,6 +192,7 @@ class TestCausesService(TestCase):
                 self.assertEqual(results[0].id, cause_id1)
                 self.assertEqual(results[1].id, cause_id2)
                 mock_filter_causes.assert_called_once_with(question_id=self.valid_question_id)
+                mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
     def test_get_list_question_not_found(self):
         # Arrange
@@ -201,7 +203,7 @@ class TestCausesService(TestCase):
 
                 # Act & Assert
                 with self.assertRaises(NotFoundRequestException) as context:
-                    self.service.get_list(question_id=self.valid_question_id)
+                    self.service.get_list(question_id=uuid.uuid4())
                 self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
 
     def test_get_list_empty_causes(self):
