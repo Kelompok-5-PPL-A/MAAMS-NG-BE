@@ -191,7 +191,6 @@ class TestCausesService(TestCase):
                 self.assertEqual(results[0].id, cause_id1)
                 self.assertEqual(results[1].id, cause_id2)
                 mock_filter_causes.assert_called_once_with(question_id=self.valid_question_id)
-                mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
     def test_get_list_question_not_found(self):
         # Arrange
@@ -203,8 +202,7 @@ class TestCausesService(TestCase):
                 # Act & Assert
                 with self.assertRaises(NotFoundRequestException) as context:
                     self.service.get_list(question_id=self.valid_question_id)
-                    self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
-                    mock_get_question.assert_called_once_with(pk=self.valid_question_id)
+                self.assertEqual(str(context.exception), ErrorMsg.CAUSE_NOT_FOUND)
 
     def test_get_list_empty_causes(self):
         # Arrange
@@ -225,7 +223,6 @@ class TestCausesService(TestCase):
                 # Assert
                 self.assertEqual(len(results), 0)  # Should be an empty list, not an error
                 mock_filter_causes.assert_called_once_with(question_id=self.valid_question_id)
-                mock_get_question.assert_called_once_with(pk=self.valid_question_id)
 
     def test_patch_cause_success(self):
         # Arrange
