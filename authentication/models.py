@@ -72,6 +72,17 @@ class CustomUser(AbstractUser):
             'unique': "A user with that username already exists.",
         },
     )
+
+    given_name = models.CharField(
+        max_length=30, 
+        blank=True, 
+        help_text='User\'s given name (first name).'
+    )
+    family_name = models.CharField(
+        max_length=30, 
+        blank=True, 
+        help_text='User\'s family name (last name).'
+    )
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -82,6 +93,6 @@ class CustomUser(AbstractUser):
         return self.email
     
     def get_full_name(self):
-        full_name = f"{self.first_name} {self.last_name}".strip()
+        full_name = f"{self.given_name} {self.family_name}".strip()
         
         return full_name or self.email
