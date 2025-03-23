@@ -20,9 +20,8 @@ class TokenService:
         }
 
 class GoogleAuthService:
-    def __init__(self, token_service, google_client_id):
+    def __init__(self, token_service):
         self.token_service = token_service
-        self.google_client_id = settings.GOOGLE_CLIENT_ID
     
     def verify_google_token(self, token):
         try:
@@ -30,7 +29,7 @@ class GoogleAuthService:
                 raise ParseError("id_token is required")
                 
             user_info = id_token.verify_oauth2_token(
-                token, google_requests.Request(), self.google_client_id
+                token, google_requests.Request()
             )
             
             if not user_info:
@@ -72,8 +71,8 @@ class GoogleAuthService:
                     email=email,
                     username=email,
                     google_id=google_id,
-                    given_name=user_info.get('given_name'),
-                    family_name=user_info.get('family_name')
+                    first_name=user_info.get('given_name'),
+                    last_name=user_info.get('family_name')
                 )
                 is_new_user = True
                 

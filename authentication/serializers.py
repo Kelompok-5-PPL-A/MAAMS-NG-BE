@@ -6,7 +6,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             'uuid', 'email', 
-            'given_name', 'family_name', 'date_joined',
+            'first_name', 'last_name', 'date_joined',
             'is_active', 'is_staff'
         ]
         read_only_fields = ['uuid', 'date_joined', 'is_active', 'is_staff']
