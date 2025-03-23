@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.exceptions import AuthenticationFailed, ValidationError, ParseError
+from rest_framework.exceptions import AuthenticationFailed, ParseError
 
 from drf_spectacular.utils import extend_schema
 
@@ -52,14 +52,8 @@ def google_login(request):
     except ParseError as e:
         return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    except ValidationError as e:
-        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
     except AuthenticationFailed as e:
         return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.exception("Unexpected error in google_login: %s", str(e))
         return Response({'detail': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
