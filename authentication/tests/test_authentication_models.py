@@ -95,8 +95,8 @@ class CustomUserTests(TestCase):
         user1 = CustomUser.objects.create(
             email='test1@example.com',
             username='test1',
-            first_name='Test',
-            last_name='User'
+            given_name='Test',
+            family_name='User'
         )
 
         self.assertEqual(user1.get_full_name(), 'Test User')
