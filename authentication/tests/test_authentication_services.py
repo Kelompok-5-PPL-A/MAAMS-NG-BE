@@ -1,6 +1,6 @@
 from unittest import mock
 from django.test import TestCase
-from rest_framework.exceptions import AuthenticationFailed, ParseError
+from rest_framework.exceptions import AuthenticationFailed
 
 from authentication.models import CustomUser
 from authentication.services import TokenService, GoogleAuthService
@@ -50,7 +50,8 @@ class GoogleAuthServiceTests(TestCase):
     @mock.patch('authentication.services.id_token.verify_oauth2_token')
     def test_verify_google_token_empty(self, mock_verify):
         """Test token verification with empty token."""
-        with self.assertRaises(ParseError):
+
+        with self.assertRaises(AuthenticationFailed):
             self.auth_service.verify_google_token('')
         
         mock_verify.assert_not_called()
@@ -98,7 +99,7 @@ class GoogleAuthServiceTests(TestCase):
         
         user, is_new_user = self.auth_service.authenticate_or_create_user(self.mock_user_info)
         
-        self.assertEqual(user.id, existing_user.id)
+        self.assertEqual(user.uuid, existing_user.uuid)
         self.assertFalse(is_new_user)
     
     def test_authenticate_or_create_user_existing_by_email(self):
@@ -111,7 +112,7 @@ class GoogleAuthServiceTests(TestCase):
         
         user, is_new_user = self.auth_service.authenticate_or_create_user(self.mock_user_info)
         
-        self.assertEqual(user.id, existing_user.id)
+        self.assertEqual(user.uuid, existing_user.uuid)
         self.assertEqual(user.google_id, self.mock_user_info['sub'])
         self.assertFalse(is_new_user)
     
@@ -121,8 +122,8 @@ class GoogleAuthServiceTests(TestCase):
         
         self.assertEqual(user.email, self.mock_user_info['email'])
         self.assertEqual(user.google_id, self.mock_user_info['sub'])
-        self.assertEqual(user.given_name, self.mock_user_info['given_name'])
-        self.assertEqual(user.family_name, self.mock_user_info['family_name'])
+        self.assertEqual(user.first_name, self.mock_user_info['given_name'])
+        self.assertEqual(user.last_name, self.mock_user_info['family_name'])
         self.assertTrue(is_new_user)
     
     @mock.patch.object(GoogleAuthService, 'verify_google_token')

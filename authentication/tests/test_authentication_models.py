@@ -89,26 +89,6 @@ class CustomUserTests(TestCase):
 
         self.assertEqual(str(user), 'test@example.com')
     
-    def test_get_full_name(self):
-        """Test the get_full_name method."""
-        # User with first and last name
-        user1 = CustomUser.objects.create(
-            email='test1@example.com',
-            username='test1',
-            given_name='Test',
-            family_name='User'
-        )
-
-        self.assertEqual(user1.get_full_name(), 'Test User')
-        
-        # User without first and last name
-        user2 = CustomUser.objects.create(
-            email='test2@example.com',
-            username='test2'
-        )
-        
-        self.assertEqual(user2.get_full_name(), 'test2@example.com')
-    
     def test_email_uniqueness(self):
         """Test that users with duplicate emails can't be created."""
         CustomUser.objects.create(

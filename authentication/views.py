@@ -26,7 +26,7 @@ def google_login(request):
             return Response({'id_token': ['This field may not be blank.']}, status=status.HTTP_400_BAD_REQUEST)
             
         token_service = TokenService()
-        auth_service = GoogleAuthService(token_service=token_service, google_client_id=None)
+        auth_service = GoogleAuthService(token_service=token_service)
         
         result = auth_service.process_google_login(request.data.get('id_token'))
         
@@ -59,4 +59,7 @@ def google_login(request):
         return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception("Unexpected error in google_login: %s", str(e))
         return Response({'detail': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

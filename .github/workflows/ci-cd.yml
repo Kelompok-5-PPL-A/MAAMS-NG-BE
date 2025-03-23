@@ -68,7 +68,7 @@ jobs:
           pip install coverage
       - name: Run tests and generate coverage
         run: |
-          coverage run manage.py test
+          coverage run manage.py test --keepdb
           coverage report
           coverage html
           coverage xml
