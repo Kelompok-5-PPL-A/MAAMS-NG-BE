@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.views.decorators.http import require_POST
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -18,6 +19,7 @@ from authentication.services import GoogleAuthService, TokenService
     request=GoogleAuthRequestSerializer,
     responses=LoginResponseSerializer,
 )
+@require_POST
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_login(request):
