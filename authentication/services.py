@@ -1,4 +1,5 @@
 import os
+from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -21,7 +22,7 @@ class TokenService:
 class GoogleAuthService:
     def __init__(self, token_service, google_client_id):
         self.token_service = token_service
-        self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        self.google_client_id = settings.GOOGLE_CLIENT_ID
     
     def verify_google_token(self, token):
         try:
@@ -71,8 +72,8 @@ class GoogleAuthService:
                     email=email,
                     username=email,
                     google_id=google_id,
-                    first_name=user_info.get('given_name'),
-                    last_name=user_info.get('family_name')
+                    given_name=user_info.get('given_name'),
+                    family_name=user_info.get('family_name')
                 )
                 is_new_user = True
                 
