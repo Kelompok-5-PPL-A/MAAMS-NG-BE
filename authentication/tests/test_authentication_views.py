@@ -152,3 +152,16 @@ class GoogleLoginViewTests(TestCase):
         )
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_google_login_parse_error(self):
+        """Test Google login with malformed JSON data."""
+        # Create malformed request by sending invalid JSON
+        response = self.client.post(
+            self.url,
+            data="invalid json data{",  # Malformed JSON
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+        self.mock_process.assert_not_called()
