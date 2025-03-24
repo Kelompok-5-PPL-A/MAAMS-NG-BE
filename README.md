@@ -4,6 +4,11 @@
 [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Kelompok-5-PPL-A_MAAMS-NG-BE&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=Kelompok-5-PPL-A_MAAMS-NG-BE)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Kelompok-5-PPL-A_MAAMS-NG-BE&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Kelompok-5-PPL-A_MAAMS-NG-BE)
 
+
+## Codecov
+
+[![codecov](https://codecov.io/gh/Kelompok-5-PPL-A/MAAMS-NG-BE/branch/ci-cd/graph/badge.svg?token=55GK61BZGJ)](https://codecov.io/gh/Kelompok-5-PPL-A/MAAMS-NG-BE)
+
 ## MAAMS-NG
 
 **Kelompok-5 PPL A**
