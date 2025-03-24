@@ -1,8 +1,6 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import permission_classes
 from authentication.models import CustomUser
 from unittest.mock import patch, Mock
 from question.models import Question
@@ -268,19 +266,17 @@ class TestQuestionGet(TestCase):
         self.assertEqual(response.data['mode'], self.question.mode)
         self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
     
-@permission_classes([IsAuthenticated])
 class TestQuestionGetRecentAnalysis(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.url = '/question/recent/'
-        self.user = CustomUser.objects.create_user(username="testuser", password="password")
+        self.user = CustomUser.objects.create_user(username="testuser", email="testuser@example.com", password="password")
         self.client.force_authenticate(user=self.user)
 
         self.old_question = Question.objects.create(
             title="Old Question",
             question="Old Question Content",
-            mode=Question.ModeChoices.PENGAWASAN,
-            user=self.user,
+            mode=Question.ModeChoices.PRIBADI,
             created_at=datetime(2024, 1, 1),
             id=uuid.uuid4()
         )
@@ -288,8 +284,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
         self.recent_question = Question.objects.create(
             title="Recent Question",
             question="Recent Question Content",
-            mode=Question.ModeChoices.PENGAWASAN,
-            user=self.user,
+            mode=Question.ModeChoices.PRIBADI,
             created_at=datetime(2025, 3, 1),
             id=uuid.uuid4()
         )
@@ -311,5 +306,13 @@ class TestQuestionGetRecentAnalysis(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data['detail'], "No recent questions found.")   
     
+    def test_get_recent_analysis_unexpected_error(self):
+        """Test unexpected error during recent analysis retrieval"""
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            # Paksa service untuk melempar exception
+            mock_get_recent.side_effect = Exception("Unexpected error occurred")
 
-    
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data['detail'], "Unexpected error occurred")
