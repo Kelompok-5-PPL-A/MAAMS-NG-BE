@@ -1,0 +1,74 @@
+coverage:
+  precision: 2
+  round: down
+  range: "50...80"
+  status:
+    project:
+      default:
+        target: 50%
+    patch:
+      default:
+        target: 41.67%
+        threshold: 0.01%
+    critical_files_paths:
+      - */models.py
+      - */serializers.py
+      - */services.py
+      - */views.py
+
+codecov:
+  require_ci_to_pass: yes
+  notify:
+    manual_trigger: true
+    notify_error: true
+
+github_checks:
+  annotations: true
+
+comment:
+  layout: "newheader, diff, flags, components, files"
+  require_changes: false      # if true: only post the comment if coverage changes
+  require_base: false         # [yes :: must have a base report to post]
+  require_head: true          # [yes :: must have a head report to post]
+  show_carryforward_flags: true 
+  show_critical_paths: true   # new option to labeled critical files
+  hide_comment_details: true  # collapse all the "detailed info" for the PR comment
+
+flags:
+  django:
+    carryforward: true
+    paths:
+      - "*/"
+  models:
+    carryforward: true
+    paths:
+      - "*/models.py"
+  views:
+    carryforward: true
+    paths:
+      - "*/views.py"
+  serializers:
+    carryforward: true
+    paths:
+      - "*/serializers.py"
+  tests:
+    carryforward: true
+    paths:
+      - "*/tests.py"
+      - "*/tests/"
+
+component_management:
+  individual_components:
+    - component_id: "backend"
+      name: "Django Backend"
+      flag_regexes:
+        - "models"
+        - "views"
+        - "serializers"
+        - "tests"
+
+- name: Upload coverage reports to Codecov
+  uses: codecov/codecov-action@v5
+  with:
+    token: ${{ secrets.CODECOV_TOKEN }}
+    verbose: true
