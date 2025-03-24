@@ -69,8 +69,9 @@ component_management:
         - "serializers"
         - "tests"
 
-- name: Upload coverage reports to Codecov
-  uses: codecov/codecov-action@v5
-  with:
-    token: ${{ secrets.CODECOV_TOKEN }}
-    verbose: true
+steps:
+  - name: Upload coverage reports to Codecov
+    uses: codecov/codecov-action@v5
+    with:
+      token: ${{ secrets.CODECOV_TOKEN }}
+      verbose: true
