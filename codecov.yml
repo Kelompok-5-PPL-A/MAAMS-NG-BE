@@ -11,10 +11,12 @@ coverage:
         target: 41.67%
         threshold: 0.01%
     critical_files_paths:
-      - */models.py
-      - */serializers.py
-      - */services.py
-      - */views.py
+      - "**/models.py"
+      - "**/serializers.py"
+      - "**/services.py"
+      - "**/views.py"
+      - "**/tests.py"
+      - "**/tests/"
 
 codecov:
   require_ci_to_pass: yes
@@ -38,24 +40,24 @@ flags:
   django:
     carryforward: true
     paths:
-      - "*/"
+      - "**/*"
   models:
     carryforward: true
     paths:
-      - "*/models.py"
+      - "**/models.py"
   views:
     carryforward: true
     paths:
-      - "*/views.py"
+      - "**/views.py"
   serializers:
     carryforward: true
     paths:
-      - "*/serializers.py"
+      - "**/serializers.py"
   tests:
     carryforward: true
     paths:
-      - "*/tests.py"
-      - "*/tests/"
+      - "**/tests.py"
+      - "**/tests/"
 
 component_management:
   individual_components:
