@@ -23,7 +23,7 @@ class CausesModelTest(TestCase):
         self.causes_uuid = uuid.uuid4()
 
         Causes.objects.create(
-            problem=self.question,
+            question=self.question,
             id=self.causes_uuid,
             row=1,
             column=1,
@@ -34,7 +34,7 @@ class CausesModelTest(TestCase):
     def test_causes(self):
         causes = Causes.objects.get(id=self.causes_uuid)
         self.assertIsNotNone(causes)
-        self.assertEqual(causes.problem.id, self.question.id)
+        self.assertEqual(causes.question.id, self.question.id)
         self.assertEqual(causes.row, 1)
         self.assertEqual(causes.column, 1)
         self.assertEqual(causes.mode, Causes.ModeChoices.PRIBADI)

@@ -104,7 +104,7 @@ class TestQuestionService():
             mock_create.assert_called_once()
             assert result == mock_question
 
-class QuestionServiceTest(TestCase):
+class TestQuestionService(TestCase):
     def setUp(self):
         self.service = QuestionService()
         self.question_id = uuid.uuid4()
