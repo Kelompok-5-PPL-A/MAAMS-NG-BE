@@ -26,9 +26,10 @@ export default function () {
   const randomTitle = `Test ${randomString(5)}`;
   
   let submitRes = http.post(`${BASE_URL}/question/submit/`, JSON.stringify({
-    title: randomTitle,
+    mode: "PRIBADI",
     question: "Load testing simulation question",
-    mode: "PRIBADI"
+    tags: ["tag1", "tag2"],
+    title: randomTitle
   }), { 
     headers: { 
       'Content-Type': 'application/json',
