@@ -130,7 +130,7 @@ class TestQuestionService(TestCase):
 
     def test_validate_tags_duplicate_tag(self):
         # Test _validate_tags with duplicate tag
-        tag_name = "duplicate_tag"
+        tag_name = "duplicate"
         Tag.objects.create(name=tag_name)
         
         with self.assertRaises(UniqueTagException) as context:
