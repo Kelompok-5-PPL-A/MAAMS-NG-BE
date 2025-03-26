@@ -1,36 +1,15 @@
 FROM python:3.10-slim
 
-ARG ENVIRONMENT
-ARG DATABASE_URL
-ARG DATABASE_USERNAME
-ARG DATABASE_PASSWORD
-ARG HOST_FE
-ARG SECRET_KEY
-ARG GROQ_API_KEY
-ARG SENTRY_DSN
-
-ENV ENVIRONMENT=${ENVIRONMENT}
-ENV DATABASE_URL=${DATABASE_URL}
-ENV DATABASE_USERNAME=${DATABASE_USERNAME}
-ENV DATABASE_PASSWORD=${DATABASE_PASSWORD}
-ENV HOST_FE=${HOST_FE}
-ENV SECRET_KEY=${SECRET_KEY}
-ENV GROQ_API_KEY=${GROQ_API_KEY}
-ENV SENTRY_DSN=${SENTRY_DSN}
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY . /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-RUN if [ "$ENVIRONMENT" = "staging" ] || [ "$ENVIRONMENT" = "development" ]; then \
-    python manage.py migrate; \
-    fi
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8000
 
