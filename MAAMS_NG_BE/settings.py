@@ -14,6 +14,7 @@ import os
 import sentry_sdk
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
+from datetime import timedelta
 
 env_file = find_dotenv(
      filename=".env",
@@ -34,8 +35,6 @@ SECRET_KEY = 'django-insecure-vv6@i-05#(1k&p8*mrixezpjmgdx0p_&c=o#4er_=fnd@xp1a+
 
 ALLOWED_HOSTS = ["*"]
 
-# Application definition
-
 INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.admin',
@@ -44,17 +43,26 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'validator',
+
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
     'drf_spectacular',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
+    'authentication',
+    'cause',
     'question',
     'tag',
-    'cause'
+    'validator',
 ]
 
 MIDDLEWARE = [
+    'allauth.account.middleware.AccountMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -91,8 +99,12 @@ WSGI_APPLICATION = 'MAAMS_NG_BE.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv("DB_NAME"),
+        'USER': os.getenv("DB_USER"),
+        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'HOST': os.getenv("DB_HOST"),
+        'PORT': os.getenv("DB_PORT"),
     }
 }
 
@@ -150,6 +162,55 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
 }
+
+AUTH_USER_MODEL = 'authentication.CustomUser'
+
+# Django allauth config
+SITE_ID = 1
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+ACCOUNT_LOGIN_METHODS = {'email'}
+
+# Google OAuth settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.getenv("GOOGLE_CLIENT_ID"),
+            'secret': os.getenv("GOOGLE_CLIENT_SECRET"),
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'FETCH_USERINFO' : True,
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# JWT settings
+SIMPLE_JWT = {
+    'USER_ID_FIELD': 'uuid',
+    'USER_ID_CLAIM': 'user_id',
+}
+
+# DRF-Spectacular configurations, OpenAPI3 schema generator
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MAAMS-NG-BE',
+    'DESCRIPTION': 'Backend API documentation for MAAMS.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
