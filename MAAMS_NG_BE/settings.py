@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'question',
     'tag',
     'validator',
+    'apps.blacklist',
 ]
 
 MIDDLEWARE = [
@@ -126,7 +127,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -138,9 +138,30 @@ USE_I18N = True
 
 USE_TZ = True
 
+FRONTEND_URL = os.getenv('FRONTEND_URL')
+
 CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_ORIGINS = [ 
-    os.getenv("HOST_FE") 
+    os.getenv("HOST_FE"),
+    FRONTEND_URL,
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
+    'x-refresh-token',
+    'access-control-allow-origin',
+    'access-control-allow-credentials',
+    'cache-control',
+    'user-agent',
+]
+
+CORS_EXPOSE_HEADERS = [
+    'authorization',
+    'x-refresh-token',
 ]
 
 # Static files (CSS, JavaScript, Images)
@@ -157,6 +178,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -193,6 +217,9 @@ SOCIALACCOUNT_PROVIDERS = {
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
+    'authentication.backends.EmailOrUsernameModelBackend',
+    'authentication.backends.GoogleOAuthBackend',
+    'authentication.backends.SSOUIBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
@@ -200,6 +227,15 @@ AUTHENTICATION_BACKENDS = [
 SIMPLE_JWT = {
     'USER_ID_FIELD': 'uuid',
     'USER_ID_CLAIM': 'user_id',
+    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXP_TIME"))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("REFRESH_TOKEN_EXP_TIME"))),
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY"),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 # DRF-Spectacular configurations, OpenAPI3 schema generator
