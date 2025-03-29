@@ -227,8 +227,8 @@ AUTHENTICATION_BACKENDS = [
 SIMPLE_JWT = {
     'USER_ID_FIELD': 'uuid',
     'USER_ID_CLAIM': 'user_id',
-    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXP_TIME"))),
-    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("REFRESH_TOKEN_EXP_TIME"))),
+    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXP_TIME", 900))),       # Set default 15 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("REFRESH_TOKEN_EXP_TIME", 1800))),    # Set default 30 minutes
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY"),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
