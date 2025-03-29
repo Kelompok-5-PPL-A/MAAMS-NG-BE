@@ -3,7 +3,9 @@ from django.test import TestCase
 from rest_framework.exceptions import AuthenticationFailed
 
 from authentication.models import CustomUser
-from authentication.services import TokenService, GoogleAuthService
+from authentication.services.token import TokenService
+from authentication.services.google_auth import GoogleAuthService
+from authentication.services.sso_ui_auth import SSOUIAuthService
 
 class TokenServiceTests(TestCase):
     def setUp(self):
@@ -37,7 +39,7 @@ class GoogleAuthServiceTests(TestCase):
             'family_name': 'User'
         }
     
-    @mock.patch('authentication.services.id_token.verify_oauth2_token')
+    @mock.patch('google.oauth2.id_token.verify_oauth2_token')
     def test_verify_google_token_success(self, mock_verify):
         """Test successful token verification."""
         mock_verify.return_value = self.mock_user_info
@@ -47,16 +49,15 @@ class GoogleAuthServiceTests(TestCase):
         self.assertEqual(result, self.mock_user_info)
         mock_verify.assert_called_once()
     
-    @mock.patch('authentication.services.id_token.verify_oauth2_token')
+    @mock.patch('google.oauth2.id_token.verify_oauth2_token')
     def test_verify_google_token_empty(self, mock_verify):
         """Test token verification with empty token."""
-
         with self.assertRaises(AuthenticationFailed):
             self.auth_service.verify_google_token('')
         
         mock_verify.assert_not_called()
     
-    @mock.patch('authentication.services.id_token.verify_oauth2_token')
+    @mock.patch('google.oauth2.id_token.verify_oauth2_token')
     def test_verify_google_token_invalid(self, mock_verify):
         """Test token verification with invalid token."""
         mock_verify.side_effect = ValueError("Invalid token")
@@ -66,7 +67,7 @@ class GoogleAuthServiceTests(TestCase):
         
         mock_verify.assert_called_once()
     
-    @mock.patch('authentication.services.id_token.verify_oauth2_token')
+    @mock.patch('google.oauth2.id_token.verify_oauth2_token')
     def test_verify_google_token_returns_none(self, mock_verify):
         """Test token verification that returns None."""
         mock_verify.return_value = None
@@ -90,7 +91,6 @@ class GoogleAuthServiceTests(TestCase):
     
     def test_authenticate_or_create_user_existing_by_google_id(self):
         """Test finding existing user by Google ID."""
-
         # Create a user with the Google ID
         existing_user = CustomUser.objects.create_user(
             email='existing@example.com',
@@ -104,7 +104,6 @@ class GoogleAuthServiceTests(TestCase):
     
     def test_authenticate_or_create_user_existing_by_email(self):
         """Test finding existing user by email and updating Google ID."""
-
         # Create a user with the same email but no Google ID
         existing_user = CustomUser.objects.create_user(
             email=self.mock_user_info['email']

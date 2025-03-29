@@ -6,7 +6,9 @@ from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 
 from authentication.models import CustomUser
-from authentication.services import GoogleAuthService
+from authentication.services.token import TokenService
+from authentication.services.google_auth import GoogleAuthService
+from authentication.services.sso_ui_auth import SSOUIAuthService
 
 class GoogleLoginViewTests(TestCase):
     def setUp(self):
@@ -49,14 +51,13 @@ class GoogleLoginViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['access_token'], self.mock_tokens['access'])
         self.assertEqual(response.data['refresh_token'], self.mock_tokens['refresh'])
-        self.assertEqual(response.data['data']['email'], self.user.email)
+        self.assertEqual(response.data['user']['email'], self.user.email)
         self.assertEqual(response.data['detail'], "Successfully logged in.")
         
         self.mock_process.assert_called_once_with('valid_token')
     
     def test_google_login_new_user(self):
         """Test Google login with new user creation."""
-
         # Update the mock to return a new user
         self.mock_process.return_value = {
             'user': self.user,
@@ -102,7 +103,6 @@ class GoogleLoginViewTests(TestCase):
     @mock.patch.object(GoogleAuthService, 'process_google_login')
     def test_google_login_authentication_failed(self, mock_process):
         """Test Google login with failed authentication."""
-        
         # Setup the mock to raise an exception
         mock_process.side_effect = AuthenticationFailed("Invalid token")
         
@@ -121,7 +121,6 @@ class GoogleLoginViewTests(TestCase):
     @mock.patch.object(GoogleAuthService, 'process_google_login')
     def test_google_login_server_error(self, mock_process):
         """Test Google login with server error."""
-        
         # Setup the mock to raise an unexpected exception
         mock_process.side_effect = Exception("Unexpected error")
         
@@ -137,7 +136,6 @@ class GoogleLoginViewTests(TestCase):
     
     def test_google_login_invalid_response_data(self):
         """Test Google login with invalid response data structure."""
-
         # Mock the process_google_login to return invalid data
         self.mock_process.return_value = {
             'user': self.user,
