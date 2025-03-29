@@ -156,7 +156,7 @@ class GoogleLoginViewTests(TestCase):
         # Create malformed request by sending invalid JSON
         response = self.client.post(
             self.url,
-            data="invalid json data{",  # Malformed JSON
+            data="invalid json data{",xw
             content_type='application/json'
         )
         
