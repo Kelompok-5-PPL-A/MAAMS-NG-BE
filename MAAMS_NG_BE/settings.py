@@ -230,7 +230,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXP_TIME", 900))),       # Set default 15 minutes
     'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("REFRESH_TOKEN_EXP_TIME", 1800))),    # Set default 30 minutes
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY"),
+    'SIGNING_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY", ""),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'TOKEN_TYPE_CLAIM': 'token_type',
     'ROTATE_REFRESH_TOKENS': False,
