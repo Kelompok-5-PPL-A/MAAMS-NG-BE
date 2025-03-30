@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.views.decorators.http import require_POST
 from django.http import HttpResponseRedirect
 from django.contrib.auth import login, logout
@@ -17,59 +16,60 @@ from drf_spectacular.utils import extend_schema
 from authentication.serializers import (
     UserSerializer, GoogleAuthRequestSerializer, 
     SSOTicketSerializer, LoginResponseSerializer,
-    ContactUpdateSerializer
+    ContactUpdateSerializer, TokenRefreshSerializer
 )
-from authentication.services.token import TokenService
-from authentication.services.google_auth import GoogleAuthService
-from authentication.services.sso_ui_auth import SSOUIAuthService
-from apps.blacklist.models import Blacklist
+from authentication.services.auth_service import AuthenticationService
+from authentication.services.jwt_token import JWTTokenService
+from sso_ui.config import SSOJWTConfig
 
-@extend_schema(
-    description='Authenticate with Google OAuth. Send the ID token received from Google.',
-    request=GoogleAuthRequestSerializer,
-    responses=LoginResponseSerializer,
-)
-@require_POST
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def google_login(request):
-    try:
-        if not request.data.get('id_token'):
-            return Response({'id_token': ['This field may not be blank.']}, status=status.HTTP_400_BAD_REQUEST)
+# Create service instances
+token_service = JWTTokenService()
+auth_service = AuthenticationService(token_service)
+
+ERROR_MEESSAGE = 'This field is required.'
+
+class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        description='Authenticate with Google OAuth. Send the ID token received from Google.',
+        request=GoogleAuthRequestSerializer,
+        responses=LoginResponseSerializer,
+    )
+    def post(self, request):
+        try:
+            id_token = request.data.get('id_token')
+            if not id_token:
+                return Response(
+                    {'id_token': [ERROR_MEESSAGE]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Authenticate using the Google provider
+            tokens, user, is_new_user = auth_service.authenticate_with_provider('google', id_token)
             
-        token_service = TokenService()
-        auth_service = GoogleAuthService(token_service=token_service)
+            # Return response with tokens and user info
+            user_serializer = UserSerializer(user)
             
-        result = auth_service.process_google_login(request.data.get('id_token'))
-            
-        user = result.get("user")
-        tokens = result.get("tokens")
-        is_new_user = result.get("is_new_user")
-            
-        if not user or not tokens.get('access') or not tokens.get('refresh'):
-            return Response({'detail': 'Invalid response from authentication service'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                data={
+                    "access_token": tokens["access"],
+                    "refresh_token": tokens["refresh"],
+                    "user": user_serializer.data,
+                    "is_new_user": is_new_user,
+                    "detail": "Successfully registered and logged in." if is_new_user else "Successfully logged in."
+                }, 
+                status=status.HTTP_200_OK
+            )
         
-        user_serializer = UserSerializer(user)
-            
-        return Response(
-            data={
-                "access_token": tokens["access"],
-                "refresh_token": tokens["refresh"],
-                "user": user_serializer.data,
-                "is_new_user": is_new_user,
-                "detail": "Successfully registered and logged in." if is_new_user else "Successfully logged in."
-            }, 
-            status=status.HTTP_200_OK
-        )
-    
-    except ParseError as e:
-        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-    except AuthenticationFailed as e:
-        return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    except Exception as e:
-        return Response({'detail': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except ParseError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except AuthenticationFailed as e:
+            return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        except Exception as e:
+            return Response({'detail': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SSOLoginView(APIView):
     permission_classes = [AllowAny]
@@ -85,35 +85,14 @@ class SSOLoginView(APIView):
             return Response({"error": "Missing ticket"}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
-            token_service = TokenService()
-            auth_service = SSOUIAuthService(token_service=token_service)
+            # Authenticate using the SSO provider
+            tokens, user, is_new_user = auth_service.authenticate_with_provider('sso', ticket)
             
-            # Check if the user is blacklisted
-            result = auth_service.process_sso_login(ticket)
-            
-            user = result.get("user")
-            tokens = result.get("tokens")
-            sso_tokens = result.get("sso_tokens")
-            is_new_user = result.get("is_new_user")
-            
-            # Check if user is blacklisted
-            if user.npm:
-                blacklist_entry = Blacklist.is_user_blacklisted(user.npm)
-                if blacklist_entry:
-                    return Response({
-                        "error": "User is blacklisted",
-                        "blacklist_info": {
-                            "npm": user.npm,
-                            "reason": blacklist_entry.keterangan,
-                            "blacklisted_at": blacklist_entry.startDate.isoformat(),
-                            "expires_at": blacklist_entry.endDate.isoformat() if blacklist_entry.endDate else None
-                        }
-                    }, status=status.HTTP_403_FORBIDDEN)
-            
-            login(request, user)
-            request.session["sso_token"] = sso_tokens["access_token"]
+            # Login the user to the session
+            request.session["sso_token"] = tokens["access"]
             request.session.modified = True
             
+            # Return response with tokens and user info
             user_serializer = UserSerializer(user)
             
             return Response({
@@ -125,7 +104,10 @@ class SSOLoginView(APIView):
             }, status=status.HTTP_200_OK)
             
         except AuthenticationFailed as e:
+            if hasattr(e, 'detail') and isinstance(e.detail, dict) and 'blacklist_info' in e.detail:
+                return Response(e.detail, status=status.HTTP_403_FORBIDDEN)
             return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            
         except Exception as e:
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -138,9 +120,76 @@ class SSOLogoutView(APIView):
         url = f"{config.cas_url}/logout?url={config.service_url}"
         return HttpResponseRedirect(url)
 
+class TokenRefreshView(APIView):
+    permission_classes = [AllowAny]
+    
+    @extend_schema(
+        description='Refresh an access token using a refresh token.',
+        request=TokenRefreshSerializer,
+        responses={
+            200: {
+                'description': 'Token refresh successful',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'access': {'type': 'string'},
+                                'refresh': {'type': 'string'}
+                            }
+                        }
+                    }
+                }
+            },
+            401: {'description': 'Invalid refresh token'}
+        }
+    )
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'refresh': [ERROR_MEESSAGE]}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            # Refresh the token
+            new_tokens = auth_service.refresh_token(refresh_token)
+            
+            return Response(new_tokens, status=status.HTTP_200_OK)
+            
+        except AuthenticationFailed as e:
+            return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        except Exception as e:
+            return Response({'detail': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'refresh': [ERROR_MEESSAGE]}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Blacklist the token
+        success = auth_service.logout(refresh_token)
+        
+        # Also log out from Django session
+        logout(request)
+        
+        if success:
+            return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Logout failed.'}, status=status.HTTP_400_BAD_REQUEST)
+
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        description='Get current user profile information.',
+        responses={
+            200: UserSerializer,
+            401: {'description': 'Authentication credentials were not provided.'}
+        }
+    )
     def get(self, request):
         user = request.user
         serializer = UserSerializer(user)
@@ -152,7 +201,11 @@ class UpdateContactView(APIView):
     @extend_schema(
         description='Update user contact information (WhatsApp number).',
         request=ContactUpdateSerializer,
-        responses=UserSerializer,
+        responses={
+            200: UserSerializer,
+            400: {'description': 'Invalid data provided.'},
+            401: {'description': 'Authentication credentials were not provided.'}
+        }
     )
     def post(self, request):
         data = request.data
