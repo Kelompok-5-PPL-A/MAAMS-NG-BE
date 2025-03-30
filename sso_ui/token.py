@@ -5,7 +5,7 @@ from django.utils import timezone
 def create_token(config, token_type, service_response):
     user_attr = service_response.get("authentication_success")
     if not user_attr:
-        raise Exception("Authentication failed: no user data")
+        raise ValueError("Authentication failed: no user data")
     
     exp_time = (
         config.access_token_exp_time
