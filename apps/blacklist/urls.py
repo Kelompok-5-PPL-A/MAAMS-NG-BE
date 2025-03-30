@@ -1,9 +1,20 @@
 from django.urls import path
-from apps.blacklist.views import (add_blacklist, remove_blacklist, check_blacklist_status, check_current_user_blacklist) 
+from apps.blacklist.views import (
+    BlacklistCheckView,
+    CurrentUserBlacklistCheckView,
+    BlacklistAddView,
+    BlacklistRemoveView,
+    BlacklistHistoryView,
+    ActiveBlacklistsView
+)
 
 urlpatterns = [
-    path('blacklist/add/', add_blacklist, name='add_blacklist'),
-    path('blacklist/remove/', remove_blacklist, name='remove_blacklist'),
-    path('blacklist/check/auth/', check_blacklist_status, name='check_blacklist_auth'),
-    path('blacklist/check/me/', check_current_user_blacklist, name='check_current_user_blacklist'),
+    path('blacklist/check/', BlacklistCheckView.as_view(), name='blacklist_check'),
+    path('blacklist/check/me/', CurrentUserBlacklistCheckView.as_view(), name='blacklist_check_me'),
+    
+    # Admin-only endpoints
+    path('blacklist/add/', BlacklistAddView.as_view(), name='blacklist_add'),
+    path('blacklist/remove/', BlacklistRemoveView.as_view(), name='blacklist_remove'),
+    path('blacklist/history/', BlacklistHistoryView.as_view(), name='blacklist_history'),
+    path('blacklist/active/', ActiveBlacklistsView.as_view(), name='active_blacklists'),
 ]

@@ -70,7 +70,6 @@ class Blacklist(models.Model):
         try:
             self.full_clean()
             result = super().save(*args, **kwargs)
-            
             logger.info(f"Successfully {action.lower()}d blacklist entry for NPM: {self.npm}")
             return result
         except ValidationError as e:
@@ -79,7 +78,6 @@ class Blacklist(models.Model):
     
     def delete(self, *args, **kwargs):
         logger.info(f"Deleting blacklist entry for NPM: {self.npm}, period: {self.startDate} to {self.endDate}")
-
         try:
             result = super().delete(*args, **kwargs)
             logger.info(f"Successfully deleted blacklist entry for NPM: {self.npm}")
@@ -88,52 +86,41 @@ class Blacklist(models.Model):
             logger.error(f"Failed to delete blacklist entry for NPM: {self.npm} - {str(e)}")
             raise
     
-    # Business logic methods
     @property
     def is_active(self):
-        """Check if the blacklist is currently active."""
         today = timezone.now().date()
         result = self.startDate <= today <= self.endDate
-
         logger.debug(f"Blacklist status check for NPM {self.npm}: {'Active' if result else 'Inactive'}")
         return self.startDate <= today <= self.endDate
     
     @property
     def days_remaining(self):
-        """Calculate days remaining in the blacklist."""
         today = timezone.now().date()
         if today > self.endDate:
             logger.debug(f"Blacklist for NPM {self.npm} has expired (0 days remaining)")
             return 0
-
         if today < self.startDate:
             days = (self.endDate - self.startDate).days
             logger.debug(f"Blacklist for NPM {self.npm} has not started yet ({days} days total duration)")
             return days
-
         days = (self.endDate - today).days
-
         logger.debug(f"Blacklist for NPM {self.npm} has {days} days remaining")
         return days
     
     @classmethod
     def is_user_blacklisted(cls, npm):
-        """Check if a user is currently blacklisted."""
         logger.debug(f"Checking if NPM {npm} is blacklisted")
-
         today = timezone.now().date()
         result = cls.objects.filter(
             npm=npm,
             startDate__lte=today,
             endDate__gte=today
         ).exists()
-
         logger.info(f"Blacklist check for NPM {npm}: {'Blacklisted' if result else 'Not blacklisted'}")
         return result
     
     @classmethod
     def get_active_blacklist(cls, npm):
-        """Get the active blacklist record for a user if it exists."""
         logger.debug(f"Retrieving active blacklist for NPM {npm}")
         today = timezone.now().date()
         blacklist = cls.objects.filter(
@@ -146,5 +133,4 @@ class Blacklist(models.Model):
             logger.info(f"Active blacklist found for NPM {npm}, ending on {blacklist.endDate}")
         else:
             logger.info(f"No active blacklist found for NPM {npm}")
-
         return blacklist
