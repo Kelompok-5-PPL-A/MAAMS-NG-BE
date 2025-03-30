@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.blacklist.models import Blacklist
+from apps.blacklist.models import Blacklist
 
 class BlacklistInfoSerializer(serializers.Serializer):
     start_date = serializers.DateField(source='startDate')

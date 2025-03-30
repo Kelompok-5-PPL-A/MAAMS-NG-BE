@@ -33,6 +33,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-vv6@i-05#(1k&p8*mrixezpjmgdx0p_&c=o#4er_=fnd@xp1a+'
 
+DEBUG = True
+
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
@@ -54,12 +56,12 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
+    'apps.blacklist',
     'authentication',
     'cause',
     'question',
     'tag',
     'validator',
-    'apps.blacklist',
 ]
 
 MIDDLEWARE = [
@@ -138,13 +140,10 @@ USE_I18N = True
 
 USE_TZ = True
 
-FRONTEND_URL = os.getenv('FRONTEND_URL')
-
 CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_ORIGINS = [ 
-    os.getenv("HOST_FE"),
-    FRONTEND_URL,
+    os.getenv("HOST_FE")
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -185,6 +184,7 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
+    'EXCEPTION_HANDLER': 'MAAMS_NG_BE.utils.custom_exception_handler',
 }
 
 AUTH_USER_MODEL = 'authentication.CustomUser'

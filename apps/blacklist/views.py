@@ -11,10 +11,10 @@ from drf_yasg import openapi
 
 logger = logging.getLogger(__name__)
 
-from app.blacklist.models import Blacklist
-from app.blacklist.serializers import BlacklistResponseSerializer
+from apps.blacklist.models import Blacklist
+from apps.blacklist.serializers import BlacklistResponseSerializer
 
-from apps.users.permissions import IsAdmin
+from authentication.permissions import IsAdmin
 
 @swagger_auto_schema(
     method='get',
