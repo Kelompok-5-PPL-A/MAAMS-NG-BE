@@ -22,14 +22,14 @@ class SSOTicketSerializer(serializers.Serializer):
 class ContactUpdateSerializer(serializers.Serializer):
     noWA = serializers.CharField(required=True, help_text='WhatsApp number')
 
-class AuthTokenSerializer(serializers.Serializer):
-    access_token = serializers.CharField(read_only=True)
-    refresh_token = serializers.CharField(read_only=True)
+class TokenRefreshSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True, help_text='Refresh token')
+
+class TokenPairSerializer(serializers.Serializer):
+    access = serializers.CharField(read_only=True)
+    refresh = serializers.CharField(read_only=True)
 
 class LoginResponseSerializer(serializers.Serializer):
-    class Meta:
-        ref_name = 'LoginResponse'
-    
     access_token = serializers.CharField(read_only=True)
     refresh_token = serializers.CharField(read_only=True)
     user = UserSerializer(read_only=True)
