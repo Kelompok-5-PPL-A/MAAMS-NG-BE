@@ -19,6 +19,7 @@ django-webtest==1.9.11
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
 drf-spectacular==0.27.1
+drf-yasg==1.21.10
 exceptiongroup==1.2.0
 factory-boy==3.3.0
 Faker==12.0.1
