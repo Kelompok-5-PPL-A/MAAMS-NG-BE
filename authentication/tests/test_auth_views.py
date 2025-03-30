@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import json
+import os
 
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -29,14 +30,18 @@ class TestGoogleLoginView(APITestCase):
         self.patcher = patch('authentication.views.auth_service')
         self.mock_auth_service = self.patcher.start()
         
-        # Mock user
-        self.mock_user = MagicMock(spec=User)
-        self.mock_user.email = 'test@example.com'
+        # Create a real user for serialization
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            username='testuser',
+            first_name='Test',
+            last_name='User'
+        )
         
         # Mock auth_service.authenticate_with_provider
         self.mock_tokens = {'access': 'access_token', 'refresh': 'refresh_token'}
         self.mock_auth_service.authenticate_with_provider.return_value = (
-            self.mock_tokens, self.mock_user, False
+            self.mock_tokens, self.user, False
         )
         
     def tearDown(self):
@@ -66,7 +71,7 @@ class TestGoogleLoginView(APITestCase):
         """Test Google login for a new user"""
         # Set up mock to return a new user
         self.mock_auth_service.authenticate_with_provider.return_value = (
-            self.mock_tokens, self.mock_user, True
+            self.mock_tokens, self.user, True
         )
         
         # Make the request
@@ -140,7 +145,6 @@ class TestGoogleLoginView(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn('detail', response.data)
 
-
 class TestSSOLoginView(APITestCase):
     def setUp(self):
         self.client = APIClient()
@@ -150,18 +154,27 @@ class TestSSOLoginView(APITestCase):
         self.patcher = patch('authentication.views.auth_service')
         self.mock_auth_service = self.patcher.start()
         
-        # Mock user
-        self.mock_user = MagicMock(spec=User)
-        self.mock_user.email = 'test@ui.ac.id'
+        # Create a real user for serialization
+        self.user = User.objects.create_user(
+            email='test@ui.ac.id',
+            username='testuser',
+            first_name='Test',
+            last_name='User'
+        )
         
         # Mock auth_service.authenticate_with_provider
         self.mock_tokens = {'access': 'access_token', 'refresh': 'refresh_token'}
         self.mock_auth_service.authenticate_with_provider.return_value = (
-            self.mock_tokens, self.mock_user, False
+            self.mock_tokens, self.user, False
         )
+        
+        # Mock request.session
+        self.session_patcher = patch('django.http.request.HttpRequest.session', new_callable=MagicMock)
+        self.mock_session = self.session_patcher.start()
         
     def tearDown(self):
         self.patcher.stop()
+        self.session_patcher.stop()
         
     def test_get_success(self):
         """Test successful SSO login"""
@@ -183,7 +196,7 @@ class TestSSOLoginView(APITestCase):
         """Test SSO login for a new user"""
         # Set up mock to return a new user
         self.mock_auth_service.authenticate_with_provider.return_value = (
-            self.mock_tokens, self.mock_user, True
+            self.mock_tokens, self.user, True
         )
         
         # Make the request
@@ -258,15 +271,20 @@ class TestSSOLogoutView(TestCase):
         self.factory = RequestFactory()
         self.view = SSOLogoutView.as_view()
         
-        # Mock user
-        self.user = MagicMock(spec=User)
+        # Create a user
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            username='testuser',
+            password='testpass123',
+            role='admin'  # Make it an admin to pass permission check
+        )
         
         # Mock SSOJWTConfig
         self.patcher = patch('authentication.views.SSOJWTConfig')
         self.mock_config_class = self.patcher.start()
         self.mock_config = MagicMock()
-        self.mock_config.cas_url = 'https://cas.ui.ac.id'
-        self.mock_config.service_url = 'https://example.com'
+        self.mock_config.cas_url = os.getenv("CAS_URL")
+        self.mock_config.service_url = os.getenv("SERVICE_URL")
         self.mock_config_class.return_value = self.mock_config
         
     def tearDown(self):
@@ -277,6 +295,10 @@ class TestSSOLogoutView(TestCase):
         # Create request
         request = self.factory.get('/auth/logout-sso/')
         request.user = self.user
+        
+        # Add authentication to pass permission check
+        from rest_framework.test import force_authenticate
+        force_authenticate(request, user=self.user)
         
         # Mock the logout function
         with patch('authentication.views.logout') as mock_logout:
@@ -292,7 +314,6 @@ class TestSSOLogoutView(TestCase):
             
             # Verify logout was called
             mock_logout.assert_called_once_with(request)
-
 
 class TestTokenRefreshView(APITestCase):
     def setUp(self):

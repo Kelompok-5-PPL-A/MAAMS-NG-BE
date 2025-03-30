@@ -201,154 +201,193 @@ class TestJWTTokenService(unittest.TestCase):
         self.mock_user.noWA = '08123456789'
         
     @patch('authentication.services.jwt_token.RefreshToken')
-    def test_generate_tokens(self, mock_refresh_token):
+    def test_generate_tokens(self, mock_refresh_token_class):
         """Test generating JWT tokens"""
         # Set up mock RefreshToken
         mock_refresh = MagicMock()
         mock_refresh.access_token = MagicMock()
         mock_refresh.__str__.return_value = 'refresh_token'
         mock_refresh.access_token.__str__.return_value = 'access_token'
-        mock_refresh_token.for_user.return_value = mock_refresh
+        mock_refresh_token_class.for_user.return_value = mock_refresh
         
         # Test token generation
         tokens = self.service.generate_tokens(self.mock_user)
         
         # Verify results
         self.assertEqual(tokens, {'access': 'access_token', 'refresh': 'refresh_token'})
-        mock_refresh_token.for_user.assert_called_once_with(self.mock_user)
+        mock_refresh_token_class.for_user.assert_called_once_with(self.mock_user)
         
         # Verify custom claims were added
-        self.assertEqual(mock_refresh['user_id'], str(self.mock_user.uuid))
-        self.assertEqual(mock_refresh['email'], self.mock_user.email)
-        self.assertEqual(mock_refresh['username'], self.mock_user.username)
-        self.assertEqual(mock_refresh['role'], self.mock_user.role)
-        self.assertEqual(mock_refresh['npm'], self.mock_user.npm)
-        self.assertEqual(mock_refresh['noWA'], self.mock_user.noWA)
+        mock_refresh.__setitem__.assert_any_call('user_id', str(self.mock_user.uuid))
+        mock_refresh.__setitem__.assert_any_call('email', self.mock_user.email)
+        mock_refresh.__setitem__.assert_any_call('username', self.mock_user.username)
+        mock_refresh.__setitem__.assert_any_call('role', self.mock_user.role)
+        mock_refresh.__setitem__.assert_any_call('npm', self.mock_user.npm)
+        mock_refresh.__setitem__.assert_any_call('noWA', self.mock_user.noWA)
         
-    @patch('authentication.services.jwt_token.AccessToken')
-    def test_validate_access_token(self, mock_access_token):
+    def test_validate_access_token(self):
         """Test validating an access token"""
-        # Set up mock AccessToken
-        mock_token = MagicMock()
-        mock_token.payload = {'sub': 'subject', 'exp': 1000000000}
-        mock_access_token.return_value = mock_token
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import AccessToken
         
-        # Test token validation
-        payload = self.service.validate_token('token', 'access')
-        
-        # Verify results
-        self.assertEqual(payload, mock_token.payload)
-        mock_access_token.assert_called_once_with('token')
-        
-    @patch('authentication.services.jwt_token.RefreshToken')
-    def test_validate_refresh_token(self, mock_refresh_token):
-        """Test validating a refresh token"""
-        # Set up mock RefreshToken
-        mock_token = MagicMock()
-        mock_token.payload = {'sub': 'subject', 'exp': 1000000000}
-        mock_token.get.return_value = 'jti_value'
-        mock_refresh_token.return_value = mock_token
-        
-        # Mock BlacklistedToken.objects.filter
-        with patch('authentication.services.jwt_token.BlacklistedToken.objects.filter') as mock_filter:
-            mock_filter.return_value.exists.return_value = False
+        # Patch the AccessToken class
+        with patch('rest_framework_simplejwt.tokens.AccessToken') as mock_access_token_class:
+            # Set up mock AccessToken
+            mock_token = MagicMock()
+            mock_token.payload = {'sub': 'subject', 'exp': 1000000000}
+            mock_access_token_class.return_value = mock_token
             
             # Test token validation
-            payload = self.service.validate_token('token', 'refresh')
+            payload = self.service.validate_token('token', 'access')
             
             # Verify results
             self.assertEqual(payload, mock_token.payload)
-            mock_refresh_token.assert_called_once_with('token')
-            mock_token.get.assert_called_once_with('jti')
-            mock_filter.assert_called_once_with(token__jti='jti_value')
-            
-    @patch('authentication.services.jwt_token.RefreshToken')
-    def test_validate_refresh_token_blacklisted(self, mock_refresh_token):
-        """Test validating a blacklisted refresh token"""
-        # Set up mock RefreshToken
-        mock_token = MagicMock()
-        mock_token.get.return_value = 'jti_value'
-        mock_refresh_token.return_value = mock_token
+            mock_access_token_class.assert_called_once_with('token')
         
-        # Mock BlacklistedToken.objects.filter
-        with patch('authentication.services.jwt_token.BlacklistedToken.objects.filter') as mock_filter:
-            mock_filter.return_value.exists.return_value = True
+    def test_validate_refresh_token(self):
+        """Test validating a refresh token"""
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import RefreshToken
+        
+        # Patch the RefreshToken class
+        with patch('rest_framework_simplejwt.tokens.RefreshToken') as mock_refresh_token_class:
+            # Set up mock RefreshToken
+            mock_token = MagicMock()
+            mock_token.payload = {'sub': 'subject', 'exp': 1000000000}
+            mock_token.get.return_value = 'jti_value'
+            mock_refresh_token_class.return_value = mock_token
+            
+            # Mock BlacklistedToken.objects.filter
+            with patch('rest_framework_simplejwt.token_blacklist.models.BlacklistedToken.objects.filter') as mock_filter:
+                mock_filter.return_value.exists.return_value = False
+                
+                # Test token validation
+                payload = self.service.validate_token('token', 'refresh')
+                
+                # Verify results
+                self.assertEqual(payload, mock_token.payload)
+                mock_refresh_token_class.assert_called_once_with('token')
+                mock_token.get.assert_called_once_with('jti')
+                mock_filter.assert_called_once_with(token__jti='jti_value')
+            
+    def test_validate_refresh_token_blacklisted(self):
+        """Test validating a blacklisted refresh token"""
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from rest_framework_simplejwt.exceptions import TokenError
+        
+        # Patch the RefreshToken class
+        with patch('rest_framework_simplejwt.tokens.RefreshToken') as mock_refresh_token_class:
+            # Set up mock RefreshToken
+            mock_token = MagicMock()
+            mock_token.get.return_value = 'jti_value'
+            mock_refresh_token_class.return_value = mock_token
+            
+            # Mock BlacklistedToken.objects.filter
+            with patch('rest_framework_simplejwt.token_blacklist.models.BlacklistedToken.objects.filter') as mock_filter:
+                mock_filter.return_value.exists.return_value = True
+                
+                # Test token validation
+                with self.assertRaises(TokenError):
+                    self.service.validate_token('token', 'refresh')
+                
+    def test_validate_untyped_token(self):
+        """Test validating an untyped token"""
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import UntypedToken
+        
+        # Patch the UntypedToken class
+        with patch('rest_framework_simplejwt.tokens.UntypedToken') as mock_untyped_token_class:
+            # Set up mock UntypedToken
+            mock_token = MagicMock()
+            mock_token.payload = {'sub': 'subject', 'exp': 1000000000}
+            mock_untyped_token_class.return_value = mock_token
+            
+            # Test token validation
+            payload = self.service.validate_token('token', 'untyped')
+            
+            # Verify results
+            self.assertEqual(payload, mock_token.payload)
+            mock_untyped_token_class.assert_called_once_with('token')
+        
+    def test_validate_token_error(self):
+        """Test token validation with TokenError"""
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import AccessToken
+        from rest_framework_simplejwt.exceptions import TokenError
+        
+        # Patch the AccessToken class
+        with patch('rest_framework_simplejwt.tokens.AccessToken') as mock_access_token_class:
+            # Set up mock AccessToken to raise TokenError
+            mock_access_token_class.side_effect = TokenError("Token error")
             
             # Test token validation
             with self.assertRaises(TokenError):
-                self.service.validate_token('token', 'refresh')
-                
-    @patch('authentication.services.jwt_token.UntypedToken')
-    def test_validate_untyped_token(self, mock_untyped_token):
-        """Test validating an untyped token"""
-        # Set up mock UntypedToken
-        mock_token = MagicMock()
-        mock_token.payload = {'sub': 'subject', 'exp': 1000000000}
-        mock_untyped_token.return_value = mock_token
-        
-        # Test token validation
-        payload = self.service.validate_token('token', 'untyped')
-        
-        # Verify results
-        self.assertEqual(payload, mock_token.payload)
-        mock_untyped_token.assert_called_once_with('token')
-        
-    @patch('authentication.services.jwt_token.AccessToken')
-    def test_validate_token_error(self, mock_access_token):
-        """Test token validation with TokenError"""
-        # Set up mock AccessToken to raise TokenError
-        mock_access_token.side_effect = TokenError("Token error")
-        
-        # Test token validation
-        with self.assertRaises(TokenError):
-            self.service.validate_token('token', 'access')
+                self.service.validate_token('token', 'access')
             
-    @patch('authentication.services.jwt_token.AccessToken')
-    def test_validate_token_other_exception(self, mock_access_token):
+    def test_validate_token_other_exception(self):
         """Test token validation with other exception"""
-        # Set up mock AccessToken to raise Exception
-        mock_access_token.side_effect = Exception("Other error")
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import AccessToken
         
-        # Test token validation
-        with self.assertRaises(TokenError):
-            self.service.validate_token('token', 'access')
+        # Patch the AccessToken class
+        with patch('rest_framework_simplejwt.tokens.AccessToken') as mock_access_token_class:
+            # Set up mock AccessToken to raise Exception
+            mock_access_token_class.side_effect = Exception("Other error")
             
-    @patch('authentication.services.jwt_token.RefreshToken')
-    def test_blacklist_token_success(self, mock_refresh_token):
+            # Test token validation
+            with self.assertRaises(TokenError):
+                self.service.validate_token('token', 'access')
+            
+    def test_blacklist_token_success(self):
         """Test blacklisting a token successfully"""
-        # Set up mock RefreshToken
-        mock_token = MagicMock()
-        mock_token.__getitem__.return_value = 'jti_value'
-        mock_refresh_token.return_value = mock_token
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import RefreshToken
         
-        # Test blacklisting
-        success = self.service.blacklist_token('token')
+        # Patch the RefreshToken class
+        with patch('rest_framework_simplejwt.tokens.RefreshToken') as mock_refresh_token_class:
+            # Set up mock RefreshToken
+            mock_token = MagicMock()
+            mock_token.__getitem__.return_value = 'jti_value'
+            mock_refresh_token_class.return_value = mock_token
+            
+            # Test blacklisting
+            success = self.service.blacklist_token('token')
+            
+            # Verify results
+            self.assertTrue(success)
+            mock_refresh_token_class.assert_called_once_with('token')
+            mock_token.blacklist.assert_called_once()
         
-        # Verify results
-        self.assertTrue(success)
-        mock_refresh_token.assert_called_once_with('token')
-        mock_token.blacklist.assert_called_once()
-        
-    @patch('authentication.services.jwt_token.RefreshToken')
-    def test_blacklist_token_token_error(self, mock_refresh_token):
+    def test_blacklist_token_token_error(self):
         """Test blacklisting a token with TokenError"""
-        # Set up mock RefreshToken to raise TokenError
-        mock_refresh_token.side_effect = TokenError("Token error")
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from rest_framework_simplejwt.exceptions import TokenError
         
-        # Test blacklisting
-        success = self.service.blacklist_token('token')
+        # Patch the RefreshToken class
+        with patch('rest_framework_simplejwt.tokens.RefreshToken') as mock_refresh_token_class:
+            # Set up mock RefreshToken to raise TokenError
+            mock_refresh_token_class.side_effect = TokenError("Token error")
+            
+            # Test blacklisting
+            success = self.service.blacklist_token('token')
+            
+            # Verify results
+            self.assertFalse(success)
         
-        # Verify results
-        self.assertFalse(success)
-        
-    @patch('authentication.services.jwt_token.RefreshToken')
-    def test_blacklist_token_other_exception(self, mock_refresh_token):
+    def test_blacklist_token_other_exception(self):
         """Test blacklisting a token with other exception"""
-        # Set up mock RefreshToken to raise Exception
-        mock_refresh_token.side_effect = Exception("Other error")
+        # Import the actual classes from Django REST framework
+        from rest_framework_simplejwt.tokens import RefreshToken
         
-        # Test blacklisting
-        success = self.service.blacklist_token('token')
-        
-        # Verify results
-        self.assertFalse(success)
+        # Patch the RefreshToken class
+        with patch('rest_framework_simplejwt.tokens.RefreshToken') as mock_refresh_token_class:
+            # Set up mock RefreshToken to raise Exception
+            mock_refresh_token_class.side_effect = Exception("Other error")
+            
+            # Test blacklisting
+            success = self.service.blacklist_token('token')
+            
+            # Verify results
+            self.assertFalse(success)

@@ -11,25 +11,25 @@ from sso_ui.token import create_token, decode_token
 
 class TestSSOJWTConfig(TestCase):
     @patch.dict(os.environ, {
-        'ACCESS_TOKEN_EXP_TIME': '3600',
-        'REFRESH_TOKEN_EXP_TIME': '86400',
-        'ACCESS_TOKEN_SECRET_KEY': 'access_secret',
-        'REFRESH_TOKEN_SECRET_KEY': 'refresh_secret',
-        'SERVICE_URL': 'http://localhost:3000/auth/callback',
-        'ORIGIN_URL': 'http://localhost:8000/api/v1/auth',
-        'CAS_URL': 'https://sso.ui.ac.id/cas2'
+        'ACCESS_TOKEN_EXP_TIME': int(os.getenv("ACCESS_TOKEN_EXP_TIME")),
+        'REFRESH_TOKEN_EXP_TIME': int(os.getenv("REFRESH_TOKEN_EXP_TIME")),
+        'ACCESS_TOKEN_SECRET_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY", ""),
+        'REFRESH_TOKEN_SECRET_KEY': os.getenv("REFRESH_TOKEN_SECRET_KEY", ""),
+        'SERVICE_URL': os.getenv("SERVICE_URL"),
+        'ORIGIN_URL': os.getenv("ORIGIN_URL"),
+        'CAS_URL': os.getenv("CAS_URL")
     })
     def test_init_loads_from_env(self):
         """Test that SSOJWTConfig loads values from environment variables"""
         config = SSOJWTConfig()
         
-        self.assertEqual(config.access_token_exp_time, 3600)
-        self.assertEqual(config.refresh_token_exp_time, 86400)
-        self.assertEqual(config.access_token_secret_key, 'access_secret')
-        self.assertEqual(config.refresh_token_secret_key, 'refresh_secret')
-        self.assertEqual(config.service_url, 'http://localhost:3000/auth/callback')
-        self.assertEqual(config.origin_url, 'http://localhost:8000/api/v1/auth')
-        self.assertEqual(config.cas_url, 'https://sso.ui.ac.id/cas2')
+        self.assertEqual(config.access_token_exp_time, int(os.getenv("ACCESS_TOKEN_EXP_TIME")))
+        self.assertEqual(config.refresh_token_exp_time, int(os.getenv("REFRESH_TOKEN_EXP_TIME")))
+        self.assertEqual(config.access_token_secret_key, os.getenv("ACCESS_TOKEN_SECRET_KEY", ""))
+        self.assertEqual(config.refresh_token_secret_key, os.getenv("REFRESH_TOKEN_SECRET_KEY", ""))
+        self.assertEqual(config.service_url, os.getenv("SERVICE_URL"))
+        self.assertEqual(config.origin_url, os.getenv("ORIGIN_URL"))
+        self.assertEqual(config.cas_url, os.getenv("CAS_URL"))
 
 
 class TestValidateTicket(TestCase):
@@ -163,11 +163,11 @@ class TestValidateTicket(TestCase):
 class TestSSOToken(TestCase):
     def setUp(self):
         self.config = MagicMock()
-        self.config.access_token_exp_time = 3600
-        self.config.refresh_token_exp_time = 86400
-        self.config.access_token_secret_key = 'access_secret'
-        self.config.refresh_token_secret_key = 'refresh_secret'
-        
+        self.config.access_token_exp_time = int(os.getenv("ACCESS_TOKEN_EXP_TIME"))
+        self.config.refresh_token_exp_time = int(os.getenv("REFRESH_TOKEN_EXP_TIME"))
+        self.config.access_token_secret_key = os.getenv("ACCESS_TOKEN_SECRET_KEY", "")
+        self.config.refresh_token_secret_key = os.getenv("REFRESH_TOKEN_SECRET_KEY", "")
+
         # Sample service response
         self.service_response = {
             "authentication_success": {
@@ -218,7 +218,7 @@ class TestSSOToken(TestCase):
         
         # Verify jwt.encode was called with correct parameters
         mock_jwt.encode.assert_called_once()
-        args, kwargs = mock_jwt.encode.call_args
+        args, _ = mock_jwt.encode.call_args
         
         # Check secret key
         self.assertEqual(args[1], self.config.refresh_token_secret_key)

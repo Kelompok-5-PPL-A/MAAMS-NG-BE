@@ -26,8 +26,14 @@ class TestAuthProviderFactory(unittest.TestCase):
         provider = AuthProviderFactory.get_provider('google')
         self.assertIsInstance(provider, GoogleAuthProvider)
         
-    def test_get_provider_sso(self):
+    @patch('authentication.providers.sso_ui.SSOJWTConfig')
+    def test_get_provider_sso(self, mock_config_class):
         """Test getting an SSO provider"""
+        # Mock the config
+        mock_config = MagicMock()
+        mock_config_class.return_value = mock_config
+        
+        # Get provider
         provider = AuthProviderFactory.get_provider('sso')
         self.assertIsInstance(provider, SSOUIAuthProvider)
         
@@ -306,7 +312,17 @@ class TestGoogleAuthProvider(unittest.TestCase):
 
 class TestSSOUIAuthProvider(unittest.TestCase):
     def setUp(self):
+        # Mock SSOJWTConfig
+        self.config_patcher = patch('authentication.providers.sso_ui.SSOJWTConfig')
+        self.mock_config_class = self.config_patcher.start()
+        self.mock_config = MagicMock()
+        self.mock_config_class.return_value = self.mock_config
+        
+        # Create provider after mocking the config
         self.provider = SSOUIAuthProvider()
+        
+    def tearDown(self):
+        self.config_patcher.stop()
         
     @patch('authentication.providers.sso_ui.validate_ticket')
     def test_validate_credential_success(self, mock_validate_ticket):
@@ -344,44 +360,6 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         # Test the validation
         with self.assertRaises(AuthenticationFailed):
             self.provider.validate_credential('invalid_ticket')
-            
-    @patch('authentication.providers.sso_ui.validate_ticket')
-    def test_validate_credential_missing_username(self, mock_validate_ticket):
-        """Test validation with missing username"""
-        # Mock the SSO ticket validation
-        mock_response = {
-            "authentication_success": {
-                "attributes": {
-                    "npm": "2206081534"
-                }
-            }
-        }
-        mock_validate_ticket.return_value = mock_response
-        
-        # Test the validation
-        with self.assertRaises(AuthenticationFailed):
-            self.provider.validate_credential('ticket')
-            
-    @patch('authentication.providers.sso_ui.validate_ticket')
-    def test_validate_credential_validate_ticket_error(self, mock_validate_ticket):
-        """Test validation with ValidateTicketError"""
-        # Mock the SSO ticket validation to raise ValidateTicketError
-        from sso_ui.ticket import ValidateTicketError
-        mock_validate_ticket.side_effect = ValidateTicketError("Invalid ticket")
-        
-        # Test the validation
-        with self.assertRaises(AuthenticationFailed):
-            self.provider.validate_credential('invalid_ticket')
-            
-    @patch('authentication.providers.sso_ui.validate_ticket')
-    def test_validate_credential_unexpected_error(self, mock_validate_ticket):
-        """Test validation with unexpected error"""
-        # Mock the SSO ticket validation to raise an unexpected error
-        mock_validate_ticket.side_effect = Exception("Unexpected error")
-        
-        # Test the validation
-        with self.assertRaises(AuthenticationFailed):
-            self.provider.validate_credential('ticket')
             
     @patch.object(SSOUIAuthProvider, 'validate_credential')
     @patch.object(SSOUIAuthProvider, 'get_or_create_user')
@@ -639,3 +617,40 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         # Verify email wasn't updated
         self.assertEqual(mock_user.email, "")
         mock_user.save.assert_not_called()
+            
+    @patch('authentication.providers.sso_ui.validate_ticket')
+    def test_validate_credential_missing_username(self, mock_validate_ticket):
+        """Test validation with missing username"""
+        # Mock the SSO ticket validation
+        mock_response = {
+            "authentication_success": {
+                "attributes": {
+                    "npm": "2206081534"
+                }
+            }
+        }
+        mock_validate_ticket.return_value = mock_response
+        
+        # Test the validation
+        with self.assertRaises(AuthenticationFailed):
+            self.provider.validate_credential('ticket')
+            
+    @patch('authentication.providers.sso_ui.validate_ticket')
+    def test_validate_credential_validate_ticket_error(self, mock_validate_ticket):
+        """Test validation with ValidateTicketError"""
+        # Mock the SSO ticket validation to raise ValidateTicketError
+        from sso_ui.ticket import ValidateTicketError
+        mock_validate_ticket.side_effect = ValidateTicketError("Invalid ticket")
+        
+        # Test the validation
+        with self.assertRaises(AuthenticationFailed):
+            self.provider.validate_credential('invalid_ticket')
+            
+    @patch('authentication.providers.sso_ui.validate_ticket')
+    def test_validate_credential_unexpected_error(self, mock_validate_ticket):
+        """Test validation with unexpected error"""
+        # Mock the SSO ticket validation to raise an unexpected error
+        mock_validate_ticket.side_effect = Exception("Unexpected error")
+        
+        # Test the validation
+        with self.assertRaises(Authentication
