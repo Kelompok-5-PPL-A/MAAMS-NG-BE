@@ -8,8 +8,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, RequestFactory
 from django.http import HttpResponseRedirect
 
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APITestCase, APIClient, force_authenticate
 from rest_framework import status
+from rest_framework.request import Request
 
 from authentication.views import (
     GoogleLoginView, SSOLoginView, SSOLogoutView,
@@ -168,13 +169,8 @@ class TestSSOLoginView(APITestCase):
             self.mock_tokens, self.user, False
         )
         
-        # Mock request.session
-        self.session_patcher = patch('django.http.request.HttpRequest.session', new_callable=MagicMock)
-        self.mock_session = self.session_patcher.start()
-        
     def tearDown(self):
         self.patcher.stop()
-        self.session_patcher.stop()
         
     def test_get_success(self):
         """Test successful SSO login"""
@@ -283,8 +279,8 @@ class TestSSOLogoutView(TestCase):
         self.patcher = patch('authentication.views.SSOJWTConfig')
         self.mock_config_class = self.patcher.start()
         self.mock_config = MagicMock()
-        self.mock_config.cas_url = os.getenv("CAS_URL")
-        self.mock_config.service_url = os.getenv("SERVICE_URL")
+        self.mock_config.cas_url = 'https://cas.ui.ac.id'
+        self.mock_config.service_url = 'https://example.com'
         self.mock_config_class.return_value = self.mock_config
         
     def tearDown(self):
@@ -297,23 +293,26 @@ class TestSSOLogoutView(TestCase):
         request.user = self.user
         
         # Add authentication to pass permission check
-        from rest_framework.test import force_authenticate
         force_authenticate(request, user=self.user)
         
-        # Mock the logout function
+        # Directly patch the logout function within this test
         with patch('authentication.views.logout') as mock_logout:
             # Call the view
-            response = self.view(request)
-            
-            # Check response
-            self.assertIsInstance(response, HttpResponseRedirect)
-            self.assertEqual(
-                response.url, 
-                f"{self.mock_config.cas_url}/logout?url={self.mock_config.service_url}"
-            )
-            
-            # Verify logout was called
-            mock_logout.assert_called_once_with(request)
+            # Convert to a DRF Request first to match what the view uses
+            drf_request = Request(request)
+            drf_request.user = self.user
+            with patch('rest_framework.views.Request', return_value=drf_request):
+                response = self.view(request)
+                
+                # Check response
+                self.assertIsInstance(response, HttpResponseRedirect)
+                self.assertEqual(
+                    response.url, 
+                    f"{self.mock_config.cas_url}/logout?url={self.mock_config.service_url}"
+                )
+                
+                # Verify logout was called with the DRF request
+                mock_logout.assert_called_once_with(drf_request)
 
 class TestTokenRefreshView(APITestCase):
     def setUp(self):

@@ -653,4 +653,20 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         mock_validate_ticket.side_effect = Exception("Unexpected error")
         
         # Test the validation
-        with self.assertRaises(Authentication
+        with self.assertRaises(AuthenticationFailed):
+            self.provider.validate_credential('ticket')
+        
+    def test_update_user_info_non_ui_email(self):
+        """Test update doesn't change email if it's not from UI domain"""
+        # Create a user with empty email
+        mock_user = MagicMock(spec=User)
+        mock_user.email = ""
+        
+        # Test the update with non-UI email
+        self.provider._update_user_info(
+            mock_user, "username", "username@gmail.com", "", "", ""
+        )
+        
+        # Verify email wasn't updated
+        self.assertEqual(mock_user.email, "")
+        mock_user.save.assert_not_called()
