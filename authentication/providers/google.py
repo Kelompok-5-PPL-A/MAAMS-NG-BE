@@ -52,9 +52,12 @@ class GoogleAuthProvider(AuthenticationProvider):
             
         try:
             # Verify the ID token with Google
+            client_id = settings.GOOGLE_CLIENT_ID
+
             user_info = id_token.verify_oauth2_token(
                 credential, 
                 google_requests.Request(),
+                audience=client_id
             )
             
             # Validate token data
