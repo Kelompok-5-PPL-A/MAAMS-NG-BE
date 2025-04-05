@@ -6,7 +6,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, UntypedToken
 
-from authentication.services.auth_service import AuthenticationService
+from authentication.services.auth import AuthenticationService
 from authentication.services.jwt_token import JWTTokenService
 from authentication.providers.factory import AuthProviderFactory
 from authentication.providers.base import AuthenticationProvider
@@ -154,7 +154,7 @@ class TestAuthenticationService(unittest.TestCase):
         )
         
         # Mock User.objects.get
-        with patch('authentication.services.auth_service.User.objects.get') as mock_get:
+        with patch('authentication.services.auth.User.objects.get') as mock_get:
             mock_get.return_value = self.mock_user
             
             # Test token refresh
@@ -180,7 +180,7 @@ class TestAuthenticationService(unittest.TestCase):
         self.service.token_service = MockTokenService(payload=token_payload)
         
         # Mock User.objects.get to raise DoesNotExist
-        with patch('authentication.services.auth_service.User.objects.get') as mock_get:
+        with patch('authentication.services.auth.User.objects.get') as mock_get:
             mock_get.side_effect = User.DoesNotExist
             
             # Test token refresh

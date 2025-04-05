@@ -16,7 +16,7 @@ from authentication.views import (
     GoogleLoginView, SSOLoginView, SSOLogoutView,
     TokenRefreshView, LogoutView, UserProfileView
 )
-from authentication.services.auth_service import AuthenticationService
+from authentication.services.auth import AuthenticationService
 from authentication.services.jwt_token import JWTTokenService
 
 User = get_user_model()

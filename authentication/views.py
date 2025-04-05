@@ -18,7 +18,7 @@ from authentication.serializers import (
     SSOTicketSerializer, LoginResponseSerializer, 
     TokenRefreshSerializer
 )
-from authentication.services.auth_service import AuthenticationService
+from authentication.services.auth import AuthenticationService
 from authentication.services.jwt_token import JWTTokenService
 from sso_ui.config import SSOJWTConfig
 
