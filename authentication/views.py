@@ -15,8 +15,8 @@ from drf_spectacular.utils import extend_schema
 
 from authentication.serializers import (
     UserSerializer, GoogleAuthRequestSerializer, 
-    SSOTicketSerializer, LoginResponseSerializer,
-    ContactUpdateSerializer, TokenRefreshSerializer
+    SSOTicketSerializer, LoginResponseSerializer, 
+    TokenRefreshSerializer
 )
 from authentication.services.auth_service import AuthenticationService
 from authentication.services.jwt_token import JWTTokenService
@@ -192,42 +192,5 @@ class UserProfileView(APIView):
     )
     def get(self, request):
         user = request.user
-        serializer = UserSerializer(user)
-        return Response(serializer.data)
-
-class UpdateContactView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    @extend_schema(
-        description='Update user contact information (WhatsApp number).',
-        request=ContactUpdateSerializer,
-        responses={
-            200: UserSerializer,
-            400: {'description': 'Invalid data provided.'},
-            401: {'description': 'Authentication credentials were not provided.'}
-        }
-    )
-    def post(self, request):
-        data = request.data
-        phone_number = data.get("noWA")
-        
-        if not phone_number:
-            return Response({"error": "Field noWA is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validator for phone number
-        validator_no_wa = RegexValidator(
-            regex=r'^\d{8,15}$',
-            message="Phone number must be 8-15 digits without '+' sign"
-        )
-        
-        try:
-            validator_no_wa(phone_number)
-        except ValidationError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = request.user
-        user.noWA = phone_number
-        user.save(update_fields=['noWA'])
-        
         serializer = UserSerializer(user)
         return Response(serializer.data)

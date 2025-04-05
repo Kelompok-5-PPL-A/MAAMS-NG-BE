@@ -269,7 +269,7 @@ class TestGoogleAuthProvider(unittest.TestCase):
                 google_id='123456789',
                 first_name='Test',
                 last_name='User',
-                role='pengguna'
+                role='user'
             )
             
     def test_update_user_if_needed_no_updates(self):
@@ -559,7 +559,7 @@ class TestSSOUIAuthProvider(unittest.TestCase):
                 first_name="Test",
                 last_name="User",
                 angkatan="22",
-                role='pengguna'
+                role='user'
             )
             
     def test_update_user_info_no_updates(self):

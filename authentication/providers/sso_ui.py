@@ -161,7 +161,7 @@ class SSOUIAuthProvider(AuthenticationProvider):
             first_name=first_name,
             last_name=last_name,
             angkatan=angkatan,
-            role='pengguna'
+            role='user'
         )
         
         logger.info(f"Created new user via SSO UI: {username}")

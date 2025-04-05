@@ -67,7 +67,7 @@ class CustomUserAdmin(UserAdmin):
         }),
         (_('Authentication Info'), {
             'fields': (
-                'google_id', 'npm', 'angkatan', 'noWA'
+                'google_id', 'npm', 'angkatan'
             )
         }),
         (_('Permissions'), {

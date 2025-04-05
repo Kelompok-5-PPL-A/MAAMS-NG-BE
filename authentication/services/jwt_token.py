@@ -33,10 +33,7 @@ class JWTTokenService(TokenServiceInterface):
         # Add additional fields if available
         if hasattr(user, 'npm') and user.npm:
             refresh['npm'] = user.npm
-            
-        if hasattr(user, 'noWA') and user.noWA:
-            refresh['noWA'] = user.noWA
-            
+
         return {
             'access': str(refresh.access_token),
             'refresh': str(refresh),

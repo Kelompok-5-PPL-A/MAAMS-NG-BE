@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'uuid', 'email', 'username', 
             'first_name', 'last_name', 'date_joined',
-            'is_active', 'role', 'npm', 'angkatan', 'noWA'
+            'is_active', 'role', 'npm', 'angkatan'
         ]
         read_only_fields = ['uuid', 'date_joined', 'is_active', 'role']
 
@@ -18,9 +18,6 @@ class GoogleAuthRequestSerializer(serializers.Serializer):
 
 class SSOTicketSerializer(serializers.Serializer):
     ticket = serializers.CharField(required=True, help_text='SSO UI CAS ticket')
-
-class ContactUpdateSerializer(serializers.Serializer):
-    noWA = serializers.CharField(required=True, help_text='WhatsApp number')
 
 class TokenRefreshSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True, help_text='Refresh token')

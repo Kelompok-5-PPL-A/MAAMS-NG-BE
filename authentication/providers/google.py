@@ -132,7 +132,7 @@ class GoogleAuthProvider(AuthenticationProvider):
             google_id=google_id,
             first_name=user_info.get('given_name'),
             last_name=user_info.get('family_name'),
-            role='pengguna'
+            role='user'
         )
         
         logger.info(f"Created new user via Google OAuth: {email}")

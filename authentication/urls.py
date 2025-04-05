@@ -2,8 +2,7 @@ from django.urls import path
 
 from authentication.views import (
     GoogleLoginView, SSOLoginView, SSOLogoutView,
-    TokenRefreshView, LogoutView,
-    UserProfileView, UpdateContactView
+    TokenRefreshView, LogoutView, UserProfileView
 )
 
 app_name = 'authentication'
@@ -22,5 +21,4 @@ urlpatterns = [
     
     # User profile management
     path('profile/', UserProfileView.as_view(), name='user_profile'),
-    path('update-contact/', UpdateContactView.as_view(), name='update_contact'),
 ]

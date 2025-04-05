@@ -14,8 +14,7 @@ from rest_framework.request import Request
 
 from authentication.views import (
     GoogleLoginView, SSOLoginView, SSOLogoutView,
-    TokenRefreshView, LogoutView,
-    UserProfileView, UpdateContactView
+    TokenRefreshView, LogoutView, UserProfileView
 )
 from authentication.services.auth_service import AuthenticationService
 from authentication.services.jwt_token import JWTTokenService
@@ -483,8 +482,7 @@ class TestUserProfileView(APITestCase):
             last_name='User',
             npm='2206081534',
             angkatan='22',
-            noWA='08123456789',
-            role='pengguna'
+            role='user'
         )
         
         # Authenticate the client
@@ -503,7 +501,6 @@ class TestUserProfileView(APITestCase):
         self.assertEqual(response.data['last_name'], self.user.last_name)
         self.assertEqual(response.data['npm'], self.user.npm)
         self.assertEqual(response.data['angkatan'], self.user.angkatan)
-        self.assertEqual(response.data['noWA'], self.user.noWA)
         self.assertEqual(response.data['role'], self.user.role)
         
     def test_get_unauthorized(self):
@@ -513,76 +510,6 @@ class TestUserProfileView(APITestCase):
         
         # Make the request
         response = self.client.get(self.url)
-        
-        # Check response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class TestUpdateContactView(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.url = reverse('authentication:update_contact')
-        
-        # Create a user
-        self.user = User.objects.create_user(
-            email='test@example.com',
-            username='testuser'
-        )
-        
-        # Authenticate the client
-        self.client.force_authenticate(user=self.user)
-        
-    def test_post_success(self):
-        """Test successful contact update"""
-        # Make the request
-        phone_number = '081234567890'
-        response = self.client.post(
-            self.url, 
-            {'noWA': phone_number}, 
-            format='json'
-        )
-        
-        # Check response
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['noWA'], phone_number)
-        
-        # Verify user was updated
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.noWA, phone_number)
-        
-    def test_post_missing_field(self):
-        """Test contact update with missing field"""
-        # Make the request without noWA
-        response = self.client.post(self.url, {}, format='json')
-        
-        # Check response
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('error', response.data)
-        
-    def test_post_invalid_phone(self):
-        """Test contact update with invalid phone format"""
-        # Make the request with invalid phone
-        response = self.client.post(
-            self.url, 
-            {'noWA': 'not-a-number'}, 
-            format='json'
-        )
-        
-        # Check response
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('error', response.data)
-        
-    def test_post_unauthorized(self):
-        """Test contact update when not authenticated"""
-        # Unauthenticate the client
-        self.client.force_authenticate(user=None)
-        
-        # Make the request
-        response = self.client.post(
-            self.url, 
-            {'noWA': '081234567890'}, 
-            format='json'
-        )
         
         # Check response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

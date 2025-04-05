@@ -46,7 +46,7 @@ class TestBlacklistViews(APITestCase):
         self.regular_user = User.objects.create_user(
             email='user@example.com',
             password='userpass123',
-            role='pengguna',
+            role='user',
             npm=self.npm  # Same NPM as blacklist
         )
         

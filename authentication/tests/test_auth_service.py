@@ -199,7 +199,6 @@ class TestJWTTokenService(unittest.TestCase):
         self.mock_user.username = 'testuser'
         self.mock_user.role = 'user'
         self.mock_user.npm = '2206081534'
-        self.mock_user.noWA = '08123456789'
         
     @patch('authentication.services.jwt_token.RefreshToken')
     def test_generate_tokens(self, mock_refresh_token_class):
@@ -224,7 +223,6 @@ class TestJWTTokenService(unittest.TestCase):
         mock_refresh.__setitem__.assert_any_call('username', self.mock_user.username)
         mock_refresh.__setitem__.assert_any_call('role', self.mock_user.role)
         mock_refresh.__setitem__.assert_any_call('npm', self.mock_user.npm)
-        mock_refresh.__setitem__.assert_any_call('noWA', self.mock_user.noWA)
         
     def test_validate_access_token(self):
         """Test validating an access token"""

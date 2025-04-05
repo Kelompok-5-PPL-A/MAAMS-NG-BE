@@ -32,7 +32,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_staff', False)
         extra_fields.setdefault('is_superuser', False)
-        extra_fields.setdefault('role', 'pengguna')
+        extra_fields.setdefault('role', 'user')
         
         # Create the user
         user = self.model(email=email, **extra_fields)
@@ -80,9 +80,8 @@ class CustomUser(AbstractUser):
     
     # Role choices
     ROLE_CHOICES = [
-        ('pengguna', _('Regular User')),
+        ('user', _('Regular User')),
         ('admin', _('Administrator')),
-        ('guest', _('Guest')),
     ]
     
     # Primary key
@@ -125,13 +124,6 @@ class CustomUser(AbstractUser):
         blank=True,
         null=True,
         help_text=_('Student year (angkatan).')
-    )
-    
-    noWA = models.CharField(
-        max_length=15,
-        blank=True,
-        null=True,
-        help_text=_('WhatsApp number.')
     )
     
     # Common fields for both authentication methods

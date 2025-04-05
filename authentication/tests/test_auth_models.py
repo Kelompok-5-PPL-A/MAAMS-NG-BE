@@ -19,7 +19,7 @@ class TestCustomUserManager(TestCase):
         self.assertTrue(user.is_active)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
-        self.assertEqual(user.role, 'pengguna')
+        self.assertEqual(user.role, 'user')
         self.assertFalse(user.has_usable_password())
         
     def test_create_user_with_custom_fields(self):
@@ -87,10 +87,9 @@ class TestCustomUser(TestCase):
             username='testuser',
             first_name='Test',
             last_name='User',
-            role='pengguna',
+            role='user',
             npm='2206081534',
-            angkatan='22',
-            noWA='08123456789'
+            angkatan='22'
         )
         
     def test_str(self):
@@ -129,7 +128,7 @@ class TestCustomUser(TestCase):
         
     def test_has_role(self):
         """Test the has_role method"""
-        self.assertTrue(self.user.has_role('pengguna'))
+        self.assertTrue(self.user.has_role('user'))
         self.assertFalse(self.user.has_role('admin'))
         
         admin_user = User.objects.create_user(
@@ -137,4 +136,4 @@ class TestCustomUser(TestCase):
             role='admin'
         )
         self.assertTrue(admin_user.has_role('admin'))
-        self.assertFalse(admin_user.has_role('pengguna'))
+        self.assertFalse(admin_user.has_role('user'))
