@@ -5,8 +5,8 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import permission_classes
 from drf_spectacular.utils import extend_schema
 from question.models import Question
-from .services import QuestionService
-from .serializers import QuestionRequest, QuestionResponse
+from question.services import QuestionService
+from question.serializers import QuestionRequest, QuestionResponse
 
 
 @permission_classes([])  # Mengizinkan guest user
