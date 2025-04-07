@@ -7,9 +7,9 @@ from drf_spectacular.utils import extend_schema
 from question.models import Question
 from question.services import QuestionService
 from question.serializers import QuestionRequest, QuestionResponse
+from rest_framework.permissions import AllowAny
 
-
-@permission_classes([])  # Mengizinkan guest user
+@permission_classes([AllowAny])  # Mengizinkan guest user
 class QuestionPost(APIView):
     @extend_schema(
         description='Request and Response data for creating a question',
@@ -39,7 +39,7 @@ class QuestionPost(APIView):
             )
 
 
-@permission_classes([])
+@permission_classes([AllowAny])
 class QuestionGet(ViewSet):    
     """
     ViewSet to return all or specific questions.
