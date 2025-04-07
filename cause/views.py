@@ -6,8 +6,9 @@ from .serializers import BaseCauses, CausesRequest, CausesResponse
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import permission_classes
+from rest_framework.permissions import AllowAny
 
-@permission_classes([])
+@permission_classes([AllowAny])
 class CausesPost(APIView):
     @extend_schema(
         description='Request and Response data for creating a cause',
@@ -22,7 +23,7 @@ class CausesPost(APIView):
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-@permission_classes([])
+@permission_classes([AllowAny])
 class CausesGet(ViewSet):
     @extend_schema(
         description='Request and Response data to get a cause',
@@ -44,7 +45,7 @@ class CausesGet(ViewSet):
 
         return Response(serializer.data)
 
-@permission_classes([])
+@permission_classes([AllowAny])
 class CausesPatch(ViewSet):
     @extend_schema(
         description='Request and Response data for updating a cause',
