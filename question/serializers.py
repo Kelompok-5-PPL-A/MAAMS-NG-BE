@@ -33,7 +33,7 @@ class QuestionRequest(BaseQuestion):
     tags = serializers.ListField(
         min_length=1,
         max_length=3,
-        child=serializers.CharField(max_length=10))    
+        child=serializers.CharField(max_length=10))
     
 class QuestionResponse(BaseQuestion):
     class Meta:
@@ -44,8 +44,12 @@ class QuestionResponse(BaseQuestion):
     question = serializers.CharField(max_length=255)
     created_at = serializers.DateTimeField()
     tags = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
 
     def get_tags(self, obj):
         if hasattr(obj.tags, 'all'):
             return [tag.name for tag in obj.tags.all()]
         return obj.tags
+    
+    def get_user(self, obj):
+        return obj.user.uuid if obj.user else None

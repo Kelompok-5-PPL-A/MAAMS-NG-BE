@@ -23,7 +23,8 @@ class QuestionPost(APIView):
 
             service_class = QuestionService()
             question = service_class.create(
-                **request_serializer.validated_data
+                **request_serializer.validated_data,
+                user=request.user
             )
             response_serializer = QuestionResponse(question)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
