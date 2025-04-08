@@ -7,15 +7,17 @@ from validator.constants import ErrorMsg
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from .dataclasses.create_question import CreateQuestionDataClass 
+from authentication.models import CustomUser
 
 class QuestionService():
-    def create(self, title: str, question: str, mode: str, tags: List[str]): 
+    def create(self, title: str, question: str, mode: str, tags: List[str], user: CustomUser): 
         tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
             title=title,
             question=question,
-            mode=mode
+            mode=mode,
+            user=user,
         )
 
         for tag in tags_object:
@@ -45,7 +47,8 @@ class QuestionService():
                 question = question.question,
                 created_at = question.created_at,
                 mode = question.mode,
-                tags=tags
+                tags=tags,
+                user=question.user
             )
             response.append(item)
             
