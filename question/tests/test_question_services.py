@@ -9,6 +9,7 @@ from django.test import TestCase
 import uuid
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
+from authentication.models import CustomUser
 
 class TestQuestionService():
 
@@ -26,7 +27,9 @@ class TestQuestionService():
         question = "Test Question"
         mode = Question.ModeChoices.PRIBADI
         tags = ["tag1", "tag2"]
-        
+        user = CustomUser.objects.create(username="testuser", password="password12389", email='testuser958@gmail.com')
+        user.save()
+
         with patch('models.Question.objects.create') as mock_create:
             with patch.object(question_service, '_validate_tags') as mock_validate:
                 mock_question = Mock()
@@ -34,13 +37,14 @@ class TestQuestionService():
                 mock_validate.return_value = [Mock(spec=Tag), Mock(spec=Tag)]
                 
                 # Act
-                result = question_service.create(title, question, mode, tags)
+                result = question_service.create(title, question, mode, tags, user)
                 
                 # Assert
                 mock_create.assert_called_once_with(
                     title=title,
                     question=question,
-                    mode=mode
+                    mode=mode,
+                    user=user
                 )
                 assert result == mock_question
 
@@ -108,11 +112,14 @@ class TestQuestionService(TestCase):
     def setUp(self):
         self.service = QuestionService()
         self.question_id = uuid.uuid4()
+        user = CustomUser.objects.create(username="testuser68", password="password12389", email='testuser969@gmail.com')
+        user.save()
         self.question = Question.objects.create(
             id=self.question_id,
             title="Test Title",
             question="Test Question",
-            mode="Test Mode"
+            mode="Test Mode",
+            user=user,
         )
         self.tag = Tag.objects.create(name="test_tag")
         self.question.tags.add(self.tag)
