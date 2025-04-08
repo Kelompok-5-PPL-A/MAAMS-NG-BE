@@ -72,3 +72,17 @@ class QuestionService():
                     tags_object.append(tag)
         
         return tags_object
+    
+
+    def get_by_user_role(self, user: CustomUser):
+        """
+        Return questions based on user role.
+        Admins get questions with mode=PENGAWASAN.
+        Regular users get only their own questions.
+        """
+        if user.ROLE_CHOICES == 'admin':
+            questions = Question.objects.filter(mode=Question.ModeChoices.PENGAWASAN)
+        else:
+            questions = Question.objects.filter(user=user)
+
+        return self._make_question_response(questions)
