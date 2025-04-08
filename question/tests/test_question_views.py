@@ -6,6 +6,7 @@ from question.models import Question
 from tag.models import Tag
 from datetime import datetime
 import uuid
+from authentication.models import CustomUser
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -17,6 +18,7 @@ class TestQuestionPostView(TestCase):
             'mode': Question.ModeChoices.PRIBADI,
             'tags': ['tag1', 'tag2']
         }
+        self.user = CustomUser.objects.create_user(username='tester', email='test@example.com', password='test123')
 
     def test_create_question_success(self):
         # Arrange
@@ -29,7 +31,9 @@ class TestQuestionPostView(TestCase):
         mock_question.tags.all.return_value = [
             Tag(name=tag) for tag in self.valid_payload['tags']
         ]
-        
+        mock_question.user = self.user
+        self.client.force_authenticate(user=self.user)
+
 
         with patch('question.services.QuestionService.create') as mock_create:
             mock_create.return_value = mock_question
@@ -44,7 +48,14 @@ class TestQuestionPostView(TestCase):
             # Assert
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['title'], self.valid_payload['title'])
-            mock_create.assert_called_once_with(**self.valid_payload)
+            mock_create.assert_called_once_with(
+                title='Test Titles',
+                question='Test Question',
+                mode=Question.ModeChoices.PRIBADI,
+                user=self.user,
+                tags=['tag1', 'tag2']
+            )
+
 
     def test_create_question_invalid_title(self):
         # Arrange
@@ -155,6 +166,9 @@ class TestQuestionPostView(TestCase):
             Tag(name=tag) for tag in payload['tags']
         ]
 
+        mock_question.user = self.user
+        self.client.force_authenticate(user=self.user)
+
         # Act
         response = self.client.post(
             self.url,
@@ -175,7 +189,7 @@ class TestQuestionPostView(TestCase):
             # Assert
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['title'], payload['title'])
-            mock_create.assert_called_once_with(**payload)
+            mock_create.assert_called_once_with(**payload, user=self.user)
     
 
     def test_create_question_maximum_length_question(self):
@@ -197,6 +211,8 @@ class TestQuestionPostView(TestCase):
         mock_question.tags.all.return_value = [
             Tag(name=tag) for tag in payload['tags']
         ]
+        mock_question.user = self.user
+        self.client.force_authenticate(user=self.user)
 
         # Act
         response = self.client.post(
@@ -218,7 +234,7 @@ class TestQuestionPostView(TestCase):
             # Assert
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['title'], payload['title'])
-            mock_create.assert_called_once_with(**payload)
+            mock_create.assert_called_once_with(**payload, user=self.user)
     
 
 class TestQuestionGet(TestCase):
@@ -227,14 +243,17 @@ class TestQuestionGet(TestCase):
         self.tag1 = Tag.objects.create(name="test_tag1")
         self.tag2 = Tag.objects.create(name="test_tag2")
         self.client = APIClient()
+        self.user = CustomUser.objects.create_user(username='tester', email='test@example.com', password='test123')
         
         # Create test question
         self.question = Question.objects.create(
             title="Test Question",
             question="Test Question Content",
             mode=Question.ModeChoices.PENGAWASAN,
-            id=uuid.uuid4()
+            id=uuid.uuid4(),
+            user=self.user,
         )
+        self.client.force_authenticate(user=self.user)
         self.question.tags.add(self.tag1, self.tag2)
         self.url = f'/question/{self.question.id}/'
 
@@ -264,9 +283,3 @@ class TestQuestionGet(TestCase):
         self.assertEqual(response.data['question'], self.question.question)
         self.assertEqual(response.data['mode'], self.question.mode)
         self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
-    
-
-    
-    
-
-    
