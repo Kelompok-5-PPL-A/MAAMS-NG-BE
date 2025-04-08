@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import permission_classes
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import IsAuthenticated
 from question.models import Question
 from question.services import QuestionService
 from question.serializers import QuestionRequest, QuestionResponse
@@ -63,3 +64,15 @@ class QuestionGet(ViewSet):
                 {"error": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+@permission_classes([IsAuthenticated])
+class QuestionGetRecent(APIView):
+    def get(self, request):
+        try:
+            recent_question = QuestionService.get_recent()
+            serializer = QuestionResponse(recent_question)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Question.DoesNotExist:
+            return Response({'detail': "No recent questions found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

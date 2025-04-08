@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
+from authentication.models import CustomUser
 from unittest.mock import patch, Mock
 from question.models import Question
 from question.serializers import QuestionResponse
@@ -286,7 +287,57 @@ class TestQuestionGet(TestCase):
         self.assertEqual(response.data['mode'], self.question.mode)
         self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
     
+class TestQuestionGetRecentAnalysis(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/question/recent/'
+        self.user = CustomUser.objects.create_user(username="testuser", email="testuser@example.com", password="password")
+        self.client.force_authenticate(user=self.user)
 
+        self.old_question = Question.objects.create(
+            title="Old Question",
+            question="Old Question Content",
+            mode=Question.ModeChoices.PRIBADI,
+            created_at=datetime(2024, 1, 1),
+            id=uuid.uuid4()
+        )
+
+        self.recent_question = Question.objects.create(
+            title="Recent Question",
+            question="Recent Question Content",
+            mode=Question.ModeChoices.PRIBADI,
+            created_at=datetime(2025, 3, 1),
+            id=uuid.uuid4()
+        )
+
+    def test_get_recent_analysis_success(self):
+        """Test successful retrieval of the most recent question"""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], str(self.recent_question.id))
+        self.assertEqual(response.data['title'], self.recent_question.title)
+        self.assertEqual(response.data['question'], self.recent_question.question)
+
+    def test_get_recent_analysis_no_questions(self):
+        """Test retrieval when no questions exist"""
+        Question.objects.all().delete()
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['detail'], "No recent questions found.")   
+    
+    def test_get_recent_analysis_unexpected_error(self):
+        """Test unexpected error during recent analysis retrieval"""
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            # Paksa service untuk melempar exception
+            mock_get_recent.side_effect = Exception("Unexpected error occurred")
+
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data['detail'], "Unexpected error occurred")
+            
 class QuestionResponseGetTagsTest(TestCase):
     def test_get_tags_without_all_method(self):
         # Arrange: obj.tags is a plain list, no .all()
