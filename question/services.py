@@ -32,6 +32,13 @@ class QuestionService():
             raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
         
         return question_object
+        
+    @staticmethod
+    def get_recent():
+        recent_question = Question.objects.order_by('-created_at').first()
+        if not recent_question:
+            raise Question.DoesNotExist("No recent questions found.")
+        return recent_question
 
     def _make_question_response(self, questions) -> list:
         response = []
