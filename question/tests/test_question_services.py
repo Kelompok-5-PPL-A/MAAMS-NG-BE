@@ -152,3 +152,60 @@ class TestQuestionService(TestCase):
         with self.assertRaises(UniqueTagException) as context:
             self.service._validate_tags([tag_name, tag_name])
         self.assertEqual(str(context.exception), ErrorMsg.TAG_MUST_BE_UNIQUE)
+
+
+class TestQuestionServiceByUserRole(TestCase):
+    def setUp(self):
+        self.admin_user = CustomUser.objects.create_user(
+            username='admin_user',
+            email='admin@example.com',
+            password='admin123',
+            role='admin'
+        )
+        self.regular_user = CustomUser.objects.create_user(
+            username='regular_user',
+            email='user@example.com',
+            password='user123',
+            role='user'
+        )
+
+        # Create tags
+        self.tag = Tag.objects.create(name='example')
+
+        # Admin-related questions
+        self.q1 = Question.objects.create(
+            id=uuid.uuid4(),
+            title='Admin Question',
+            question='This is an admin question',
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.admin_user
+        )
+        self.q1.tags.add(self.tag)
+
+        # Regular user-related question
+        self.q2 = Question.objects.create(
+            id=uuid.uuid4(),
+            title='User Question',
+            question='This is a user question',
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.regular_user
+        )
+        self.q2.tags.add(self.tag)
+
+        self.service = QuestionService()
+
+    def test_get_by_user_role_for_admin(self):
+        """Admin should receive all questions with mode=PENGAWASAN"""
+        results = self.service.get_by_user_role(self.admin_user)
+        titles = [q.title for q in results]
+        self.assertIn('Admin Question', titles)
+        self.assertNotIn('User Question', titles)
+        self.assertEqual(len(results), 1)
+
+    def test_get_by_user_role_for_regular_user(self):
+        """Regular user should receive only their own questions"""
+        results = self.service.get_by_user_role(self.regular_user)
+        titles = [q.title for q in results]
+        self.assertIn('User Question', titles)
+        self.assertNotIn('Admin Question', titles)
+        self.assertEqual(len(results), 1)
