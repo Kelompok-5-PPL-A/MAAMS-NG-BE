@@ -31,9 +31,7 @@ class QuestionService():
         except ObjectDoesNotExist:
             raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
         
-        response = self._make_question_response([question_object])
-
-        return response[0]
+        return question_object
 
     def _make_question_response(self, questions) -> list:
         response = []
