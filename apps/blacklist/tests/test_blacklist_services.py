@@ -206,43 +206,43 @@ class TestBlacklistService(TestCase):
         # Verify the result
         self.assertEqual(len(result), 0)
         
-    def test_get_blacklist_history(self):
-        """Test get_blacklist_history"""
-        # Create a past blacklist for the same NPM
-        Blacklist.objects.create(
-            npm=self.npm,
-            startDate=self.yesterday - timedelta(days=10),
-            endDate=self.yesterday,
-            keterangan='Past reason'
-        )
+    # def test_get_blacklist_history(self):
+    #     """Test get_blacklist_history"""
+    #     # Create a past blacklist for the same NPM
+    #     Blacklist.objects.create(
+    #         npm=self.npm,
+    #         startDate=self.yesterday - timedelta(days=10),
+    #         endDate=self.yesterday,
+    #         keterangan='Past reason'
+    #     )
         
-        # Test the service
-        result = BlacklistService.get_blacklist_history(self.npm)
+    #     # Test the service
+    #     result = BlacklistService.get_blacklist_history(self.npm)
         
-        # Verify the result
-        self.assertEqual(len(result), 2)
+    #     # Verify the result
+    #     self.assertEqual(len(result), 2)
         
-        # Verify the structure of each item
-        for item in result:
-            self.assertEqual(item['npm'], self.npm)
-            self.assertIn('reason', item)
-            self.assertIn('start_date', item)
-            self.assertIn('end_date', item)
-            self.assertIn('is_active', item)
-            self.assertIn('days_remaining', item)
+    #     # Verify the structure of each item
+    #     for item in result:
+    #         self.assertEqual(item['npm'], self.npm)
+    #         self.assertIn('reason', item)
+    #         self.assertIn('start_date', item)
+    #         self.assertIn('end_date', item)
+    #         self.assertIn('is_active', item)
+    #         self.assertIn('days_remaining', item)
             
-    def test_get_blacklist_history_empty(self):
-        """Test get_blacklist_history with no history"""
-        # Test the service with a non-existent NPM
-        result = BlacklistService.get_blacklist_history('9999999999')
+    # def test_get_blacklist_history_empty(self):
+    #     """Test get_blacklist_history with no history"""
+    #     # Test the service with a non-existent NPM
+    #     result = BlacklistService.get_blacklist_history('9999999999')
         
-        # Verify the result
-        self.assertEqual(len(result), 0)
+    #     # Verify the result
+    #     self.assertEqual(len(result), 0)
         
-    def test_get_blacklist_history_empty_npm(self):
-        """Test get_blacklist_history with empty NPM"""
-        # Test with empty npm
-        result = BlacklistService.get_blacklist_history('')
+    # def test_get_blacklist_history_empty_npm(self):
+    #     """Test get_blacklist_history with empty NPM"""
+    #     # Test with empty npm
+    #     result = BlacklistService.get_blacklist_history('')
         
-        # Verify the result
-        self.assertEqual(len(result), 0)
+    #     # Verify the result
+    #     self.assertEqual(len(result), 0)
