@@ -52,13 +52,14 @@ class QuestionGet(ViewSet):
         description='Request and Response data to get a question',
         responses=QuestionResponse,
     )
-    def get(self, request, pk):
+    def retrieve(self, request, pk=None):
         try:
             question = self.service_class.get(pk=pk)
             serializer = QuestionResponse(question)
             return Response(serializer.data)
-        except Exception:
+        except Exception as e:
+            print(f"[DEBUG] retrieve error: {e}")
             return Response(
-                {"error": "An unexpected error occurred"}, 
+                {"error": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

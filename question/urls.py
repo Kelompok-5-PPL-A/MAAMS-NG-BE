@@ -6,5 +6,5 @@ from .views import (
 
 urlpatterns = [
     path('submit/', QuestionPost.as_view(), name="create_question"),
-    path('<uuid:pk>/', QuestionGet.as_view({ 'get': 'get' }), name="get_question"),
+    path('<uuid:pk>/', QuestionGet.as_view({'get': 'retrieve'}), name="get_question"),
 ]
