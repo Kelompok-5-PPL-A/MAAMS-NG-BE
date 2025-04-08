@@ -1,8 +1,10 @@
+from types import SimpleNamespace
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, Mock
 from question.models import Question
+from question.serializers import QuestionResponse
 from tag.models import Tag
 from datetime import datetime
 import uuid
@@ -283,3 +285,24 @@ class TestQuestionGet(TestCase):
         self.assertEqual(response.data['question'], self.question.question)
         self.assertEqual(response.data['mode'], self.question.mode)
         self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
+    
+
+class QuestionResponseGetTagsTest(TestCase):
+    def test_get_tags_without_all_method(self):
+        # Arrange: obj.tags is a plain list, no .all()
+        fake_question = SimpleNamespace(
+            id=uuid.uuid4(),
+            title='No all() tags',
+            question='Plain tags',
+            created_at=datetime.now(),
+            mode='PRIBADI',
+            tags=['tag1', 'tag2'],
+            user=None
+        )
+
+        # Act
+        serializer = QuestionResponse(instance=fake_question)
+        data = serializer.data
+
+        # Assert: fallback return path triggered
+        self.assertEqual(data['tags'], ['tag1', 'tag2'])

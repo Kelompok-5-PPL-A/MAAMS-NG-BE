@@ -134,6 +134,15 @@ class TestQuestionService(TestCase):
         # Test _make_question_response with empty list
         response = self.service._make_question_response([])
         self.assertEqual(response, [])
+    
+    def test_make_question_response_with_question(self):
+        # Test _make_question_response with a question object
+        response = self.service._make_question_response([self.question])
+        self.assertEqual(len(response), 1)
+        self.assertEqual(response[0].id, self.question.id)
+        self.assertEqual(response[0].title, self.question.title)
+        self.assertEqual(response[0].question, self.question.question)
+        self.assertEqual(response[0].mode, self.question.mode)
 
     def test_validate_tags_duplicate_tag(self):
         # Test _validate_tags with duplicate tag
