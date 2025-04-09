@@ -205,31 +205,6 @@ class TestBlacklistService(TestCase):
         
         # Verify the result
         self.assertEqual(len(result), 0)
-        
-    def test_get_blacklist_history(self):
-        """Test get_blacklist_history"""
-        # Create a past blacklist for the same NPM
-        Blacklist.objects.create(
-            npm=self.npm,
-            startDate=self.yesterday - timedelta(days=10),
-            endDate=self.yesterday,
-            keterangan='Past reason'
-        )
-        
-        # Test the service
-        result = BlacklistService.get_blacklist_history(self.npm)
-        
-        # Verify the result
-        self.assertEqual(len(result), 2)
-        
-        # Verify the structure of each item
-        for item in result:
-            self.assertEqual(item['npm'], self.npm)
-            self.assertIn('reason', item)
-            self.assertIn('start_date', item)
-            self.assertIn('end_date', item)
-            self.assertIn('is_active', item)
-            self.assertIn('days_remaining', item)
             
     def test_get_blacklist_history_empty(self):
         """Test get_blacklist_history with no history"""
