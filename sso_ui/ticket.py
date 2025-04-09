@@ -15,7 +15,7 @@ def validate_ticket(config, ticket):
         raise ValidateTicketError("RequestError") from e
     
     content = response.text
-
+    
     try:
         root = ET.fromstring(content)
     except ET.ParseError as e:
@@ -29,7 +29,7 @@ def validate_ticket(config, ticket):
         
     user = auth_success.find('cas:user', ns)
     attributes = auth_success.find('cas:attributes', ns)
-    
+
     if user is None or attributes is None:
         raise ValidateTicketError("XMLParsingError")
         
@@ -47,5 +47,5 @@ def validate_ticket(config, ticket):
             "npm": get_text("npm")
         }
     }
-
+    
     return {"authentication_success": user_data}
