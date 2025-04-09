@@ -30,7 +30,6 @@ class QuestionService():
             question_object = Question.objects.get(pk=pk)
         except ObjectDoesNotExist:
             raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
-        
         return question_object
         
     @staticmethod

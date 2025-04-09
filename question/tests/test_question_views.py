@@ -334,7 +334,6 @@ class TestQuestionGetRecentAnalysis(TestCase):
             mock_get_recent.side_effect = Exception("Unexpected error occurred")
 
             response = self.client.get(self.url)
-
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data['detail'], "Unexpected error occurred")
             
