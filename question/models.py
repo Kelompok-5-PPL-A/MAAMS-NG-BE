@@ -1,5 +1,6 @@
 from django.db import models
 import uuid
+from authentication.models import CustomUser
 from tag.models import Tag
 from django.conf import settings
 
@@ -19,7 +20,7 @@ class Question(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     tags = models.ManyToManyField(Tag)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        CustomUser,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
