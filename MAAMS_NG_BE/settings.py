@@ -33,6 +33,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-vv6@i-05#(1k&p8*mrixezpjmgdx0p_&c=o#4er_=fnd@xp1a+'
 
+DEBUG = True
+
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
@@ -48,12 +50,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
     'drf_spectacular',
+    'drf_yasg',
     'django.contrib.sites',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
+    'apps.blacklist',
     'authentication',
     'cause',
     'question',
@@ -126,7 +130,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -139,8 +142,26 @@ USE_I18N = True
 USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_ORIGINS = [ 
-    os.getenv("HOST_FE") 
+    os.getenv("HOST_FE")
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
+    'x-refresh-token',
+    'access-control-allow-origin',
+    'access-control-allow-credentials',
+    'cache-control',
+    'user-agent',
+]
+
+CORS_EXPOSE_HEADERS = [
+    'authorization',
+    'x-refresh-token',
 ]
 
 # Static files (CSS, JavaScript, Images)
@@ -158,9 +179,13 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
+    'EXCEPTION_HANDLER': 'MAAMS_NG_BE.utils.custom_exception_handler',
 }
 
 AUTH_USER_MODEL = 'authentication.CustomUser'
@@ -193,6 +218,9 @@ SOCIALACCOUNT_PROVIDERS = {
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
+    'authentication.backends.EmailOrUsernameModelBackend',
+    'authentication.backends.GoogleOAuthBackend',
+    'authentication.backends.SSOUIBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
@@ -200,6 +228,15 @@ AUTHENTICATION_BACKENDS = [
 SIMPLE_JWT = {
     'USER_ID_FIELD': 'uuid',
     'USER_ID_CLAIM': 'user_id',
+    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXP_TIME", 1800))),       # Set default 15 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("REFRESH_TOKEN_EXP_TIME", 3600))),    # Set default 30 minutes
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY", ""),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 # DRF-Spectacular configurations, OpenAPI3 schema generator
