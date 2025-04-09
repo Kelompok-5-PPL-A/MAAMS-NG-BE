@@ -6,11 +6,11 @@ from rest_framework.decorators import permission_classes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from question.models import Question
-from .services import QuestionService
-from .serializers import QuestionRequest, QuestionResponse
+from question.services import QuestionService
+from question.serializers import QuestionRequest, QuestionResponse
+from rest_framework.permissions import AllowAny
 
-
-@permission_classes([])  # Mengizinkan guest user
+@permission_classes([AllowAny])  # Mengizinkan guest user
 class QuestionPost(APIView):
     @extend_schema(
         description='Request and Response data for creating a question',
@@ -24,7 +24,8 @@ class QuestionPost(APIView):
 
             service_class = QuestionService()
             question = service_class.create(
-                **request_serializer.validated_data
+                **request_serializer.validated_data,
+                user=request.user
             )
             response_serializer = QuestionResponse(question)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -40,7 +41,7 @@ class QuestionPost(APIView):
             )
 
 
-@permission_classes([])
+@permission_classes([AllowAny])
 class QuestionGet(ViewSet):    
     """
     ViewSet to return all or specific questions.
@@ -52,14 +53,15 @@ class QuestionGet(ViewSet):
         description='Request and Response data to get a question',
         responses=QuestionResponse,
     )
-    def get(self, request, pk):
+    def retrieve(self, request, pk=None):
         try:
             question = self.service_class.get(pk=pk)
             serializer = QuestionResponse(question)
             return Response(serializer.data)
-        except Exception:
+        except Exception as e:
+            print(f"[DEBUG] retrieve error: {e}")
             return Response(
-                {"error": "An unexpected error occurred"}, 
+                {"error": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
