@@ -58,8 +58,7 @@ class QuestionGet(ViewSet):
             question = self.service_class.get(pk=pk)
             serializer = QuestionResponse(question)
             return Response(serializer.data)
-        except Exception as e:
-            print(f"[DEBUG] retrieve error: {e}")
+        except Exception:
             return Response(
                 {"error": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
