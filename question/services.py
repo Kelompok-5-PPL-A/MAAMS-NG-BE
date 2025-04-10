@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Optional
 from .models import Question
 from tag.models import Tag
 from validator.exceptions import UniqueTagException
@@ -10,7 +10,7 @@ from .dataclasses.create_question import CreateQuestionDataClass
 from authentication.models import CustomUser
 
 class QuestionService():
-    def create(self, title: str, question: str, mode: str, tags: List[str], user: CustomUser): 
+    def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
         tags_object = self._validate_tags(tags)
 
         question_object = Question.objects.create(
@@ -32,12 +32,17 @@ class QuestionService():
             raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
         return question_object
         
-    @staticmethod
-    def get_recent():
-        recent_question = Question.objects.order_by('-created_at').first()
-        if not recent_question:
+    def get_recent(self, user=None):
+        if not user or not user.is_authenticated:
+            return None
+            
+        try:
+            recent_question = Question.objects.filter(user=user).order_by('-created_at').first()
+            if not recent_question:
+                raise Question.DoesNotExist("No recent questions found for this user.")
+            return recent_question
+        except Exception:
             raise Question.DoesNotExist("No recent questions found.")
-        return recent_question
 
     def _make_question_response(self, questions) -> list:
         response = []
@@ -45,14 +50,20 @@ class QuestionService():
             return response
         for question in questions:
             tags = [tag.name for tag in question.tags.all()]
+            
+            # Handle the username field for CreateQuestionDataClass
+            username = None
+            if question.user:
+                username = question.user.username
+                
             item = CreateQuestionDataClass(
-                id = question.id,
+                id=question.id,
                 title=question.title,
-                question = question.question,
-                created_at = question.created_at,
-                mode = question.mode,
+                question=question.question,
+                created_at=question.created_at,
+                mode=question.mode,
                 tags=tags,
-                user=question.user
+                username=username
             )
             response.append(item)
             

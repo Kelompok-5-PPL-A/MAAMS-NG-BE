@@ -34,9 +34,9 @@ class QuestionPost(APIView):
                 {"error": "Invalid input"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception:
+        except Exception as e:
             return Response(
-                {"error": "An unexpected error occurred"}, 
+                {"error": f"An unexpected error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -58,9 +58,9 @@ class QuestionGet(ViewSet):
             question = self.service_class.get(pk=pk)
             serializer = QuestionResponse(question)
             return Response(serializer.data)
-        except Exception:
+        except Exception as e:
             return Response(
-                {"error": "An unexpected error occurred"},
+                {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -68,7 +68,11 @@ class QuestionGet(ViewSet):
 class QuestionGetRecent(APIView):
     def get(self, request):
         try:
-            recent_question = QuestionService.get_recent()
+            recent_question = QuestionService.get_recent(self, user=request.user)
+            
+            if not recent_question:
+                return Response({'detail': "No recent questions found for this user."}, status=status.HTTP_404_NOT_FOUND)
+                
             serializer = QuestionResponse(recent_question)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Question.DoesNotExist:
