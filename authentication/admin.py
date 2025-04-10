@@ -12,7 +12,6 @@ class CustomUserChangeForm(UserChangeForm):
         fields = '__all__'
         
     def clean_email(self):
-        """Normalize the email address by lowercasing the domain part."""
         email = self.cleaned_data.get('email')
         if email:
             email_name, domain_part = email.strip().rsplit('@', 1)
@@ -22,15 +21,20 @@ class CustomUserChangeForm(UserChangeForm):
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = CustomUser
-        fields = ('email', 'username')
+        fields = ('email', 'username', 'first_name', 'last_name')
         
     def clean_email(self):
-        """Normalize the email address by lowercasing the domain part."""
         email = self.cleaned_data.get('email')
         if email:
             email_name, domain_part = email.strip().rsplit('@', 1)
             email = email_name + '@' + domain_part.lower()
         return email
+
+    def clean_username(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            return email.split('@')[0]
+        return self.cleaned_data.get('username')
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
@@ -88,7 +92,7 @@ class CustomUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': (
-                'email', 'username', 'password1', 'password2',
+                'email', 'username', 'first_name', 'last_name', 'password', 'password2',
                 'role', 'is_staff', 'is_active'
             )
         }),
