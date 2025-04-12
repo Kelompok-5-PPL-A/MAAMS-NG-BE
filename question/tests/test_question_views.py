@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 from authentication.models import CustomUser
 from types import SimpleNamespace
+from django.utils import timezone
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -314,7 +315,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
             title="Old Question",
             question="Old Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=datetime(2024, 1, 1),
+            created_at=timezone.make_aware(datetime(2024, 1, 1)),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -323,7 +324,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
             title="Recent Question",
             question="Recent Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=datetime(2025, 3, 1),
+            created_at=timezone.make_aware(datetime(2025, 3, 1)),
             id=uuid.uuid4(),
             user=self.user
         )
