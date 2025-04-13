@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import UniqueTagException
+from validator.exceptions import UniqueTagException, ForbiddenRequestException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -204,3 +204,80 @@ class TestQuestionService(TestCase):
         with self.assertRaises(UniqueTagException) as context:
             self.service._validate_tags([tag_name, tag_name])
         self.assertEqual(str(context.exception), ErrorMsg.TAG_MUST_BE_UNIQUE)
+
+    def test_get_privileged_with_admin_and_valid_filter(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin", 
+            password="password123", 
+            email="admin@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        question_pengawasan = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Pengawasan Question",
+            question="Should be visible to admin",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+        
+        # Act
+        result = self.service.get_privileged("semua", admin_user, "")
+
+        # Assert
+        self.assertIn(question_pengawasan, result)
+
+    def test_get_privileged_forbidden_for_non_admin(self):
+        # Arrange
+        non_admin = CustomUser.objects.create(
+            username="user", 
+            password="password123", 
+            email="user@example.com",
+            is_superuser=False, 
+            is_staff=False
+        )
+
+        # Act & Assert
+        with self.assertRaises(ForbiddenRequestException) as context:
+            self.service.get_privileged("semua", non_admin, "keyword")
+        self.assertEqual(str(context.exception), ErrorMsg.FORBIDDEN_GET)
+
+    # ini test buat filter
+    def test_get_privileged_returns_filtered_results(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin", 
+            password="password123", 
+            email="admin@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        matching_question = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Filter Match",
+            question="This contains keyword",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+        non_matching_question = Question.objects.create(
+            id=uuid.uuid4(),
+            title="No Match",
+            question="Irrelevant",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+
+        # Simulasi filter 'judul' dengan keyword "Match"
+        with patch.object(self.service, '_resolve_filter_type') as mock_resolve:
+            mock_resolve.return_value = Q(title__icontains="Match")
+
+            # Act
+            result = self.service.get_privileged("judul", admin_user, "Match")
+
+        # Assert
+        self.assertIn(matching_question, result)
+        self.assertNotIn(non_matching_question, result)
+
+
+    
