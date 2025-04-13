@@ -2,7 +2,7 @@ import uuid
 from typing import List, Optional
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import UniqueTagException
+from validator.exceptions import UniqueTagException, ForbiddenRequestException
 from validator.constants import ErrorMsg
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
@@ -82,3 +82,25 @@ class QuestionService():
                     tags_object.append(tag)
         
         return tags_object
+    
+    def get_privileged(self, q_filter: str, user: CustomUser, keyword: str):
+        """
+        Return a list of pengawasan questions by keyword and filter type for privileged users.
+        """
+        # hanya boleh diakses oleh admin (staff dan superuser)
+        is_admin = user.is_superuser and user.is_staff
+        if not is_admin:
+            raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_GET)
+        
+        if not q_filter:
+            q_filter = 'semua'
+        if not keyword:
+            keyword = ''
+
+        clause = self._resolve_filter_type(q_filter, keyword, is_admin)
+
+        # hanya ambil pertanyaan mode PENGAWASAN + klausa filter lainnya
+        mode = Q(mode=Question.ModeChoices.PENGAWASAN)
+        questions = Question.objects.filter(mode & clause).order_by('-created_at').distinct()
+
+        return questions
