@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from .dataclasses.create_question import CreateQuestionDataClass 
 from authentication.models import CustomUser
+from django.db.models import Q
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
