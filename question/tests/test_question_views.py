@@ -432,3 +432,82 @@ class QuestionResponseSerializerTest(TestCase):
         
         self.assertIsNone(data['username'])
         self.assertIsNone(data['user'])
+
+class TestQuestionGetPrivileged(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/question/privileged/'
+        self.user = CustomUser.objects.create_user(
+            username="regularuser", email="user@example.com", password="password"
+        )
+        self.admin_user = CustomUser.objects.create_user(
+            username="adminuser", email="admin@example.com", password="password"
+        )
+        self.admin_user.is_superuser = True
+        self.admin_user.is_staff = True
+        self.admin_user.save()
+
+        self.question1 = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Privileged Q1",
+            question="Isi Q1",
+            mode=Question.ModeChoices.PENGAWASAN,
+            created_at=timezone.now(),
+            user=self.admin_user
+        )
+
+    def test_get_privileged_success_as_superuser(self):
+        """Test superuser can successfully access get_privileged"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?filter=recent&keyword=test')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue("results" in response.data)
+            self.assertEqual(len(response.data["results"]), 1)
+            mock_get.assert_called_once_with(
+                q_filter='recent',
+                user=self.admin_user,
+                keyword='test'
+            )
+
+    def test_get_privileged_authenticated_regular_user_forbidden(self):
+        """Test that regular authenticated users are forbidden"""
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_privileged_unauthenticated_user_unauthorized(self):
+        """Test unauthenticated (guest) user gets unauthorized"""
+        guest_client = APIClient()
+        response = guest_client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_privileged_empty_result(self):
+        """Test superuser receives empty result without error"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = []
+
+            response = self.client.get(self.url + '?filter=recent')
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["results"], [])
+
+    def test_get_privileged_unexpected_error(self):
+        """Test server error when something unexpected occurs"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.side_effect = Exception("Unexpected failure")
+
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "An unexpected error occurred: Unexpected failure")
+
+    # Test dengan filter lanjut di sini
