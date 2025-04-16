@@ -75,6 +75,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'moesifdjango.middleware.moesif_middleware'
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -256,3 +257,9 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     send_default_pii=True,
 )
+
+MOESIF_MIDDLEWARE = {
+    'APPLICATION_ID': os.getenv("MOESIF_APPLICATION_ID"),
+
+    'CAPTURE_OUTGOING_REQUESTS': True,
+}
