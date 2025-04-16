@@ -12,6 +12,7 @@ from validator.services import CausesService
 
 class CausesServiceTest(TestCase):
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_positive(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -46,6 +47,7 @@ class CausesServiceTest(TestCase):
         )
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_returns_false(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -61,6 +63,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(response, 0)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_request_exception(self, mock_groq):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = RequestException("Network error")
@@ -96,6 +99,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(str(context.exception), "Failed to call the AI service.")
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_negative(self, mock_groq):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("API call failed")
@@ -108,6 +112,7 @@ class CausesServiceTest(TestCase):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_forbidden_access(self, mock_groq):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("Unauthorized: Invalid API key")
@@ -120,6 +125,7 @@ class CausesServiceTest(TestCase):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_validation_type_root(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -136,6 +142,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(response, 1)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_api_call_validation_type_root_type(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -152,6 +159,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(response, 2)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_not_cause_1_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -167,6 +175,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='B'))
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_positive_neutral_1_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -182,6 +191,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=1))
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_not_cause_n_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -198,6 +208,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='B', row=2, prev_row=1))
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_positive_neutral_n_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -214,6 +225,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=2))
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_similar_previous_n_row(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -230,6 +242,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='B', row=2))
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_with_prev_cause(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -261,6 +274,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("bukan merupakan sebab", cause.feedback)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_retrieve_feedback_without_prev_cause(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -286,6 +300,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("sebab positif atau netral", cause.feedback)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_validate_with_status_true(self, mock_groq):
         service = CausesService()
         question_id = uuid.uuid4()
@@ -305,6 +320,7 @@ class CausesServiceTest(TestCase):
         self.assertTrue(cause.status)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_validate_with_multiple_rows(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -355,6 +371,7 @@ class CausesServiceTest(TestCase):
             )
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_check_root_cause_with_korupsi_categories(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -386,6 +403,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("Korupsi Tahta", cause.feedback)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_check_root_cause_default_korupsi(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -417,6 +435,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("Korupsi Harta", cause.feedback)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_validate_with_row_1(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -456,6 +475,7 @@ class CausesServiceTest(TestCase):
             )
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_validate_returns_false(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -493,6 +513,7 @@ class CausesServiceTest(TestCase):
             self.assertFalse(cause.status)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_check_root_cause_with_korupsi_harta(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
@@ -524,6 +545,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("Korupsi Harta", cause.feedback)
 
     @patch('validator.services.Groq')
+    @patch('validator.services.RateLimiter.is_allowed')
     def test_check_root_cause_with_korupsi_cinta(self, mock_groq):
         mock_client = Mock()
         mock_chat_completion = Mock()
