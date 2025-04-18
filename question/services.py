@@ -2,8 +2,9 @@ import uuid
 from typing import List, Optional
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import UniqueTagException, ForbiddenRequestException
+from validator.exceptions import UniqueTagException, ForbiddenRequestException, InvalidFiltersException
 from validator.constants import ErrorMsg
+from validator.enums import FilterType
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from .dataclasses.create_question import CreateQuestionDataClass 
@@ -105,3 +106,29 @@ class QuestionService():
         questions = Question.objects.filter(mode & clause).order_by('-created_at').distinct()
 
         return questions
+
+    def _resolve_filter_type(self, filter: str, keyword: str, is_admin: bool) -> Q:
+        """
+        Returns where clause for questions with specified filters/keywords.
+        Only allow superusers/admin to filter by user.
+        """
+        match filter.lower():
+            case FilterType.PENGGUNA.value:
+                clause = (Q(user__username__icontains=keyword) | 
+                          Q(user__first_name__icontains=keyword) | 
+                          Q(user__last_name__icontains=keyword))
+            case FilterType.JUDUL.value:
+                clause = (Q(title__icontains=keyword) |
+                          Q(question__icontains=keyword))
+            case FilterType.TOPIK.value:
+                clause = Q(tags__name__icontains=keyword)
+            case FilterType.SEMUA.value:
+                clause = (Q(title__icontains=keyword) |
+                          Q(question__icontains=keyword) |
+                          Q(tags__name__icontains=keyword))
+                if is_admin:
+                    clause |= Q(user__username__icontains=keyword)
+            case _:
+                raise InvalidFiltersException(ErrorMsg.INVALID_FILTERS)
+        
+        return clause
