@@ -42,12 +42,11 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="deepseek-r1-distill-llama-70b",
+                model="llama-3.1-8b-instant",
             temperature=0.7,
-            max_completion_tokens=1024,
+            max_completion_tokens=8192,
             top_p=0.95,
             stream=False,
-            reasoning_format="hidden",
             seed=42
         )
 
@@ -96,12 +95,11 @@ class CausesServiceTest(TestCase):
                     "content": user_prompt
                 }
             ],
-            model="deepseek-r1-distill-llama-70b",
+            model="llama-3.1-8b-instant",
             temperature=0.7,
-            max_completion_tokens=1024,
+            max_completion_tokens=8192,
             top_p=0.95,
             stream=False,
-            reasoning_format="hidden",
             seed=42
         )
 
@@ -399,11 +397,10 @@ class CausesServiceTest(TestCase):
             self.assertTrue(cause.status)
             
             mock_api_call.assert_any_call(
-                self=service,
                 system_message="You are an AI model. You are asked to determine whether the given cause is the cause of the given problem.",
                 user_prompt=f"Is '{cause.cause}' the cause of '{first_cause.cause}'? Answer only with True/False",
                 validation_type=ValidationType.NORMAL,
-                    request=mock_request
+                request=mock_request
             )
 
     @patch('validator.services.Groq')
@@ -510,10 +507,10 @@ class CausesServiceTest(TestCase):
             self.assertTrue(cause.status)
             
             mock_api_call.assert_any_call(
-                self=service,
                 system_message="You are an AI model. You are asked to determine whether the given cause is the cause of the given problem.",
                 user_prompt=f"Is '{cause.cause}' the cause of this question: '{question.question}'? Answer only with True/False",
-                validation_type=ValidationType.NORMAL
+                validation_type=ValidationType.NORMAL,
+                request=mock_request
             )
 
     @patch('validator.services.Groq')
