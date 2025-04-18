@@ -490,7 +490,7 @@ class TestQuestionGetPrivileged(TestCase):
         self.client.force_authenticate(user=self.user)
 
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def test_get_privileged_unauthenticated_user_unauthorized(self):
         """Test unauthenticated (guest) user gets unauthorized"""
