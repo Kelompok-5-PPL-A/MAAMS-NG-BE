@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import UniqueTagException, ForbiddenRequestException
+from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -9,6 +9,7 @@ import uuid
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from authentication.models import CustomUser
+from django.db.models import Q
 
 class TestQuestionService(TestCase):
     def setUp(self):
@@ -278,6 +279,80 @@ class TestQuestionService(TestCase):
         # Assert
         self.assertIn(matching_question, result)
         self.assertNotIn(non_matching_question, result)
-
-
     
+    def test_resolve_filter_type_pengguna(self):
+        # Arrange
+        keyword = "john"
+        expected_clause = (
+            Q(user__username__icontains=keyword) |
+            Q(user__first_name__icontains=keyword) |
+            Q(user__last_name__icontains=keyword)
+        )
+
+        # Act
+        clause = self.service._resolve_filter_type("pengguna", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_judul(self):
+        # Arrange
+        keyword = "judul test"
+        expected_clause = (
+            Q(title__icontains=keyword) |
+            Q(question__icontains=keyword)
+        )
+
+        # Act
+        clause = self.service._resolve_filter_type("judul", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_topik(self):
+        # Arrange
+        keyword = "ekonomi"
+        expected_clause = Q(tags__name__icontains=keyword)
+
+        # Act
+        clause = self.service._resolve_filter_type("topik", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_semua_with_admin(self):
+        # Arrange
+        keyword = "cari"
+        clause = self.service._resolve_filter_type("semua", keyword, True)
+
+        # Assert
+        self.assertIn("title__icontains", str(clause))
+        self.assertIn("question__icontains", str(clause))
+        self.assertIn("tags__name__icontains", str(clause))
+        self.assertIn("user__username__icontains", str(clause))  # karena admin
+
+
+    def test_resolve_filter_type_semua_without_admin(self):
+        # Arrange
+        keyword = "cari"
+        clause = self.service._resolve_filter_type("semua", keyword, False)
+
+        # Assert
+        self.assertIn("title__icontains", str(clause))
+        self.assertIn("question__icontains", str(clause))
+        self.assertIn("tags__name__icontains", str(clause))
+        self.assertNotIn("user__username__icontains", str(clause))  # karena bukan admin
+
+
+    def test_resolve_filter_type_invalid_filter_raises_exception(self):
+        # Act & Assert
+        with self.assertRaises(InvalidFiltersException) as context:
+            self.service._resolve_filter_type("invalid", "keyword", True)
+        self.assertEqual(str(context.exception), ErrorMsg.INVALID_FILTERS)
+
+
+
+        
