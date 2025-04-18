@@ -10,6 +10,7 @@ from cause.models import Causes
 from validator.exceptions import AIServiceErrorException, RateLimitExceededException
 from arize.otel import register
 from openinference.instrumentation.groq import GroqInstrumentor
+from validator.utils.rate_limiter import RateLimiter
 
 tracer_provider = register(
     space_id = "U3BhY2U6MTg5MzA6dUNxcA==",
@@ -17,31 +18,6 @@ tracer_provider = register(
     project_name = "MAAMS NG"
 )
 GroqInstrumentor().instrument(tracer_provider=tracer_provider)
-
-class RateLimiter:
-    """Rate limiter for API calls"""
-    
-    def __init__(self, rate=6, per=60):
-        self.rate = rate  # Number of allowed requests
-        self.per = per    # Time period in seconds
-        self.cache = cache  # Using Django's cache framework
-    
-    def is_allowed(self, user_id):
-        """Check if user is allowed to make a request"""
-        key = f"ratelimit:{user_id}"
-        
-        # Get current count or create if not exists
-        count = self.cache.get(key, 0)
-        
-        if count >= self.rate:
-            # Still increment the counter for tracking purposes
-            cache.set(key, count + 1, self.per)
-            return False
-        
-        count += 1
-        cache.set(key, count, self.per)
-        
-        return True
 
 class CausesService:
     def __init__(self):
@@ -62,7 +38,7 @@ class CausesService:
             
 
             if not self.rate_limiter.is_allowed(identifier):
-                raise RateLimitExceededException("Rate limit exceeded. Maximum 6 requests per minute allowed.")
+                raise RateLimitExceededException(ErrorMsg.RATE_LIMIT_EXCEEDED)
 
         client = Groq(api_key=settings.GROQ_API_KEY)
         

@@ -130,7 +130,7 @@ class RateLimiterTest(TestCase):
         mock_is_allowed.assert_called_with('user:123')
         
         # Verify exception message
-        self.assertEqual(str(context.exception), "Rate limit exceeded. Maximum 6 requests per minute allowed.")
+        self.assertEqual(str(context.exception), "Jumlah request melebihi batas. Silahkan tunggu beberapa saat.")
         
         # Ensure the Groq client was never called
         mock_groq.assert_not_called()
