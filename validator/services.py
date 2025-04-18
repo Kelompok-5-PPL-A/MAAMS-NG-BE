@@ -13,8 +13,8 @@ from openinference.instrumentation.groq import GroqInstrumentor
 from validator.utils.rate_limiter import RateLimiter
 
 tracer_provider = register(
-    space_id = "U3BhY2U6MTg5MzA6dUNxcA==",
-    api_key = "cbf3bd23e2c9836b4cd",
+    space_id = settings.ARIZE_SPACE_ID,
+    api_key = settings.ARIZE_API_KEY,
     project_name = "MAAMS NG"
 )
 GroqInstrumentor().instrument(tracer_provider=tracer_provider)
