@@ -510,4 +510,68 @@ class TestQuestionGetPrivileged(TestCase):
             self.assertIn("error", response.data)
             self.assertEqual(response.data["error"], "An unexpected error occurred: Unexpected failure")
 
-    # Test dengan filter lanjut di sini
+    # Test filter admin
+    def test_get_privileged_filter_semua_returns_all_pengawasan(self):
+        """Test superuser gets all PENGAWASAN questions when using 'semua' filter"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?filter=semua')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data["results"]), 1)
+            mock_get.assert_called_once_with(
+                q_filter='semua',
+                user=self.admin_user,
+                keyword=''
+            )
+    
+    def test_get_privileged_invalid_filter_returns_server_error(self):
+        """Test unknown filter value returns server error"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.side_effect = ValueError("Invalid filter value")
+
+            response = self.client.get(self.url + '?filter=unknown_filter')
+
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Invalid filter value", response.data["detail"])
+
+    def test_get_privileged_missing_filter_still_works_with_default(self):
+        """Test when filter is missing, still handles it gracefully"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?keyword=Privileged')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            mock_get.assert_called_once_with(
+                q_filter=None,
+                user=self.admin_user,
+                keyword='Privileged'
+            )
+
+    def test_get_privileged_with_filter_but_empty_keyword(self):
+        """Test filter applied but keyword is empty string"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = []
+
+            response = self.client.get(self.url + '?filter=judul&keyword=')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            mock_get.assert_called_once_with(
+                q_filter='judul',
+                user=self.admin_user,
+                keyword=''
+            )
+
+
+
