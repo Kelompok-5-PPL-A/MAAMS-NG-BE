@@ -373,6 +373,17 @@ class TestQuestionGetRecentAnalysis(TestCase):
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data['detail'], "Unexpected error occurred")
+    
+    def test_get_recent_analysis_returns_none(self):
+        """Test when get_recent returns None (no exception), should return specific 404 message"""
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            mock_get_recent.return_value = None  # <--- ini bikin masuk ke if not recent_question
+
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(response.data['detail'], "No recent questions found for this user.")
+
             
 
 class QuestionResponseSerializerTest(TestCase):
@@ -507,8 +518,9 @@ class TestQuestionGetPrivileged(TestCase):
 
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-            self.assertIn("error", response.data)
-            self.assertEqual(response.data["error"], "An unexpected error occurred: Unexpected failure")
+            self.assertIn("detail", response.data)
+            self.assertIn("Unexpected failure", response.data["detail"])
+
 
     # Test filter admin
     def test_get_privileged_filter_semua_returns_all_pengawasan(self):

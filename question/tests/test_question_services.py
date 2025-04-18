@@ -243,6 +243,33 @@ class TestQuestionService(TestCase):
         with self.assertRaises(ForbiddenRequestException) as context:
             self.service.get_privileged("semua", non_admin, "keyword")
         self.assertEqual(str(context.exception), ErrorMsg.FORBIDDEN_GET)
+    
+    def test_get_privileged_sets_default_q_filter_when_empty(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin_default", 
+            password="password123", 
+            email="admin_default@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        question_pengawasan = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Pengawasan Question",
+            question="Should be visible when q_filter is empty",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+
+        # Patch _resolve_filter_type to check input q_filter value
+        with patch.object(self.service, '_resolve_filter_type') as mock_resolve_filter:
+            mock_resolve_filter.return_value = Q()  # dummy filter
+            result = self.service.get_privileged('', admin_user, '')
+
+        # Assert _resolve_filter_type menerima q_filter 'semua' sebagai fallback
+        mock_resolve_filter.assert_called_once_with('semua', '', True)
+        self.assertIn(question_pengawasan, result)
+
 
     # ini test buat filter
     def test_get_privileged_returns_filtered_results(self):
