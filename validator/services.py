@@ -33,16 +33,13 @@ class RateLimiter:
         # Get current count or create if not exists
         count = self.cache.get(key, 0)
         
-        if count > self.rate:
+        if count >= self.rate:
+            # Still increment the counter for tracking purposes
+            cache.set(key, count + 1, self.per)
             return False
         
-        # Increment count (add 1 to count) and set expiry if not exist
-        if count == 0:
-            # First request in this period, set expiry
-            self.cache.set(key, 1, self.per)
-        else:
-            # Increment existing counter
-            self.cache.incr(key)
+        count += 1
+        cache.set(key, count, self.per)
         
         return True
 
