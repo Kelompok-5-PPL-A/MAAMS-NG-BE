@@ -2,11 +2,12 @@ import uuid
 from django.conf import settings
 from groq import Groq
 import requests
+from django.core.cache import cache
 from validator.constants import ErrorMsg, FeedbackMsg
 from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
-from validator.exceptions import AIServiceErrorException
+from validator.exceptions import AIServiceErrorException, RateLimitExceededException
 from arize.otel import register
 from openinference.instrumentation.groq import GroqInstrumentor
 
@@ -17,8 +18,55 @@ tracer_provider = register(
 )
 GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
+class RateLimiter:
+    """Rate limiter for API calls"""
+    
+    def __init__(self, rate=6, per=60):
+        self.rate = rate  # Number of allowed requests
+        self.per = per    # Time period in seconds
+        self.cache = cache  # Using Django's cache framework
+    
+    def is_allowed(self, user_id):
+        """Check if user is allowed to make a request"""
+        key = f"ratelimit:{user_id}"
+        
+        # Get current count or create if not exists
+        count = self.cache.get(key, 0)
+        
+        if count > self.rate:
+            return False
+        
+        # Increment count (add 1 to count) and set expiry if not exist
+        if count == 0:
+            # First request in this period, set expiry
+            self.cache.set(key, 1, self.per)
+        else:
+            # Increment existing counter
+            self.cache.incr(key)
+        
+        return True
+
 class CausesService:
-    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType) -> int:
+    def __init__(self):
+        self.rate_limiter = RateLimiter(rate=6, per=60)
+
+    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request) -> int:
+        if request:
+            if request.user.is_authenticated:
+                identifier = f"user:{request.user.id}"
+            else:
+                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                if x_forwarded_for:
+                    ip = x_forwarded_for.split(',')[0]
+                else:
+                    ip = request.META.get('REMOTE_ADDR')
+                
+                identifier = f"guest:{ip}"
+            
+
+            if not self.rate_limiter.is_allowed(identifier):
+                raise RateLimitExceededException("Rate limit exceeded. Maximum 6 requests per minute allowed.")
+
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
@@ -59,7 +107,7 @@ class CausesService:
             elif answer.__contains__('3'):  
                 return 3
             
-    def retrieve_feedback(self, cause: Causes, problem: Question, prev_cause: None|Causes):
+    def retrieve_feedback(self, cause: Causes, problem: Question, prev_cause: None|Causes, request):
         retrieve_feedback_user_prompt = ""
         retrieve_feedback_system_message = ""
         
@@ -88,7 +136,7 @@ class CausesService:
                 "Please respond ONLY WITH '1' if the cause is NOT THE CAUSE of the question, ONLY WITH '2' if the cause is positive or neutral"
             )
         
-        feedback_type = CausesService.api_call(self=self, system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE)
+        feedback_type = self.api_call(system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE, request=request)
             
         if feedback_type == 1 and prev_cause:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='ABCDE'[cause.column], row=cause.row, prev_row=cause.row-1)
@@ -99,7 +147,7 @@ class CausesService:
         elif feedback_type == 3:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
 
-    def validate(self, question_id: uuid):
+    def validate(self, question_id: uuid, request):
         max_row = Causes.objects.filter(question_id=question_id).order_by('-row').values_list('row', flat=True).first()
         causes = Causes.objects.filter(question_id=question_id, row=max_row)
         problem = Question.objects.get(pk=question_id)
@@ -119,18 +167,18 @@ class CausesService:
                 prev_cause = Causes.objects.filter(question_id=question_id, row=max_row-1, column=cause.column).first()
                 user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
                 
-            if self.api_call(self=self, system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL) == 1:
+            if self.api_call(system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL, request=request) == 1:
                 cause.status = True
                 cause.feedback = ""
                 if max_row > 1:
-                    CausesService.check_root_cause(self=self, cause=cause, problem=problem)
+                    self.check_root_cause(cause=cause, problem=problem, request=request)
 
             else:
-                CausesService.retrieve_feedback(self=self, cause=cause, problem=problem, prev_cause = prev_cause)
+                self.retrieve_feedback(cause=cause, problem=problem, prev_cause = prev_cause, request=request)
             
             cause.save()
     
-    def check_root_cause(self, cause: Causes, problem: Question):
+    def check_root_cause(self, cause: Causes, problem: Question, request):
         root_check_user_prompt = f"Is the cause '{cause.cause}' the fundamental reason behind the problem '{problem.question}'? Answer only with True or False."
         root_check_system_message = (
             "You are an AI model. You are asked to determine whether the given cause is a root cause of the given problem. "
@@ -139,7 +187,7 @@ class CausesService:
             "Your task is to distinguish between direct causes and root causes, identifying whether the given cause is indeed the fundamental issue driving the problem."
         )
         
-        if CausesService.api_call(self=self, system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT) == 1:
+        if self.api_call(system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT, request=request) == 1:
             cause.root_status = True
     
             korupsi_check_user_prompt = (
@@ -155,8 +203,8 @@ class CausesService:
                 "Answer ONLY with '1' for Harta, '2' for Tahta, or '3' for Cinta."
             )
             
-            korupsi_category = CausesService.api_call(self=self, system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE)
-            
+            korupsi_category = self.api_call(system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE, request=request)
+
             if korupsi_category == 1:
                 cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."
             elif korupsi_category == 2:
