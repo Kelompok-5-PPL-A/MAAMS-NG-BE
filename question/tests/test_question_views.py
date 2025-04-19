@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 from authentication.models import CustomUser
 from types import SimpleNamespace
+from django.utils import timezone
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -314,7 +315,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
             title="Old Question",
             question="Old Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=datetime(2024, 1, 1),
+            created_at=timezone.make_aware(datetime(2024, 1, 1)),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -323,7 +324,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
             title="Recent Question",
             question="Recent Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=datetime(2025, 3, 1),
+            created_at=timezone.make_aware(datetime(2025, 3, 1)),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -372,6 +373,17 @@ class TestQuestionGetRecentAnalysis(TestCase):
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data['detail'], "Unexpected error occurred")
+    
+    def test_get_recent_analysis_returns_none(self):
+        """Test when get_recent returns None (no exception), should return specific 404 message"""
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            mock_get_recent.return_value = None  # <--- ini bikin masuk ke if not recent_question
+
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(response.data['detail'], "No recent questions found for this user.")
+
             
 
 class QuestionResponseSerializerTest(TestCase):
@@ -431,3 +443,147 @@ class QuestionResponseSerializerTest(TestCase):
         
         self.assertIsNone(data['username'])
         self.assertIsNone(data['user'])
+
+class TestQuestionGetPrivileged(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/question/privileged/'
+        self.user = CustomUser.objects.create_user(
+            username="regularuser", email="user@example.com", password="password"
+        )
+        self.admin_user = CustomUser.objects.create_user(
+            username="adminuser", email="admin@example.com", password="password"
+        )
+        self.admin_user.is_superuser = True
+        self.admin_user.is_staff = True
+        self.admin_user.save()
+
+        self.question1 = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Privileged Q1",
+            question="Isi Q1",
+            mode=Question.ModeChoices.PENGAWASAN,
+            created_at=timezone.now(),
+            user=self.admin_user
+        )
+
+    def test_get_privileged_success_as_superuser(self):
+        """Test superuser can successfully access get_privileged"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?filter=recent&keyword=test')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue("results" in response.data)
+            self.assertEqual(len(response.data["results"]), 1)
+            mock_get.assert_called_once_with(
+                q_filter='recent',
+                user=self.admin_user,
+                keyword='test'
+            )
+
+    def test_get_privileged_authenticated_regular_user_forbidden(self):
+        """Test that regular authenticated users are forbidden"""
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_get_privileged_unauthenticated_user_unauthorized(self):
+        """Test unauthenticated (guest) user gets unauthorized"""
+        guest_client = APIClient()
+        response = guest_client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_privileged_empty_result(self):
+        """Test superuser receives empty result without error"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = []
+
+            response = self.client.get(self.url + '?filter=recent')
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["results"], [])
+
+    def test_get_privileged_unexpected_error(self):
+        """Test server error when something unexpected occurs"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.side_effect = Exception("Unexpected failure")
+
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Unexpected failure", response.data["detail"])
+
+
+    # Test filter admin
+    def test_get_privileged_filter_semua_returns_all_pengawasan(self):
+        """Test superuser gets all PENGAWASAN questions when using 'semua' filter"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?filter=semua')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data["results"]), 1)
+            mock_get.assert_called_once_with(
+                q_filter='semua',
+                user=self.admin_user,
+                keyword=''
+            )
+    
+    def test_get_privileged_invalid_filter_returns_server_error(self):
+        """Test unknown filter value returns server error"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.side_effect = ValueError("Invalid filter value")
+
+            response = self.client.get(self.url + '?filter=unknown_filter')
+
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Invalid filter value", response.data["detail"])
+
+    def test_get_privileged_missing_filter_still_works_with_default(self):
+        """Test when filter is missing, still handles it gracefully"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?keyword=Privileged')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            mock_get.assert_called_once_with(
+                q_filter=None,
+                user=self.admin_user,
+                keyword='Privileged'
+            )
+
+    def test_get_privileged_with_filter_but_empty_keyword(self):
+        """Test filter applied but keyword is empty string"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = []
+
+            response = self.client.get(self.url + '?filter=judul&keyword=')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            mock_get.assert_called_once_with(
+                q_filter='judul',
+                user=self.admin_user,
+                keyword=''
+            )
+
+
+

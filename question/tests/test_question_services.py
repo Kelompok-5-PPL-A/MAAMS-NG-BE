@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import UniqueTagException
+from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -9,6 +9,7 @@ import uuid
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from authentication.models import CustomUser
+from django.db.models import Q
 
 class TestQuestionService(TestCase):
     def setUp(self):
@@ -204,3 +205,146 @@ class TestQuestionService(TestCase):
         with self.assertRaises(UniqueTagException) as context:
             self.service._validate_tags([tag_name, tag_name])
         self.assertEqual(str(context.exception), ErrorMsg.TAG_MUST_BE_UNIQUE)
+
+    def test_get_privileged_with_admin_and_valid_filter(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin", 
+            password="password123", 
+            email="admin@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        question_pengawasan = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Pengawasan Question",
+            question="Should be visible to admin",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+        
+        # Act
+        result = self.service.get_privileged("semua", admin_user, "")
+
+        # Assert
+        self.assertIn(question_pengawasan, result)
+
+    def test_get_privileged_forbidden_for_non_admin(self):
+        # Arrange
+        non_admin = CustomUser.objects.create(
+            username="user", 
+            password="password123", 
+            email="user@example.com",
+            is_superuser=False, 
+            is_staff=False
+        )
+
+        # Act & Assert
+        with self.assertRaises(ForbiddenRequestException) as context:
+            self.service.get_privileged("semua", non_admin, "keyword")
+        self.assertEqual(str(context.exception), ErrorMsg.FORBIDDEN_GET)
+    
+    def test_get_privileged_sets_default_q_filter_when_empty(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin_default", 
+            password="password123", 
+            email="admin_default@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        question_pengawasan = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Pengawasan Question",
+            question="Should be visible when q_filter is empty",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+
+        # Patch _resolve_filter_type to check input q_filter value
+        with patch.object(self.service, '_resolve_filter_type') as mock_resolve_filter:
+            mock_resolve_filter.return_value = Q()  # dummy filter
+            result = self.service.get_privileged('', admin_user, '')
+
+        # Assert _resolve_filter_type menerima q_filter 'semua' sebagai fallback
+        mock_resolve_filter.assert_called_once_with('semua', '', True)
+        self.assertIn(question_pengawasan, result)
+
+
+    # ini test buat filter
+    def test_resolve_filter_type_pengguna(self):
+        # Arrange
+        keyword = "john"
+        expected_clause = (
+            Q(user__username__icontains=keyword) |
+            Q(user__first_name__icontains=keyword) |
+            Q(user__last_name__icontains=keyword)
+        )
+
+        # Act
+        clause = self.service._resolve_filter_type("pengguna", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_judul(self):
+        # Arrange
+        keyword = "judul test"
+        expected_clause = (
+            Q(title__icontains=keyword) |
+            Q(question__icontains=keyword)
+        )
+
+        # Act
+        clause = self.service._resolve_filter_type("judul", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_topik(self):
+        # Arrange
+        keyword = "ekonomi"
+        expected_clause = Q(tags__name__icontains=keyword)
+
+        # Act
+        clause = self.service._resolve_filter_type("topik", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_semua_with_admin(self):
+        # Arrange
+        keyword = "cari"
+        clause = self.service._resolve_filter_type("semua", keyword, True)
+
+        # Assert
+        self.assertIn("title__icontains", str(clause))
+        self.assertIn("question__icontains", str(clause))
+        self.assertIn("tags__name__icontains", str(clause))
+        self.assertIn("user__username__icontains", str(clause))  # karena admin
+
+
+    def test_resolve_filter_type_semua_without_admin(self):
+        # Arrange
+        keyword = "cari"
+        clause = self.service._resolve_filter_type("semua", keyword, False)
+
+        # Assert
+        self.assertIn("title__icontains", str(clause))
+        self.assertIn("question__icontains", str(clause))
+        self.assertIn("tags__name__icontains", str(clause))
+        self.assertNotIn("user__username__icontains", str(clause))  # karena bukan admin
+
+
+    def test_resolve_filter_type_invalid_filter_raises_exception(self):
+        # Act & Assert
+        with self.assertRaises(InvalidFiltersException) as context:
+            self.service._resolve_filter_type("invalid", "keyword", True)
+        self.assertEqual(str(context.exception), ErrorMsg.INVALID_FILTERS)
+
+
+
+        
