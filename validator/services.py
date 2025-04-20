@@ -8,38 +8,10 @@ from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
 from validator.exceptions import AIServiceErrorException, RateLimitExceededException
-from arize.otel import register
-from openinference.instrumentation.groq import GroqInstrumentor
 from validator.utils.rate_limiter import RateLimiter
 
-tracer_provider = register(
-    space_id = settings.ARIZE_SPACE_ID,
-    api_key = settings.ARIZE_API_KEY,
-    project_name = "MAAMS NG"
-)
-GroqInstrumentor().instrument(tracer_provider=tracer_provider)
-
 class CausesService:
-    def __init__(self):
-        self.rate_limiter = RateLimiter(rate=6, per=60)
-
-    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request) -> int:
-        if request:
-            if request.user.is_authenticated:
-                identifier = f"user:{request.user.id}"
-            else:
-                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-                if x_forwarded_for:
-                    ip = x_forwarded_for.split(',')[0]
-                else:
-                    ip = request.META.get('REMOTE_ADDR')
-                
-                identifier = f"guest:{ip}"
-            
-
-            if not self.rate_limiter.is_allowed(identifier):
-                raise RateLimitExceededException(ErrorMsg.RATE_LIMIT_EXCEEDED)
-
+    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request=None) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
@@ -54,7 +26,7 @@ class CausesService:
                         "content": user_prompt
                     }
                 ],
-                model="llama-3.1-8b-instant",
+                model="deepseek-r1-distill-llama-70b",
                 temperature=0.7,
                 max_completion_tokens=8192,
                 top_p=0.95,
@@ -82,7 +54,13 @@ class CausesService:
             
     def retrieve_feedback(self, cause: Causes, problem: Question, prev_cause: None|Causes, request):
         retrieve_feedback_user_prompt = ""
-        retrieve_feedback_system_message = ""
+        retrieve_feedback_system_message = (
+            "You are an AI model analyzing cause-and-effect relationships. When evaluating causes, consider that: "
+            "1) Some causes may appear similar to causes in other columns as we get deeper in the analysis "
+            "2) Causes should be specific to their parent cause in the same column "
+            "3) As analysis progresses, causes often converge toward common root issues "
+            "Please respond only with numerical codes as specified in the user prompt."
+        )
         
         if prev_cause:
             retrieve_feedback_user_prompt = (
@@ -91,13 +69,7 @@ class CausesService:
                 "Answer ONLY WITH '1' if it is NOT THE CAUSE,  "
                 "ONLY WITH '2' if it is POSITIVE OR NEUTRAL, or "
                 "ONLY WITH '3' if it is SIMILAR TO THE PREVIOUS cause."
-            )
-            retrieve_feedback_system_message = (
-                "You are an AI model. You are asked to determine the relationship between the given causes. "
-                "Please respond ONLY WITH '1' if the cause is NOT THE CAUSE of the previous cause, "
-                "ONLY WITH '2' if the cause is POSITIVE OR NEUTRAL, or "
-                "ONLY WITH '3' if the cause is SIMILAR TO THE PREVIOUS cause."
-            )        
+            )   
         else:
             retrieve_feedback_user_prompt = (
                 f"'{cause.cause}' is the FALSE cause for this question '{problem.question}'. "
@@ -121,43 +93,111 @@ class CausesService:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
 
     def validate(self, question_id: uuid, request):
-        max_row = Causes.objects.filter(question_id=question_id).order_by('-row').values_list('row', flat=True).first()
-        causes = Causes.objects.filter(question_id=question_id, row=max_row)
+        unvalidated_causes = Causes.objects.filter(question_id=question_id, status=False)
+        
+        # If no causes need validation, return empty list
+        if not unvalidated_causes.exists():
+            return []
+        
         problem = Question.objects.get(pk=question_id)
-
-        for cause in causes:
-            if cause.status:
-                continue
-            
-            user_prompt = ""
-            prev_cause = None
-            system_message = "You are an AI model. You are asked to determine whether the given cause is the cause of the given problem."
-            
-            if max_row == 1:
-                user_prompt = f"Is '{cause.cause}' the cause of this question: '{problem.question}'? Answer only with True/False"
+        validated_causes = []
+        
+        # First validate row 1 across all columns to ensure the foundation is correct
+        row1_causes = unvalidated_causes.filter(row=1).order_by('column')
+        for cause in row1_causes:
+            self._validate_single_cause(cause, problem, None, request)
+            validated_causes.append(cause)
+        
+        # Then proceed column by column, validating completely one column before moving to the next
+        for column in range(5):  # Max 5 columns (A-E)
+            # Skip if no root cause found in previous column (except for column 0)
+            if column > 0:
+                previous_column_has_root = Causes.objects.filter(
+                    question_id=question_id,
+                    column=column-1,
+                    root_status=True
+                ).exists()
                 
-            else:
-                prev_cause = Causes.objects.filter(question_id=question_id, row=max_row-1, column=cause.column).first()
-                user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
-                
-            if self.api_call(system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL, request=request) == 1:
-                cause.status = True
-                cause.feedback = ""
-                if max_row > 1:
-                    self.check_root_cause(cause=cause, problem=problem, request=request)
-
-            else:
-                self.retrieve_feedback(cause=cause, problem=problem, prev_cause = prev_cause, request=request)
+                if not previous_column_has_root:
+                    continue
             
-            cause.save()
+            # Get all unvalidated causes in this column, ordered by row
+            column_causes = unvalidated_causes.filter(
+                question_id=question_id,
+                column=column,
+                row__gt=1  # Exclude row 1 as it's already validated
+            ).order_by('row')
+            
+            # Validate each cause in the column
+            for cause in column_causes:
+                self._validate_cause(cause, problem, request)
+                validated_causes.append(cause)
+                
+                # If root cause found, break and move to next column
+                if cause.root_status:
+                    break
+        
+        return validated_causes
+    
+    def _validate_cause(self, cause, problem, request):
+        # Get the previous cause in the same column
+        prev_cause = self._get_previous_cause(cause, problem)
+        
+        # Skip if previous cause isn't found or isn't valid
+        if not prev_cause:
+            return
+        
+        # Validate this cause
+        self._validate_single_cause(cause, problem, prev_cause, request)
+    
+    def _get_previous_cause(self, cause, problem):
+        try:
+            # Get specifically the valid cause from the previous row
+            prev_cause = Causes.objects.filter(
+                question_id=problem.pk,
+                column=cause.column,
+                row=cause.row-1,
+                status=True  # Only get validated causes
+            ).first()  # Get the first matching cause if there are multiple
+            
+            return prev_cause
+        except Causes.DoesNotExist:
+            return None
+    
+    def _validate_single_cause(self, cause, problem, prev_cause, request):
+        """Helper method to validate a single cause"""
+        if cause.status:
+            return
+        
+        user_prompt = ""
+        system_message = "You are an AI model. You are asked to determine whether the given cause is the cause of the given problem."
+        
+        if cause.row == 1:
+            user_prompt = f"Is '{cause.cause}' the cause of this question: '{problem.question}'? Answer only with True/False"
+        else:
+            user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
+                
+        if self.api_call(system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL, request=request) == 1:
+            cause.status = True
+            cause.feedback = ""
+            # Check if this is a root cause (for all valid causes)
+            self.check_root_cause(cause=cause, problem=problem, request=request)
+        else:
+            self.retrieve_feedback(cause=cause, problem=problem, prev_cause=prev_cause, request=request)
+        
+        cause.save()
     
     def check_root_cause(self, cause: Causes, problem: Question, request):
         root_check_user_prompt = f"Is the cause '{cause.cause}' the fundamental reason behind the problem '{problem.question}'? Answer only with True or False."
         root_check_system_message = (
             "You are an AI model. You are asked to determine whether the given cause is a root cause of the given problem. "
-            "A root cause is the fundamental underlying reason for a problem, which, if addressed, would prevent recurrence of the problem. "
-            "Not all direct causes are root causes; while direct causes contribute to the problem, root causes are the deepest level of causation. "
-            "Your task is to distinguish between direct causes and root causes, identifying whether the given cause is indeed the fundamental issue driving the problem."
+            "A root cause is the fundamental underlying reason that, if addressed, would prevent the problem's recurrence. "
+            "In a cause-and-effect chain analysis, a root cause is the deepest level where effective intervention can occur. "
+            "Not all direct causes are root causes. To identify a root cause, consider: "
+            "1) Is this cause something that can be directly addressed? "
+            "2) If this cause were eliminated, would it prevent the problem from recurring? "
+            "3) Is this the most fundamental level of the issue in this causal chain? "
+            "Respond only with True if this is indeed a root cause, or False if this is an intermediate cause that has deeper underlying causes."
         )
         
         if self.api_call(system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT, request=request) == 1:
