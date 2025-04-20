@@ -145,6 +145,9 @@ jobs:
             SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
   
   publish-production:
     name: Publish Production Docker Image
@@ -176,6 +179,9 @@ jobs:
             HOST_FE=${{ secrets.PROD_HOST_FE }}
             SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
   
   deploy-staging:
     name: Deploy to Staging
