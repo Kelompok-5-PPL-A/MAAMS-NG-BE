@@ -19,12 +19,11 @@ class CausesServiceTest(TestCase):
         mock_chat_completion.choices = [Mock(message=Mock(content='true'))]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         system_message = "You are an AI model. You are asked to determine whether the given cause is the cause of the given problem."
         user_prompt = "Is 'Example cause' the cause of 'Example problem'? Answer only with True/False"
-        response = service.api_call(system_message, user_prompt, ValidationType.NORMAL, request=mock_request)
+        response = service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
         self.assertEqual(response, 1)
         mock_client.chat.completions.create.assert_called_once_with(
@@ -55,12 +54,11 @@ class CausesServiceTest(TestCase):
         mock_chat_completion.choices = [Mock(message=Mock(content='false'))]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         system_message = "You are an AI model. You are asked to determine whether the given cause is the cause of the given problem."
         user_prompt = "Is 'Example cause' the cause of 'Example problem'? Answer only with True/False"
-        response = service.api_call(system_message, user_prompt, ValidationType.NORMAL, request=mock_request)
+        response = service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
         self.assertEqual(response, 0)
 
@@ -71,14 +69,13 @@ class CausesServiceTest(TestCase):
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = RequestException("Network error")
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         system_message = "You are an AI model. You are asked to determine whether the given cause is the cause of the given problem."
         user_prompt = "Is 'Example cause' the cause of 'Example problem'? Answer only with True/False"
 
         with self.assertRaises(AIServiceErrorException) as context:
-            service.api_call(system_message, user_prompt, ValidationType.NORMAL, request=mock_request)
+            service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
         mock_client.chat.completions.create.assert_called_once_with(
             messages=[
@@ -138,14 +135,12 @@ class CausesServiceTest(TestCase):
         mock_chat_completion.choices = [Mock(message=Mock(content='true'))]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         response = service.api_call(
             system_message="test",
             user_prompt="test",
-            validation_type=ValidationType.ROOT,
-            request=mock_request
+            validation_type=ValidationType.ROOT
         )
         self.assertEqual(response, 1)
 
@@ -158,14 +153,12 @@ class CausesServiceTest(TestCase):
         mock_chat_completion.choices = [Mock(message=Mock(content='2'))]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         response = service.api_call(
             system_message="test",
             user_prompt="test",
-            validation_type=ValidationType.ROOT_TYPE,
-            request=mock_request
+            validation_type=ValidationType.ROOT_TYPE
         )
         self.assertEqual(response, 2)
 
@@ -182,9 +175,8 @@ class CausesServiceTest(TestCase):
         service = CausesService()
         cause = Causes(question_id=uuid.uuid4(), cause="False Cause", row=1, column=1)
         problem = Question(question="Test problem")
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, problem, None, mock_request)
+        service.retrieve_feedback(cause, problem, None)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='B'))
 
     @patch('validator.services.Groq')
@@ -200,9 +192,8 @@ class CausesServiceTest(TestCase):
         service = CausesService()
         cause = Causes(question_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=1, column=1)
         problem = Question(question="Test problem")
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, problem, None, mock_request)
+        service.retrieve_feedback(cause, problem, None)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=1))
 
     @patch('validator.services.Groq')
@@ -219,9 +210,8 @@ class CausesServiceTest(TestCase):
         prev_cause = Causes(question_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
         cause = Causes(question_id=uuid.uuid4(), cause="False Cause", row=2, column=1)
         problem = Question(question="Test problem")
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, problem, prev_cause, mock_request)
+        service.retrieve_feedback(cause, problem, prev_cause)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='B', row=2, prev_row=1))
 
     @patch('validator.services.Groq')
@@ -238,9 +228,8 @@ class CausesServiceTest(TestCase):
         prev_cause = Causes(question_id=uuid.uuid4(), cause="Base Cause", row=1, column=1)
         cause = Causes(question_id=uuid.uuid4(), cause="Positive/Neutral Cause", row=2, column=1)
         problem = Question(question="Test problem")
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, problem, prev_cause, mock_request)
+        service.retrieve_feedback(cause, problem, prev_cause)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=2))
 
     @patch('validator.services.Groq')
@@ -257,9 +246,8 @@ class CausesServiceTest(TestCase):
         cause = Causes(question_id=uuid.uuid4(), cause="Similar Cause", row=2, column=1)
         prev_cause = Causes(question_id=uuid.uuid4(), cause="Previous Cause", row=1, column=1)
         problem = Question(question="Test problem")
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, problem, prev_cause, mock_request)
+        service.retrieve_feedback(cause, problem, prev_cause)
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='B', row=2))
 
     @patch('validator.services.Groq')
@@ -291,9 +279,8 @@ class CausesServiceTest(TestCase):
             row=0,
             column=0
         )
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, question, prev_cause, mock_request)
+        service.retrieve_feedback(cause, question, prev_cause)
         self.assertIn("bukan merupakan sebab", cause.feedback)
 
     @patch('validator.services.Groq')
@@ -319,9 +306,8 @@ class CausesServiceTest(TestCase):
             column=0,
             status=False
         )
-        mock_request = Mock()
 
-        service.retrieve_feedback(cause, question, None, mock_request)
+        service.retrieve_feedback(cause, question, None)
         self.assertIn("sebab positif atau netral", cause.feedback)
 
     @patch('validator.services.Groq')
@@ -341,9 +327,8 @@ class CausesServiceTest(TestCase):
             column=0,
             status=True
         )
-        mock_request = Mock()
         
-        service.validate(question_id, mock_request)
+        service.validate(question_id)
         self.assertTrue(cause.status)
 
     @patch('validator.services.Groq')
@@ -378,9 +363,8 @@ class CausesServiceTest(TestCase):
             column=0,
             status=False
         )
-        mock_request = Mock()
 
-        def mock_api_call_side_effect(system_message, user_prompt, validation_type, request=None):
+        def mock_api_call_side_effect(system_message, user_prompt, validation_type):
             if validation_type == ValidationType.NORMAL:
                 return 1
             elif validation_type == ValidationType.ROOT:
@@ -388,15 +372,14 @@ class CausesServiceTest(TestCase):
             return 0
 
         with patch.object(CausesService, 'api_call', side_effect=mock_api_call_side_effect) as mock_api_call:
-            service.validate(question_id, mock_request)
+            service.validate(question_id)
             cause.refresh_from_db()
             self.assertTrue(cause.status)
             
             mock_api_call.assert_any_call(
                 system_message="You are an AI model. You are asked to determine whether the given cause is the cause of the given problem.",
                 user_prompt=f"Is '{cause.cause}' the cause of '{first_cause.cause}'? Answer only with True/False",
-                validation_type=ValidationType.NORMAL,
-                request=mock_request
+                validation_type=ValidationType.NORMAL
             )
 
     @patch('validator.services.Groq')
@@ -412,7 +395,6 @@ class CausesServiceTest(TestCase):
         ]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         question_id = uuid.uuid4()
@@ -428,7 +410,7 @@ class CausesServiceTest(TestCase):
             status=False
         )
 
-        service.check_root_cause(cause, question, mock_request)
+        service.check_root_cause(cause, question)
         cause.refresh_from_db()
         self.assertTrue(cause.root_status)
         self.assertIn("Korupsi Tahta", cause.feedback)
@@ -446,7 +428,6 @@ class CausesServiceTest(TestCase):
         ]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         question_id = uuid.uuid4()
@@ -462,7 +443,7 @@ class CausesServiceTest(TestCase):
             status=False
         )
 
-        service.check_root_cause(cause, question, mock_request)
+        service.check_root_cause(cause, question)
         cause.refresh_from_db()
         self.assertTrue(cause.root_status)
         self.assertIn("Korupsi Harta", cause.feedback)
@@ -490,23 +471,21 @@ class CausesServiceTest(TestCase):
             column=0,
             status=False
         )
-        mock_request = Mock()
 
-        def mock_api_call_side_effect(system_message, user_prompt, validation_type, request=None):
+        def mock_api_call_side_effect(system_message, user_prompt, validation_type):
             if validation_type == ValidationType.NORMAL:
                 return 1
             return 0
 
         with patch.object(CausesService, 'api_call', side_effect=mock_api_call_side_effect) as mock_api_call:
-            service.validate(question_id, mock_request)
+            service.validate(question_id)
             cause.refresh_from_db()
             self.assertTrue(cause.status)
             
             mock_api_call.assert_any_call(
                 system_message="You are an AI model. You are asked to determine whether the given cause is the cause of the given problem.",
                 user_prompt=f"Is '{cause.cause}' the cause of this question: '{question.question}'? Answer only with True/False",
-                validation_type=ValidationType.NORMAL,
-                request=mock_request
+                validation_type=ValidationType.NORMAL
             )
 
     @patch('validator.services.Groq')
@@ -539,13 +518,12 @@ class CausesServiceTest(TestCase):
             column=0,
             status=False
         )
-        mock_request = Mock()
 
-        def mock_api_call_side_effect(system_message, user_prompt, validation_type, request=None):
+        def mock_api_call_side_effect(system_message, user_prompt, validation_type):
             return 0
 
         with patch.object(CausesService, 'api_call', side_effect=mock_api_call_side_effect) as mock_api_call:
-            service.validate(question_id, mock_request)
+            service.validate(question_id)
             cause.refresh_from_db()
             self.assertFalse(cause.status)
 
@@ -562,7 +540,6 @@ class CausesServiceTest(TestCase):
         ]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         question_id = uuid.uuid4()
@@ -578,7 +555,7 @@ class CausesServiceTest(TestCase):
             status=False
         )
 
-        service.check_root_cause(cause, question, mock_request)
+        service.check_root_cause(cause, question)
         cause.refresh_from_db()
         self.assertTrue(cause.root_status)
         self.assertIn("Korupsi Harta", cause.feedback)
@@ -596,7 +573,6 @@ class CausesServiceTest(TestCase):
         ]
         mock_client.chat.completions.create.return_value = mock_chat_completion
         mock_groq.return_value = mock_client
-        mock_request = Mock()
 
         service = CausesService()
         question_id = uuid.uuid4()
@@ -612,7 +588,7 @@ class CausesServiceTest(TestCase):
             status=False
         )
 
-        service.check_root_cause(cause, question, mock_request)
+        service.check_root_cause(cause, question)
         cause.refresh_from_db()
         self.assertTrue(cause.root_status)
         self.assertIn("Korupsi Cinta", cause.feedback)

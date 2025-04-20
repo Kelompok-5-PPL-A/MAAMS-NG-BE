@@ -18,7 +18,7 @@ tracer_provider = register(
 GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
 class CausesService:
-    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request) -> int:
+    def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
@@ -59,7 +59,7 @@ class CausesService:
             elif answer.__contains__('3'):  
                 return 3
             
-    def retrieve_feedback(self, cause: Causes, problem: Question, prev_cause: None|Causes, request):
+    def retrieve_feedback(self, cause: Causes, problem: Question, prev_cause: None|Causes):
         retrieve_feedback_user_prompt = ""
         retrieve_feedback_system_message = ""
         
@@ -88,7 +88,7 @@ class CausesService:
                 "Please respond ONLY WITH '1' if the cause is NOT THE CAUSE of the question, ONLY WITH '2' if the cause is positive or neutral"
             )
         
-        feedback_type = self.api_call(system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE, request=request)
+        feedback_type = self.api_call(system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE)
             
         if feedback_type == 1 and prev_cause:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='ABCDE'[cause.column], row=cause.row, prev_row=cause.row-1)
@@ -99,7 +99,7 @@ class CausesService:
         elif feedback_type == 3:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='ABCDE'[cause.column], row=cause.row) 
 
-    def validate(self, question_id: uuid, request):
+    def validate(self, question_id: uuid):
         max_row = Causes.objects.filter(question_id=question_id).order_by('-row').values_list('row', flat=True).first()
         causes = Causes.objects.filter(question_id=question_id, row=max_row)
         problem = Question.objects.get(pk=question_id)
@@ -119,18 +119,18 @@ class CausesService:
                 prev_cause = Causes.objects.filter(question_id=question_id, row=max_row-1, column=cause.column).first()
                 user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
                 
-            if self.api_call(system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL, request=request) == 1:
+            if self.api_call(system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL) == 1:
                 cause.status = True
                 cause.feedback = ""
                 if max_row > 1:
-                    self.check_root_cause(cause=cause, problem=problem, request=request)
+                    self.check_root_cause(cause=cause, problem=problem)
 
             else:
-                self.retrieve_feedback(cause=cause, problem=problem, prev_cause = prev_cause, request=request)
+                self.retrieve_feedback(cause=cause, problem=problem, prev_cause = prev_cause)
             
             cause.save()
     
-    def check_root_cause(self, cause: Causes, problem: Question, request):
+    def check_root_cause(self, cause: Causes, problem: Question):
         root_check_user_prompt = f"Is the cause '{cause.cause}' the fundamental reason behind the problem '{problem.question}'? Answer only with True or False."
         root_check_system_message = (
             "You are an AI model. You are asked to determine whether the given cause is a root cause of the given problem. "
@@ -139,7 +139,7 @@ class CausesService:
             "Your task is to distinguish between direct causes and root causes, identifying whether the given cause is indeed the fundamental issue driving the problem."
         )
         
-        if self.api_call(system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT, request=request) == 1:
+        if self.api_call(system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT) == 1:
             cause.root_status = True
     
             korupsi_check_user_prompt = (
@@ -155,7 +155,7 @@ class CausesService:
                 "Answer ONLY with '1' for Harta, '2' for Tahta, or '3' for Cinta."
             )
             
-            korupsi_category = self.api_call(system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE, request=request)
+            korupsi_category = self.api_call(system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE)
 
             if korupsi_category == 1:
                 cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."

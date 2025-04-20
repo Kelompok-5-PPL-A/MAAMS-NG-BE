@@ -14,6 +14,6 @@ class ValidateView(APIView):
     )
     def patch(self, request, question_id):
         service = CausesService() 
-        updated_causes = service.validate(question_id=question_id, request=request)
+        updated_causes = service.validate(question_id=question_id)
         serializer = CausesResponse(updated_causes, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
