@@ -11,7 +11,7 @@ from validator.services import CausesService
 
 class CausesServiceTest(TestCase):
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_positive(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -47,7 +47,7 @@ class CausesServiceTest(TestCase):
         )
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_returns_false(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -65,7 +65,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(response, 0)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_request_exception(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -102,7 +102,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(str(context.exception), "Failed to call the AI service.")
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_negative(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -116,7 +116,7 @@ class CausesServiceTest(TestCase):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_forbidden_access(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -130,7 +130,7 @@ class CausesServiceTest(TestCase):
             service.api_call(system_message, user_prompt, ValidationType.NORMAL)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_validation_type_root(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -150,7 +150,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(response, 1)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_api_call_validation_type_root_type(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -170,7 +170,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(response, 2)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_not_cause_1_row(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -188,7 +188,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='B'))
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_positive_neutral_1_row(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -206,7 +206,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=1))
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_not_cause_n_row(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -225,7 +225,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='B', row=2, prev_row=1))
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_positive_neutral_n_row(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -244,7 +244,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='B', row=2))
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_similar_previous_n_row(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -263,7 +263,7 @@ class CausesServiceTest(TestCase):
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_SIMILAR_PREVIOUS.format(column='B', row=2))
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_with_prev_cause(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -297,7 +297,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("bukan merupakan sebab", cause.feedback)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_retrieve_feedback_without_prev_cause(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -325,7 +325,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("sebab positif atau netral", cause.feedback)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_validate_with_status_true(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         service = CausesService()
@@ -347,7 +347,7 @@ class CausesServiceTest(TestCase):
         self.assertTrue(cause.status)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_validate_with_multiple_rows(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -400,7 +400,7 @@ class CausesServiceTest(TestCase):
             )
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_check_root_cause_with_korupsi_categories(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -434,7 +434,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("Korupsi Tahta", cause.feedback)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_check_root_cause_default_korupsi(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -468,7 +468,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("Korupsi Harta", cause.feedback)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_validate_with_row_1(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -510,7 +510,7 @@ class CausesServiceTest(TestCase):
             )
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_validate_returns_false(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -550,7 +550,7 @@ class CausesServiceTest(TestCase):
             self.assertFalse(cause.status)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_check_root_cause_with_korupsi_harta(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -584,7 +584,7 @@ class CausesServiceTest(TestCase):
         self.assertIn("Korupsi Harta", cause.feedback)
 
     @patch('validator.services.Groq')
-    @patch('validator.services.RateLimiter.is_allowed')
+    @patch('validator.middleware.rate_limit_middleware.RateLimitMiddleware.is_allowed')
     def test_check_root_cause_with_korupsi_cinta(self, mock_is_allowed, mock_groq):
         mock_is_allowed.return_value = True
         mock_client = Mock()
@@ -616,40 +616,3 @@ class CausesServiceTest(TestCase):
         cause.refresh_from_db()
         self.assertTrue(cause.root_status)
         self.assertIn("Korupsi Cinta", cause.feedback)
-
-    @patch('validator.services.Groq')
-    @patch('validator.utils.rate_limiter.RateLimiter.is_allowed')
-    def test_api_call_with_unauthenticated_user(self, mock_is_allowed, mock_groq):
-        """Test API call with unauthenticated user and verify IP address extraction"""
-        mock_is_allowed.return_value = True
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='true'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
-
-        service = CausesService()
-        system_message = "test system message"
-        user_prompt = "test user prompt"
-        
-        # Test with X-Forwarded-For header
-        mock_request_with_xff = Mock()
-        mock_request_with_xff.user = Mock(is_authenticated=False)
-        mock_request_with_xff.META = {
-            'HTTP_X_FORWARDED_FOR': '192.168.1.1, 10.0.0.1'
-        }
-        
-        response = service.api_call(system_message, user_prompt, ValidationType.NORMAL, mock_request_with_xff)
-        mock_is_allowed.assert_called_with('guest:192.168.1.1')
-        self.assertEqual(response, 1)
-        
-        # Test with REMOTE_ADDR only
-        mock_request_remote_addr = Mock()
-        mock_request_remote_addr.user = Mock(is_authenticated=False)
-        mock_request_remote_addr.META = {
-            'REMOTE_ADDR': '10.0.0.2'
-        }
-        
-        response = service.api_call(system_message, user_prompt, ValidationType.NORMAL, mock_request_remote_addr)
-        mock_is_allowed.assert_called_with('guest:10.0.0.2')
-        self.assertEqual(response, 1)
