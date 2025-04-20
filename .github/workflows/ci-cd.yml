@@ -211,6 +211,9 @@ jobs:
             -e DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }} \
             -e SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }} \
             -e DEBUG=True \
+            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
+            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
+            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging"
   
   deploy-production:
@@ -241,4 +244,7 @@ jobs:
             -e DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }} \
             -e SECRET_KEY=${{ secrets.PROD_SECRET_KEY }} \
             -e DEBUG=False \
+            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
+            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
+            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:production"
