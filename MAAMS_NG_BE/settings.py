@@ -75,7 +75,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'moesifdjango.middleware.moesif_middleware'
+    'moesifdjango.middleware.moesif_middleware',
+    'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -258,11 +259,83 @@ sentry_sdk.init(
     send_default_pii=True,
 )
 
+# Mesif middleware settings to monitor API call
 MOESIF_MIDDLEWARE = {
     'APPLICATION_ID': os.getenv("MOESIF_APPLICATION_ID"),
 
     'CAPTURE_OUTGOING_REQUESTS': True,
 }
 
+
+# Arize settings to monitor AI prompts and responses
 ARIZE_SPACE_ID = os.getenv('ARIZE_SPACE_ID')
 ARIZE_API_KEY = os.getenv('ARIZE_API_KEY')
+
+# Logging settings
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'validator.log'),
+            'maxBytes': 1024*1024*5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'validator': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'validator.services': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'validator.middleware': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Rate Limiter Configuration
+RATE_LIMIT = {
+    'DEFAULT': {
+        'RATE': 6,  # Number of requests allowed
+        'PER': 60,  # Time period in seconds
+    },
+    # Define custom rate limits for specific paths
+    'CUSTOM_RATES': {
+        # Example: Stricter rate limiting for validation API
+        '/cause/validate/': {
+            'RATE': 6,
+            'PER': 60,
+        },
+    },
+    # Paths that should be excluded from rate limiting
+    'EXEMPT_PATHS': [],
+    # If True, all paths are rate-limited unless explicitly exempt
+    # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
+    'RATE_LIMIT_ALL_PATHS': False,
+}

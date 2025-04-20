@@ -2,15 +2,13 @@ import uuid
 from django.conf import settings
 from groq import Groq
 import requests
-from django.core.cache import cache
 from validator.constants import ErrorMsg, FeedbackMsg
 from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
-from validator.exceptions import AIServiceErrorException, RateLimitExceededException
+from validator.exceptions import AIServiceErrorException
 from arize.otel import register
 from openinference.instrumentation.groq import GroqInstrumentor
-from validator.utils.rate_limiter import RateLimiter
 
 tracer_provider = register(
     space_id = settings.ARIZE_SPACE_ID,
@@ -20,26 +18,7 @@ tracer_provider = register(
 GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
 class CausesService:
-    def __init__(self):
-        self.rate_limiter = RateLimiter(rate=6, per=60)
-
     def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request) -> int:
-        if request:
-            if request.user.is_authenticated:
-                identifier = f"user:{request.user.id}"
-            else:
-                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-                if x_forwarded_for:
-                    ip = x_forwarded_for.split(',')[0]
-                else:
-                    ip = request.META.get('REMOTE_ADDR')
-                
-                identifier = f"guest:{ip}"
-            
-
-            if not self.rate_limiter.is_allowed(identifier):
-                raise RateLimitExceededException(ErrorMsg.RATE_LIMIT_EXCEEDED)
-
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
