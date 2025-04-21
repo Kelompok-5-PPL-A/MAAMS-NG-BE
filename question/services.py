@@ -83,7 +83,7 @@ class QuestionService():
         if not q_filter: q_filter = 'semua'
         if not keyword: keyword = ''
 
-        today_datetime = datetime.now()
+        today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
         last_week_datetime = today_datetime - timedelta(days=7)
 
         # append corresponding user to query
