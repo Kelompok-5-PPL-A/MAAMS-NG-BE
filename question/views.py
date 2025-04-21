@@ -9,6 +9,7 @@ from question.models import Question
 from question.services import QuestionService
 from question.serializers import QuestionRequest, QuestionResponse
 from rest_framework.permissions import AllowAny
+from rest_framework.generics import DestroyAPIView
 
 @permission_classes([AllowAny])  # Mengizinkan guest user
 class QuestionPost(APIView):
@@ -76,3 +77,19 @@ class QuestionGetRecent(APIView):
             return Response({'detail': "No recent questions found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@permission_classes([AllowAny])
+class QuestionDelete(DestroyAPIView):
+    """
+    APIView to delete a specific question.
+    """
+    def delete(self, request, pk=None):
+        try:
+            question = Question.objects.get(pk=pk)
+            question.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Question.DoesNotExist:
+            return Response(
+                {"detail": "Question not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
