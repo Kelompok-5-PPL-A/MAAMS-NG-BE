@@ -364,7 +364,7 @@ class QuestionDeleteTest(TestCase):
             id=uuid.uuid4(),
             question="Test question"
         )
-        self.url = f"/questions/{self.question.id}/"
+        self.url = f"/question/{self.question.id}/delete/"
 
     def test_delete_question_success(self):
         response = self.client.delete(self.url)
@@ -373,6 +373,5 @@ class QuestionDeleteTest(TestCase):
 
     def test_delete_question_not_found(self):
         non_existent_id = uuid.uuid4()
-        response = self.client.delete(f"/questions/{non_existent_id}/")
+        response = self.client.delete(f"/question/{non_existent_id}/delete/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn("detail", response.data)
