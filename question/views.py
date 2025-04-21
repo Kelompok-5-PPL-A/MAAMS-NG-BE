@@ -85,8 +85,8 @@ class QuestionDelete(DestroyAPIView):
     """
     def delete(self, request, pk=None):
         try:
-            question = Question.objects.get(pk=pk)
-            question.delete()
+            service_class = QuestionService()
+            service_class.delete(pk=pk)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Question.DoesNotExist:
             return Response(
