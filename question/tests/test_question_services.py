@@ -10,6 +10,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from authentication.models import CustomUser
 from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 
 class TestQuestionService(TestCase):
     def setUp(self):
@@ -344,7 +346,51 @@ class TestQuestionService(TestCase):
         with self.assertRaises(InvalidFiltersException) as context:
             self.service._resolve_filter_type("invalid", "keyword", True)
         self.assertEqual(str(context.exception), ErrorMsg.INVALID_FILTERS)
+    
 
+    def test_get_matched_question_found_last_week(self):
+        keyword = "test"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
 
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='last_week',
+            q_filter=None
+        )
 
-        
+        result_ids = [item.id for item in result]
+        self.assertIn(question1.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+    
+
+    def test_get_matched_question_not_found_last_week(self):
+        keyword = "haha"
+        question1 = Question.objects.create(
+            title="Test Question 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='last_week',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertNotIn(question1.id, result_ids)
