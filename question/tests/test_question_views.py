@@ -356,3 +356,23 @@ class QuestionResponseGetTagsTest(TestCase):
 
         # Assert: fallback return path triggered
         self.assertEqual(data['tags'], ['tag1', 'tag2'])
+
+class QuestionDeleteTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.question = Question.objects.create(
+            id=uuid.uuid4(),
+            question="Test question"
+        )
+        self.url = f"/questions/{self.question.id}/"
+
+    def test_delete_question_success(self):
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Question.objects.filter(id=self.question.id).exists())
+
+    def test_delete_question_not_found(self):
+        non_existent_id = uuid.uuid4()
+        response = self.client.delete(f"/questions/{non_existent_id}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("detail", response.data)
