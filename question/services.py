@@ -170,6 +170,8 @@ class QuestionService():
         match time_range.lower():
             case HistoryType.LAST_WEEK.value:
                 time = Q(created_at__range=[last_week_datetime, today_datetime])
+            case HistoryType.OLDER.value:
+                time = Q(created_at__lt=last_week_datetime)
             case _:
                 raise InvalidTimeRangeRequestException(ErrorMsg.INVALID_TIME_RANGE)
         
