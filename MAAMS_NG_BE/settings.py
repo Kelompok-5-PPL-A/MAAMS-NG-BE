@@ -76,7 +76,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'moesifdjango.middleware.moesif_middleware',
-    # 'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
+    'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
