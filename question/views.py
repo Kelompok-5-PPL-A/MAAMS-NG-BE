@@ -71,6 +71,42 @@ class QuestionGetMatched(APIView):
     pagination_class = CustomPageNumberPagination()
     service_class = QuestionService()
 
+    @extend_schema(
+        description='Returns user question that matched with certain keyword',
+        responses=PaginatedQuestionResponse,
+        parameters=[
+            OpenApiParameter(
+                name='filter',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Specify query filter mode.'
+            ),
+            OpenApiParameter(
+                name='time_range',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Specify the time range for the query.'
+            ),
+            OpenApiParameter(
+                name='keyword',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Specify the keyword to match user questions.'
+            ),
+            OpenApiParameter(
+                name='count',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description='Specify the count of results to return per page.'
+            ),
+            OpenApiParameter(
+                name='p',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description='Specify the page number for paginated results.'
+            ),
+        ]
+    )
     def get(self, request):
         try:
             q_filter = request.query_params.get('filter', 'semua')
