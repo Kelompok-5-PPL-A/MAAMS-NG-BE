@@ -104,21 +104,24 @@ class QuestionService():
             .distinct()
         )
 
-        return questions  # Return raw model instances
+        return questions  
     
-    def _validate_tags(self, new_tags: List[str]):
-        tags_object = []
-        for tag_name in new_tags:
-                try:
-                    tag = Tag.objects.get(name=tag_name)
-                    if tag in tags_object:
-                        raise UniqueTagException(ErrorMsg.TAG_MUST_BE_UNIQUE)
-                except Tag.DoesNotExist:
-                    tag = Tag.objects.create(name=tag_name)
-                finally:
-                    tags_object.append(tag)
-        
-        return tags_object
+    def get_all(self, user: CustomUser, time_range: str):
+        """
+        Returns a list of  all questions corresponding to a specified user.
+        """
+
+        today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
+        last_week_datetime = today_datetime - timedelta(days=7)
+        time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
+        try:
+            questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
+            if not questions:
+                raise Question.DoesNotExist("No history found.")
+            return questions
+        except Exception:
+            
+            raise Question.DoesNotExist("No history found.")
     
     def get_privileged(self, q_filter: str, user: CustomUser, keyword: str):
         """
@@ -142,6 +145,20 @@ class QuestionService():
 
         return questions
 
+    def _validate_tags(self, new_tags: List[str]):
+        tags_object = []
+        for tag_name in new_tags:
+                try:
+                    tag = Tag.objects.get(name=tag_name)
+                    if tag in tags_object:
+                        raise UniqueTagException(ErrorMsg.TAG_MUST_BE_UNIQUE)
+                except Tag.DoesNotExist:
+                    tag = Tag.objects.create(name=tag_name)
+                finally:
+                    tags_object.append(tag)
+        
+        return tags_object
+    
     def _resolve_filter_type(self, filter: str, keyword: str, is_admin: bool) -> Q:
         """
         Returns where clause for questions with specified filters/keywords.
