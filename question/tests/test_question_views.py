@@ -595,6 +595,23 @@ class TestQuestionServiceErrors(TestCase):
             email="admin@example.com",
             password="password123",
         )
+
+    def test_get_matched_internal_server_error(self):
+        """Test internal server error handling in get_matched view"""
+        self.client.force_authenticate(user=self.user)
+        # Patch the service method to raise an unexpected Exception
+        with patch('question.services.QuestionService.get_matched') as mock_get:
+            mock_get.side_effect = Exception("Unexpected error")
+
+            response = self.client.get(self.url, {
+                'filter': 'semua',
+                'time_range': 'last_week',
+                'keyword': 'anything'
+            })
+
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Unexpected error", response.data["detail"])
         
     def test_get_matched(self):
         """Test get_matched view with valid parameters"""
