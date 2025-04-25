@@ -641,3 +641,62 @@ class TestQuestionServiceErrors(TestCase):
             self.assertEqual(len(response.data['results']), 1)
             self.assertEqual(response.data['results'][0]['title'], question.title)
             self.assertEqual(response.data['results'][0]['question'], question.question)
+
+class TestQuestionGetAll(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/question/history/'
+        self.user = CustomUser.objects.create_user(
+            username="testuser", email="testuser@example.com", password="password123"
+        )
+    
+        self.client.force_authenticate(user=self.user)
+    
+    def test_internal_server_error(self):
+        """Test internal server error during get_all"""
+        with patch('question.services.QuestionService.get_all') as mock_get:
+            mock_get.side_effect = Exception("Internal server error")
+            
+            response = self.client.get(self.url)
+            
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Internal server error", response.data["detail"])
+    
+    def test_no_history_found(self):
+        """Test no history found for the user"""
+        with patch('question.services.QuestionService.get_all') as mock_get:
+            mock_get.side_effect = Question.DoesNotExist("No questions found for this user.")
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertIn("detail", response.data)
+            self.assertIn("No questions found for this user.", response.data["detail"])
+    
+    def test_get_all_success(self):
+        """Test successful retrieval of all questions"""
+        question1 = Question.objects.create(
+            title="Question 1",
+            question="Content 1",
+            mode=Question.ModeChoices.PRIBADI,
+            created_at=timezone.now(),
+            id=uuid.uuid4(),
+            user=self.user
+        )
+        question2 = Question.objects.create(
+            title="Question 2",
+            question="Content 2",
+            mode=Question.ModeChoices.PRIBADI,
+            created_at=timezone.now(),
+            id=uuid.uuid4(),
+            user=self.user
+        )
+
+        with patch('question.services.QuestionService.get_all') as mock_get:
+            mock_get.return_value = [question1, question2]
+            
+            response = self.client.get(self.url)
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data['results']), 2)
+            self.assertEqual(response.data['results'][0]['question'], question1.question)
+            self.assertEqual(response.data['results'][1]['question'], question2.question)
