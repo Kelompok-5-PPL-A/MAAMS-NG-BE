@@ -65,6 +65,37 @@ class QuestionGet(ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+@permission_classes([AllowAny])
+class QuestionGetMatched(APIView):
+    pagination_class = CustomPageNumberPagination()
+    service_class = QuestionService()
+
+    def get(self, request):
+        try:
+            q_filter = request.query_params.get('filter', 'semua')
+            time_range = request.query_params.get('time_range') 
+            keyword = request.query_params.get('keyword', '') 
+
+            questions = self.service_class.get_matched(q_filter=q_filter, 
+                                           user=request.user, 
+                                           time_range=time_range, 
+                                           keyword=keyword)
+
+            serializer = QuestionResponse(questions, many=True)
+
+            paginator = self.pagination_class
+            page = paginator.paginate_queryset(serializer.data, request)
+
+            return paginator.get_paginated_response(page)
+
+        except Exception as e:
+            return Response(
+                {'detail': f'Unexpected error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 @permission_classes([IsAuthenticated])
 class QuestionGetRecent(APIView):
     def get(self, request):
