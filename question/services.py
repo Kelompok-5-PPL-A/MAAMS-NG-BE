@@ -114,13 +114,8 @@ class QuestionService():
         today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
         last_week_datetime = today_datetime - timedelta(days=7)
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
-        try:
-            questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
-            if not questions:
-                raise Question.DoesNotExist("No questions found for this user.")
-            return questions
-        except Exception:
-            raise Question.DoesNotExist("No questions found for this user.")
+        questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
+        return questions
     
     def get_privileged(self, q_filter: str, user: CustomUser, keyword: str):
         """

@@ -164,8 +164,6 @@ class QuestionGetAll(APIView):
             paginator = self.pagination_class
             page = paginator.paginate_queryset(serializer.data, request)
             return paginator.get_paginated_response(page)
-        except Question.DoesNotExist:
-            return Response({'detail': "No questions found for this user."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
