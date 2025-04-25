@@ -587,4 +587,4 @@ class TestQuestionService(TestCase):
         self.question.delete()
         with self.assertRaises(Question.DoesNotExist) as context:
             self.service.get_all(user=self.user, time_range='last_week')
-        self.assertEqual(str(context.exception), "No history found.")
+        self.assertEqual(str(context.exception), "No questions found for this user.")

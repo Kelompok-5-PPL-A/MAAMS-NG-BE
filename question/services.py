@@ -117,11 +117,10 @@ class QuestionService():
         try:
             questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
             if not questions:
-                raise Question.DoesNotExist("No history found.")
+                raise Question.DoesNotExist("No questions found for this user.")
             return questions
         except Exception:
-            
-            raise Question.DoesNotExist("No history found.")
+            raise Question.DoesNotExist("No questions found for this user.")
     
     def get_privileged(self, q_filter: str, user: CustomUser, keyword: str):
         """
