@@ -501,3 +501,90 @@ class TestQuestionService(TestCase):
         result_ids = [item.id for item in result]
         self.assertIn(question1.id, result_ids)
         self.assertIn(question2.id, result_ids)
+    
+    def test_get_all_questions_last_week(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question3 = Question.objects.create(
+            title="Test Title 3",
+            question="Test Question 3",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question4 = Question.objects.create(
+            title="Test Title 4",
+            question="Test Question 4",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        result = self.service.get_all(user=self.user, time_range='last_week')
+        result_ids = [item.id for item in result]
+        self.assertIn(question4.id, result_ids)
+        self.assertIn(question3.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+        self.assertIn(question1.id, result_ids)
+        self.assertEqual(len(result), 4)
+    
+    def test_get_all_questions_older(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)  # Set to older than 7 days
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.save()
+
+        question3 = Question.objects.create(
+            title="Test Title 3",
+            question="Test Question 3",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question3.created_at = timezone.now() - timedelta(days=8)
+        question3.save()
+
+        question4 = Question.objects.create(
+            title="Test Title 4",
+            question="Test Question 4",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question4.created_at = timezone.now() - timedelta(days=8)
+        question4.save()
+        
+
+        result = self.service.get_all(user=self.user, time_range='older')
+        result_ids = [item.id for item in result]
+        self.assertIn(question4.id, result_ids)
+        self.assertIn(question3.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+        self.assertIn(question1.id, result_ids)
+        self.assertEqual(len(result), 4)
+
+    def test_get_all_questions_empty(self):
+        self.question.delete()
+        with self.assertRaises(Question.DoesNotExist) as context:
+            self.service.get_all(user=self.user, time_range='last_week')
+        self.assertEqual(str(context.exception), "No history found.")
