@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException
+from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException, InvalidTimeRangeRequestException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -19,6 +19,16 @@ class TestQuestionService(TestCase):
         self.question_id = uuid.uuid4()
         self.user = CustomUser.objects.create(username="testuser68", password="password12389", email='testuser969@gmail.com')
         self.user.save()
+
+        self.user_admin = CustomUser.objects.create(
+            username="admin_user",
+            password="admin_password",
+            email='admin_user@gmail.com',
+            role='admin',
+            is_superuser=True,
+        )
+        self.user_admin.save()
+
         self.question = Question.objects.create(
             id=self.question_id,
             title="Test Title",
@@ -346,6 +356,22 @@ class TestQuestionService(TestCase):
         with self.assertRaises(InvalidFiltersException) as context:
             self.service._resolve_filter_type("invalid", "keyword", True)
         self.assertEqual(str(context.exception), ErrorMsg.INVALID_FILTERS)
+
+    def test_get_matched_time_range_exception(self):
+        user = CustomUser.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="password123"
+        )
+        service = QuestionService()
+
+        with self.assertRaises(InvalidTimeRangeRequestException):
+            service.get_matched(
+                q_filter="semua",
+                user=user,
+                time_range="invalid_range", 
+                keyword=""
+            )
     
 
     def test_get_matched_question_found_last_week(self):
