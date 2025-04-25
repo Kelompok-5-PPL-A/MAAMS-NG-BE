@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, Mock, ANY
@@ -586,4 +587,40 @@ class TestQuestionGetPrivileged(TestCase):
             )
 
 
+class TestQuestionServiceErrors(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = reverse("get_matched")
+        self.user = CustomUser.objects.create_user(
+            email="admin@example.com",
+            password="password123",
+        )
+        
+    def test_get_matched(self):
+        """Test get_matched view with valid parameters"""
+        self.client.force_authenticate(user=self.user)
 
+        # Create a question for the user
+        question = Question.objects.create(
+            title="Test Title",
+            question="Test Question",
+            mode=Question.ModeChoices.PRIBADI,
+            created_at=timezone.now(),
+            id=uuid.uuid4(),
+            user=self.user
+        )
+        question.tags.add(Tag.objects.create(name="tag1"))
+
+        with patch('question.services.QuestionService.get_matched') as mock_get:
+            mock_get.return_value = [question]
+
+            response = self.client.get(self.url, {
+                'filter': 'semua',
+                'time_range': 'last_week',
+                'keyword': 'anything'
+            })
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data['results']), 1)
+            self.assertEqual(response.data['results'][0]['title'], question.title)
+            self.assertEqual(response.data['results'][0]['question'], question.question)
