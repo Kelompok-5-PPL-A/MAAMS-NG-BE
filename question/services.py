@@ -76,30 +76,35 @@ class QuestionService():
     
     def get_matched(self, q_filter: str, user: CustomUser, time_range: str, keyword: str):
         """
-        Returns a list of matched questions corresponding to logged in user with specified filters.
+        Returns a list of matched Question model instances for the logged-in user
+        with the specified filters.
         """
         is_admin = user.is_admin() or user.is_superuser
-        
-        if not q_filter: q_filter = 'semua'
-        if not keyword: keyword = ''
+
+        if not q_filter:
+            q_filter = 'semua'
+        if not keyword:
+            keyword = ''
 
         today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
         last_week_datetime = today_datetime - timedelta(days=7)
 
-        # append corresponding user to query
+        # Filter by current user
         user_filter = Q(user=user)
 
+        # Build query clauses
         clause = self._resolve_filter_type(q_filter, keyword, is_admin)
-
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
 
-        # query the questions with specified filters            
-        questions = Question.objects.filter(user_filter & clause & time).order_by('-created_at').distinct()
+        # Final query
+        questions = (
+            Question.objects
+            .filter(user_filter & clause & time)
+            .order_by('-created_at')
+            .distinct()
+        )
 
-        # get all questions matching corresponding filters
-        response = self._make_question_response(questions)
-
-        return response
+        return questions  # Return raw model instances
     
     def _validate_tags(self, new_tags: List[str]):
         tags_object = []
