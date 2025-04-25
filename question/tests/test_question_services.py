@@ -474,3 +474,30 @@ class TestQuestionService(TestCase):
         )
         result_ids = [item.id for item in result]
         self.assertNotIn(question1.id, result_ids)
+    
+    def test_get_matched_empty_keyword(self):
+        # Arrange
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword="",
+            time_range='last_week',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertIn(question1.id, result_ids)
+        self.assertIn(question2.id, result_ids)
