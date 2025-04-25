@@ -666,12 +666,10 @@ class TestQuestionGetAll(TestCase):
     def test_no_history_found(self):
         """Test no history found for the user"""
         with patch('question.services.QuestionService.get_all') as mock_get:
-            mock_get.side_effect = Question.DoesNotExist("No questions found for this user.")
             response = self.client.get(self.url)
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-            self.assertIn("detail", response.data)
-            self.assertIn("No questions found for this user.", response.data["detail"])
-    
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(list(response.data['results']), [])
+
     def test_get_all_success(self):
         """Test successful retrieval of all questions"""
         question1 = Question.objects.create(

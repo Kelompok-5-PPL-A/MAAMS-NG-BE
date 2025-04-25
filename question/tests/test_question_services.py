@@ -585,6 +585,6 @@ class TestQuestionService(TestCase):
 
     def test_get_all_questions_empty(self):
         self.question.delete()
-        with self.assertRaises(Question.DoesNotExist) as context:
-            self.service.get_all(user=self.user, time_range='last_week')
-        self.assertEqual(str(context.exception), "No questions found for this user.")
+        result = self.service.get_all(user=self.user, time_range='last_week')
+        self.assertEqual(list(result), [])
+        self.assertEqual(len(result), 0)
