@@ -24,7 +24,7 @@ class TestQuestionService(TestCase):
             username="admin_user",
             password="admin_password",
             email='admin_user@gmail.com',
-            role='admin',
+            is_staff=True,
             is_superuser=True,
         )
         self.user_admin.save()
@@ -588,3 +588,69 @@ class TestQuestionService(TestCase):
         result = self.service.get_all(user=self.user, time_range='last_week')
         self.assertEqual(list(result), [])
         self.assertEqual(len(result), 0)
+    
+    def test_get_field_values_user(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Question 1",
+            question="Content 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Question 2",
+            question="Content 2",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        tag1 = Tag.objects.create(name="Tag1")
+        tag2 = Tag.objects.create(name="Tag2")
+        question1.tags.add(tag1)
+        question2.tags.add(tag2)
+
+        result = self.service.get_field_values(self.user)
+
+        # Assert (for admin user)
+        self.assertEqual([], result.pengguna)  
+        self.assertIn("Question 1", result.judul)
+        self.assertIn("Question 2", result.judul)
+        self.assertIn("Tag1", result.topik)
+        self.assertIn("Tag2", result.topik)
+    
+    def test_get_field_values_admin(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Question 1",
+            question="Content 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user_admin,
+        )
+        question2 = Question.objects.create(
+            title="Question 2",
+            question="Content 2",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user_admin,
+        )
+        question3 = Question.objects.create(
+                title="Question 3",
+                question="Content 3",
+                mode=Question.ModeChoices.PENGAWASAN,
+                user=self.user,
+            )
+        tag1 = Tag.objects.create(name="Tag1")
+        tag2 = Tag.objects.create(name="Tag2")
+        tag3 = Tag.objects.create(name="Tag3")
+        question1.tags.add(tag1)
+        question2.tags.add(tag2)
+        question3.tags.add(tag3)
+
+        result = self.service.get_field_values(self.user_admin)
+
+        # Assert (for admin user)
+        self.assertEqual(set(['admin_user', 'testuser68']), set(result.pengguna))        
+        self.assertIn("Question 1", result.judul) 
+        self.assertIn("Question 2", result.judul) 
+        self.assertIn("Question 3", result.judul)       
+        self.assertIn("Tag1", result.topik)
+        self.assertIn("Tag2", result.topik)
+        self.assertIn("Tag3", result.topik)
