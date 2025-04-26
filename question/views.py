@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
 from question.models import Question
 from question.services import QuestionService
-from question.serializers import QuestionRequest, QuestionResponse, PaginatedQuestionResponse
+from question.serializers import FieldValuesResponse, QuestionRequest, QuestionResponse, PaginatedQuestionResponse
 from rest_framework.permissions import AllowAny
 from utils.pagination import CustomPageNumberPagination
 
@@ -229,3 +229,17 @@ class QuestionGetPrivileged(APIView):
                 {'detail': f'Unexpected error: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+@permission_classes([IsAuthenticated])
+class QuestionGetFieldValues(APIView):
+    service_class = QuestionService()
+
+    @extend_schema(
+        description="Returns all unique question fields' values that are attached to available questions.",
+        responses=FieldValuesResponse
+    )
+    def get(self, request):
+        values = self.service_class.get_field_values(user=request.user)
+        serializer = FieldValuesResponse(values)
+        
+        return Response(serializer.data)
