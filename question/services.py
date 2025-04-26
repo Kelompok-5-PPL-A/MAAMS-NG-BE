@@ -135,7 +135,7 @@ class QuestionService():
         if is_admin: values['pengguna'] = set()
         
         for question in questions:
-            if is_admin:
+            if is_admin and question.user is not None:
                 values['pengguna'].add(question.user.username)
             values['judul'].add(question.title)
             # extract list of tags from question
