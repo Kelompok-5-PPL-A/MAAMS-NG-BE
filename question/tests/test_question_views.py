@@ -3,6 +3,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, Mock, ANY
+from question.dataclasses.field_values import FieldValuesDataClass
 from question.models import Question
 from question.serializers import QuestionResponse
 from tag.models import Tag
@@ -698,3 +699,66 @@ class TestQuestionGetAll(TestCase):
             self.assertEqual(len(response.data['results']), 2)
             self.assertEqual(response.data['results'][0]['question'], question1.question)
             self.assertEqual(response.data['results'][1]['question'], question2.question)
+
+class TestQuestionGetFieldValues(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/question/history/field-values/'
+        self.user = CustomUser.objects.create_user(
+            username="testuser", email="testuser@example.com", password="password123"
+        )
+        self.admin_user = CustomUser.objects.create_user(
+            username="adminuser", email="adminuser@example.com", password="adminpassword123", is_superuser=True, is_staff=True
+        )
+        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=self.admin_user)
+
+    def test_get_field_values_as__user(self):
+        """Test field values retrieval for user"""
+        question1 = Question.objects.create(
+            title="Question 1",
+            question="Content 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user
+        )
+        question2 = Question.objects.create(
+            title="Question 2",
+            question="Content 2",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user
+        )
+        tag1 = Tag.objects.create(name="Tag1")
+        tag2 = Tag.objects.create(name="Tag2")
+        question1.tags.add(tag1)
+        question2.tags.add(tag2)
+
+        with patch('question.services.QuestionService.get_field_values') as mock_service:
+            mock_service.return_value = FieldValuesDataClass(
+                pengguna=[],
+                judul=["Question 1", "Question 2"],
+                topik=["Tag1", "Tag2"]
+            )
+
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['judul'], ["Question 1", "Question 2"])
+            self.assertEqual(response.data['topik'], ["Tag1", "Tag2"])
+            self.assertEqual(response.data['pengguna'], [])
+
+    def test_get_field_values_as_admin_user(self):
+        """Test field values retrieval for an admin user"""
+
+        with patch('question.services.QuestionService.get_field_values') as mock_service:
+            mock_service.return_value = FieldValuesDataClass(
+                pengguna=["testuser", "adminuser"],
+                judul=["Admin Question"],
+                topik=["Admin Tag"]
+            )
+
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['judul'], ["Admin Question"])
+            self.assertEqual(response.data['topik'], ["Admin Tag"])
+            self.assertEqual(response.data['pengguna'], ["testuser", "adminuser"])
