@@ -1,6 +1,7 @@
 import uuid
 from typing import List, Optional
 
+from validator.dataclasses.field_values import FieldValuesDataClass
 from validator.enums import HistoryType
 from .models import Question
 from tag.models import Tag
@@ -12,7 +13,8 @@ from validator.exceptions import NotFoundRequestException
 from .dataclasses.create_question import CreateQuestionDataClass 
 from authentication.models import CustomUser
 from django.db.models import Q
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
@@ -86,7 +88,7 @@ class QuestionService():
         if not keyword:
             keyword = ''
 
-        today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
+        today_datetime = timezone.now()  + timedelta(hours=7)
         last_week_datetime = today_datetime - timedelta(days=7)
 
         # Filter by current user
@@ -111,7 +113,7 @@ class QuestionService():
         Returns a list of  all questions corresponding to a specified user.
         """
 
-        today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
+        today_datetime = timezone.now()  + timedelta(hours=7)
         last_week_datetime = today_datetime - timedelta(days=7)
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
         questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
@@ -179,7 +181,7 @@ class QuestionService():
         
         return clause
     
-    def _resolve_time_range(self, time_range: str, today_datetime: datetime, last_week_datetime: datetime) -> Q:
+    def _resolve_time_range(self, time_range: str, today_datetime: timezone.datetime, last_week_datetime: timezone.datetime) -> Q:
         """
         Returns where clause for questions with specified time range.
         """
