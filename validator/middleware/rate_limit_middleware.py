@@ -1,7 +1,10 @@
+import logging
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.conf import settings
 from validator.constants import ErrorMsg
+
+logger = logging.getLogger(__name__)
 
 class RateLimitMiddleware:
     """Middleware to handle rate limiting for API requests"""
@@ -45,15 +48,15 @@ class RateLimitMiddleware:
     
     def _get_path_specific_key(self, path, identifier):
         """Create a path-specific cache key"""
-        # Find the matching custom path prefix
         matching_prefix = ''
         for prefix in self.custom_rates:
             if path.startswith(prefix) and len(prefix) > len(matching_prefix):
                 matching_prefix = prefix
         
-        # Use the matching prefix or the full path if no match
         path_component = matching_prefix if matching_prefix else path.split('/')[1]
-        return f"ratelimit:{path_component}:{identifier}"
+        key = f"ratelimit:{path_component}:{identifier}"
+        logger.debug(f"Cache Key: {key}")
+        return key
     
     def _get_rate_limits_for_path(self, path):
         """Get the rate limits for the current path"""
@@ -74,31 +77,29 @@ class RateLimitMiddleware:
     def _get_identifier(self, request):
         """Get unique identifier for the requester"""
         if request.user.is_authenticated:
-            return f"user:{request.user.id}"
+            identifier = f"user:{request.user.id}"
         else:
             x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
             if x_forwarded_for:
                 ip = x_forwarded_for.split(',')[0].strip()
             else:
                 ip = request.META.get('REMOTE_ADDR', '0.0.0.0')
-            
-            return f"guest:{ip}"
+            identifier = f"guest:{ip}"
+        
+        logger.debug(f"Identifier: {identifier}")
+        return identifier
     
     def _is_allowed(self, key, rate, per):
         """Check if identifier is allowed to make a request"""
-        # Get current count or create if not exists
         count = self.cache.get(key, 0)
+        logger.debug(f"Current Count: {count}, Rate: {rate}, Per: {per}")
         
-        # Check if over the limit
         if count >= rate:
-            # Still increment the counter for tracking purposes
             self.cache.set(key, count + 1, per)
             return False
         
-        # Increment counter and set expiry
         count += 1
         self.cache.set(key, count, per)
-        
         return True
         
     def is_allowed(self, key, rate, per):
