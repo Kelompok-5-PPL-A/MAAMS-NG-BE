@@ -365,13 +365,14 @@ class TestQuestionService(TestCase):
         )
         service = QuestionService()
 
-        with self.assertRaises(InvalidTimeRangeRequestException):
+        with self.assertRaises(InvalidTimeRangeRequestException) as context:
             service.get_matched(
                 q_filter="semua",
                 user=user,
                 time_range="invalid_range", 
-                keyword=""
+                keyword="tes"
             )
+        self.assertEqual(str(context.exception), ErrorMsg.INVALID_TIME_RANGE)
     
 
     def test_get_matched_question_found_last_week(self):
@@ -489,15 +490,13 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-
         # Act
-        result = self.service.get_matched(
-            user=self.user,
-            keyword="",
-            time_range='last_week',
-            q_filter=None
-        )
-
-        result_ids = [item.id for item in result]
-        self.assertIn(question1.id, result_ids)
-        self.assertIn(question2.id, result_ids)
+        with self.assertRaises(InvalidFiltersException) as context:
+            self.service.get_matched(
+                user=self.user,
+                keyword="",
+                time_range='last_week',
+                q_filter=None
+            )
+        # Assert
+        self.assertEqual(str(context.exception), ErrorMsg.EMPTY_KEYWORD)
