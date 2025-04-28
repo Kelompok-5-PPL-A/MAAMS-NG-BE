@@ -36,7 +36,7 @@ class CausesService:
             
             answer = chat_completion.choices[0].message.content
         
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             raise AIServiceErrorException(ErrorMsg.AI_SERVICE_ERROR)
         
         if validation_type in [ValidationType.NORMAL, ValidationType.ROOT]:
@@ -163,7 +163,7 @@ class CausesService:
             
             # Validate each cause in the column
             for cause in column_causes:
-                # FIX: Skip empty causes - don't try to validate them
+                # Skip empty causes - don't try to validate them
                 if not cause.cause or cause.cause.strip() == '':
                     continue
                 
@@ -236,7 +236,7 @@ class CausesService:
                 )
                 
                 # Create a placeholder cause for the next row
-                # FIX: Ensure we create empty causes with NO feedback and NOT marked as root
+                # Ensure we create empty causes with NO feedback and NOT marked as root
                 Causes.objects.create(
                     question_id=question_id,
                     column=column,
@@ -251,7 +251,7 @@ class CausesService:
     def _get_previous_cause(self, cause, problem):
         """Get the valid cause from the previous row in the same column."""
         try:
-            # FIX: Add validation for row number
+            # Add validation for row number
             if cause.row <= 1:
                 return None
                 
@@ -264,14 +264,14 @@ class CausesService:
             ).first()  # Get the first matching cause if there are multiple
             
             if prev_cause:
-                # FIX: Check that the previous cause actually has content
+                # Check that the previous cause actually has content
                 if prev_cause.cause and prev_cause.cause.strip() != "":
                     return prev_cause
                 else:
                     return None
             else:
                 return None
-        except Exception as e:
+        except Exception:
             return None
     
     def _validate_single_cause(self, cause, problem, prev_cause, request):
@@ -280,7 +280,7 @@ class CausesService:
         if cause.status and cause.feedback == "":
             return
             
-        # FIX: Skip empty causes to prevent validating them
+        # Skip empty causes to prevent validating them
         if not cause.cause or cause.cause.strip() == "":
             return
         
@@ -304,7 +304,7 @@ class CausesService:
                 "Answer only with True/False"
             )
         else:
-            # FIX: Ensure we have a valid previous cause before proceeding
+            # Ensure we have a valid previous cause before proceeding
             if not prev_cause or not prev_cause.cause or prev_cause.cause.strip() == "":
                 cause.status = False
                 cause.feedback = f"Perlu validasi sebab di baris {cause.row-1} kolom {'ABCDE'[cause.column]} terlebih dahulu."
@@ -341,7 +341,7 @@ class CausesService:
         else:
             # Cause is not valid - provide feedback
             cause.status = False  # Ensure status is explicitly marked as false
-            cause.root_status = False  # FIX: Ensure invalid causes are NOT marked as root causes
+            cause.root_status = False  # Ensure invalid causes are NOT marked as root causes
             self.retrieve_feedback(cause=cause, problem=problem, prev_cause=prev_cause, request=request)
         
         # Save the updated cause
@@ -349,12 +349,12 @@ class CausesService:
     
     def check_root_cause(self, cause: Causes, problem: Question, request):
         """Check if a valid cause is a root cause."""
-        # FIX: For empty causes or new cells without user input, skip root cause check
+        # For empty causes or new cells without user input, skip root cause check
         if not cause.cause or cause.cause.strip() == "":
             cause.root_status = False
             return
             
-        # FIX: Add additional check to prevent auto-marking cells as root causes in new columns
+        # Add additional check to prevent auto-marking cells as root causes in new columns
         # For rows > 1 in columns C-E, don't automatically check for root cause in initial cells
         if cause.column >= 2 and cause.row > 1:
             # Check how many causes exist in this column
@@ -396,7 +396,7 @@ class CausesService:
     
     def categorize_corruption(self, cause: Causes):
         """Helper method to categorize corruption type"""
-        # FIX: Added validation to prevent categorizing empty causes
+        # Added validation to prevent categorizing empty causes
         if not cause.cause or cause.cause.strip() == "":
             cause.root_status = False
             cause.feedback = ""
