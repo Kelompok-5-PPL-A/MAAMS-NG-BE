@@ -672,3 +672,14 @@ class TestQuestionService(TestCase):
         self.assertEqual(result.pengguna, [])
         self.assertEqual(result.judul, [])
         self.assertEqual(result.topik, [])
+
+    def test_get_field_values_unauthorized_access(self):
+        self.client.logout() 
+        response = self.client.get('/question/history/field-values/') ## Attempt to access without authentication
+        self.assertEqual(response.status_code, 401)  # Expect 401 (Unauthorized)
+    
+    def test_get_field_values_sql_injection(self):
+        input = "'; DROP TABLE question_question; --"
+
+        with self.assertRaises(Exception):  # Expect an exception if input is sanitized
+            self.service.get_field_values(user=input)
