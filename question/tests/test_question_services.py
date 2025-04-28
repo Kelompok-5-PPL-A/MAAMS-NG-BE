@@ -536,6 +536,30 @@ class TestQuestionService(TestCase):
         self.assertIn(question1.id, result_ids)
         self.assertEqual(len(result), 4)
     
+    def test_get_all_questions_last_week_not_found(self):
+        # Test get_all with last_week time range and no questions found
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.save()
+        result = self.service.get_all(user=self.user, time_range='last_week')
+        self.assertEqual(list(result), [])
+        self.assertEqual(len(result), 0)
+
     def test_get_all_questions_older(self):
         self.question.delete()
         question1 = Question.objects.create(
@@ -582,6 +606,36 @@ class TestQuestionService(TestCase):
         self.assertIn(question2.id, result_ids)
         self.assertIn(question1.id, result_ids)
         self.assertEqual(len(result), 4)
+    
+    def test_get_all_questions_older_not_found(self):
+        # Test get_all with older time range and no questions found
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.save()
+        question3 = Question.objects.create(
+            title="Test Title 3",
+            question="Test Question 3",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question3.save()
+
+        result = self.service.get_all(user=self.user, time_range='older')
+        self.assertEqual(list(result), [])
+        self.assertEqual(len(result), 0)
 
     def test_get_all_questions_empty(self):
         self.question.delete()
