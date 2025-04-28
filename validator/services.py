@@ -11,7 +11,7 @@ from validator.exceptions import AIServiceErrorException, RateLimitExceededExcep
 from validator.utils.rate_limiter import RateLimiter
 
 class CausesService:
-    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request=None) -> int:
+    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
