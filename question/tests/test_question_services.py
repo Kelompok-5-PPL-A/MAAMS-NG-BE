@@ -654,3 +654,21 @@ class TestQuestionService(TestCase):
         self.assertIn("Tag1", result.topik)
         self.assertIn("Tag2", result.topik)
         self.assertIn("Tag3", result.topik)
+    
+    def test_get_field_values_no_questions(self):
+        self.question.delete()
+        admin_user = CustomUser.objects.create(
+            username="adminuser",
+            email="admin@example.com",
+            password="password123",
+            is_superuser=True,
+            is_staff=True
+        )
+
+        # Act
+        result = self.service.get_field_values(user=admin_user)
+
+        # Assert
+        self.assertEqual(result.pengguna, [])
+        self.assertEqual(result.judul, [])
+        self.assertEqual(result.topik, [])
