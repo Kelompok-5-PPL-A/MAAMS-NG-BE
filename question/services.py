@@ -91,6 +91,8 @@ class QuestionService():
 
         # Filter by current user
         user_filter = Q(user=user)
+        if keyword == '':
+            raise InvalidFiltersException(ErrorMsg.EMPTY_KEYWORD)
 
         # Build query clauses
         clause = self._resolve_filter_type(q_filter, keyword, is_admin)
