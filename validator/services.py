@@ -1,5 +1,4 @@
 import uuid
-import logging
 from django.conf import settings
 from groq import Groq
 import requests
@@ -10,28 +9,8 @@ from question.models import Question
 from cause.models import Causes
 from validator.exceptions import AIServiceErrorException, RateLimitExceededException
 from validator.utils.rate_limiter import RateLimiter
-from googletrans import Translator
-
-# Set up logging
-logger = logging.getLogger(__name__)
 
 class CausesService:
-    def __init__(self):
-        self.translator = Translator()
-    
-    def translate_to_english(self, text: str) -> str:
-        try:
-            # Handle async translator correctly
-            translation = self.translator.translate(text, src='id', dest='en')
-            # Make sure we're getting the text from the translation
-            if hasattr(translation, 'text'):
-                return translation.text
-            # Fallback in case we get a coroutine or other unexpected type
-            return text
-        except Exception as e:
-            logger.error(f"Translation error: {str(e)}")
-            return text
-    
     def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request=None) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
         
@@ -56,10 +35,8 @@ class CausesService:
             )
             
             answer = chat_completion.choices[0].message.content
-            logger.info(f"API response for {validation_type}: {answer}")
         
         except requests.exceptions.RequestException as e:
-            logger.error(f"API call error: {str(e)}")
             raise AIServiceErrorException(ErrorMsg.AI_SERVICE_ERROR)
         
         if validation_type in [ValidationType.NORMAL, ValidationType.ROOT]:
@@ -74,9 +51,7 @@ class CausesService:
                 return 2
             elif answer.__contains__('3'):  
                 return 3
-        
-        # Default fallback
-        logger.warning(f"Unexpected response format: {answer}")
+
         return 0
     
     def check_if_corruption_related(self, cause_text: str) -> bool:
@@ -87,25 +62,11 @@ class CausesService:
             'gratifikasi', 'pemalsuan', 'penggelapan', 'penyelewengan',
             'pemerasan', 'mark up', 'penyimpangan'
         ]
-        
-        # Check in both original and translated text
+
         cause_lower = cause_text.lower()
-        cause_en = self.translate_to_english(cause_text).lower()
-        logger.info(f"Checking corruption terms in: {cause_text}")
         
-        corruption_terms_en = [
-            'corruption', 'bribe', 'kickback', 'embezzlement',
-            'abuse of power', 'nepotism', 'collusion', 'fraud',
-            'misappropriation', 'extortion', 'markup', 'misconduct'
-        ]
-        
-        # Check if any corruption term exists in the text
         for term in corruption_terms:
             if term in cause_lower:
-                return True
-        
-        for term in corruption_terms_en:
-            if term in cause_en:
                 return True
         
         return False
@@ -122,15 +83,9 @@ class CausesService:
             "Please respond only with numerical codes as specified in the user prompt."
         )
         
-        # Translate causes to English for better comprehension
-        cause_en = self.translate_to_english(cause.cause)
-        logger.info(f"Analyzing cause: {cause.cause}")
-        
         if prev_cause:
-            prev_cause_en = self.translate_to_english(prev_cause.cause)
-            logger.info(f"Previous cause: {prev_cause.cause}")
             retrieve_feedback_user_prompt = (
-                f"'{cause_en}' is the FALSE cause for '{prev_cause_en}' (in column {'ABCDE'[cause.column]}, row {cause.row}, "
+                f"'{cause.cause}' is the FALSE cause for '{prev_cause.cause}' (in column {'ABCDE'[cause.column]}, row {cause.row}, "
                 f"with previous cause in row {cause.row - 1}). "
                 "Now determine if it is false because it is NOT THE CAUSE, because it is a POSITIVE OR NEUTRAL cause, or because it is SIMILAR TO THE PREVIOUS cause. "
                 "Remember that 'previous cause' refers to the cause directly above in the same column, not from other columns. "
@@ -139,10 +94,8 @@ class CausesService:
                 "ONLY WITH '3' if it is SIMILAR TO THE PREVIOUS cause."
             )   
         else:
-            problem_en = self.translate_to_english(problem.question)
-            logger.info(f"Problem: {problem.question}")
             retrieve_feedback_user_prompt = (
-                f"'{cause_en}' is the FALSE cause for this question '{problem_en}' (in column {'ABCDE'[cause.column]}, first row). "
+                f"'{cause.cause}' is the FALSE cause for this question '{problem.question}' (in column {'ABCDE'[cause.column]}, first row). "
                 "Now determine if it is false because it is NOT THE CAUSE or because it is a POSITIVE OR NEUTRAL CAUSE. "
                 "Answer ONLY with '1' if it is NOT THE CAUSE, '2' if it is POSITIVE OR NEUTRAL."
             )
@@ -174,23 +127,12 @@ class CausesService:
         # Get all causes that need validation (all those with status=False)
         unvalidated_causes = Causes.objects.filter(question_id=question_id, status=False)
         
-        # Log the number of causes to validate
-        logger.info(f"Validating {unvalidated_causes.count()} causes for question {question_id}")
-        
-        # Get all existing causes for this question for reference
-        all_causes = Causes.objects.filter(question_id=question_id)
-        logger.info(f"Total existing causes: {all_causes.count()}")
-        
         # If no causes need validation, return all causes for the question
         if not unvalidated_causes.exists():
             return Causes.objects.filter(question_id=question_id).order_by('column', 'row')
         
         problem = Question.objects.get(pk=question_id)
         validated_causes = []
-        
-        # Log all unvalidated causes for debugging
-        for cause in unvalidated_causes:
-            logger.info(f"Unvalidated cause: column {'ABCDE'[cause.column]}, row {cause.row}, text: '{cause.cause}'")
         
         # First validate row 1 across all columns to ensure the foundation is correct
         row1_causes = unvalidated_causes.filter(row=1).order_by('column')
@@ -210,10 +152,7 @@ class CausesService:
                 
                 if not previous_column_has_root:
                     # Skip this column if previous column doesn't have a root cause
-                    logger.info(f"Skipping column {column} as previous column doesn't have a root cause")
                     continue
-                else:
-                    logger.info(f"Processing column {column} since previous column has a root cause")
             
             # Get all unvalidated causes in this column, ordered by row
             column_causes = unvalidated_causes.filter(
@@ -226,18 +165,14 @@ class CausesService:
             for cause in column_causes:
                 # FIX: Skip empty causes - don't try to validate them
                 if not cause.cause or cause.cause.strip() == '':
-                    logger.info(f"Skipping empty cause in col {'ABCDE'[cause.column]}, row {cause.row}")
                     continue
                 
                 # Get the previous cause in the same column
                 prev_cause = self._get_previous_cause(cause, problem)
                 
                 if prev_cause:
-                    logger.info(f"Validating cause in col {'ABCDE'[cause.column]}, row {cause.row} with previous cause: '{prev_cause.cause}'")
                     self._validate_single_cause(cause, problem, prev_cause, request)
                 else:
-                    # Log this issue
-                    logger.warning(f"No valid previous cause found for col {'ABCDE'[cause.column]}, row {cause.row}")
                     cause.feedback = f"Perlu validasi sebab di baris {cause.row-1} kolom {'ABCDE'[cause.column]} terlebih dahulu."
                     cause.save()
                 
@@ -245,53 +180,14 @@ class CausesService:
                 
                 # If root cause found, stop validating more causes in this column
                 if cause.root_status:
-                    logger.info(f"Root cause found in column {column}, row {cause.row}")
                     break
         
-        # FIX: Clean up any empty feedback from placeholder causes
-        self._clean_placeholder_feedback(question_id)
-        
         # Create or ensure rows exist for active columns with valid previous rows
-        logger.info("Checking for cases where rows should exist but don't")
         self._ensure_next_rows_exist(question_id)
         
         # Return all causes for the question, including newly validated ones
         all_causes = Causes.objects.filter(question_id=question_id).order_by('column', 'row')
-        logger.info(f"Returning {all_causes.count()} causes total")
         return all_causes
-    
-    def _clean_placeholder_feedback(self, question_id):
-        """
-        Remove placeholder feedback from causes that have user input
-        """
-        # FIX: Remove placeholder feedback from empty cells and cells with user input
-        placeholder_pattern = "Masukkan sebab dari"
-        
-        # First, find causes with placeholder feedback but with actual user input
-        causes_with_placeholder = Causes.objects.filter(
-            question_id=question_id,
-            feedback__startswith=placeholder_pattern,
-            cause__isnull=False
-        ).exclude(cause="")
-        
-        for cause in causes_with_placeholder:
-            logger.info(f"Clearing placeholder feedback for col {'ABCDE'[cause.column]}, row {cause.row}")
-            cause.feedback = ""
-            cause.save()
-            
-        # FIX: For empty causes, also clear any feedback to prevent showing them before user input
-        empty_causes = Causes.objects.filter(
-            question_id=question_id,
-            cause__exact="",
-            status=False,
-            root_status=False
-        )
-        
-        for cause in empty_causes:
-            if cause.feedback:
-                logger.info(f"Clearing feedback from empty cause in col {'ABCDE'[cause.column]}, row {cause.row}")
-                cause.feedback = ""
-                cause.save()
     
     def _ensure_next_rows_exist(self, question_id):
         """
@@ -339,8 +235,6 @@ class CausesService:
                     row=max_valid_row
                 )
                 
-                logger.info(f"Creating next row {max_valid_row + 1} for column {'ABCDE'[column]}")
-                
                 # Create a placeholder cause for the next row
                 # FIX: Ensure we create empty causes with NO feedback and NOT marked as root
                 Causes.objects.create(
@@ -359,7 +253,6 @@ class CausesService:
         try:
             # FIX: Add validation for row number
             if cause.row <= 1:
-                logger.warning(f"No previous cause possible for row {cause.row} in column {cause.column}")
                 return None
                 
             # Get specifically the valid cause from the previous row in the same column
@@ -373,16 +266,12 @@ class CausesService:
             if prev_cause:
                 # FIX: Check that the previous cause actually has content
                 if prev_cause.cause and prev_cause.cause.strip() != "":
-                    logger.info(f"Found previous cause for column {cause.column}, row {cause.row}: '{prev_cause.cause}'")
                     return prev_cause
                 else:
-                    logger.warning(f"Previous cause exists but is empty for column {cause.column}, row {cause.row-1}")
                     return None
             else:
-                logger.warning(f"No previous cause found for column {cause.column}, row {cause.row}")
                 return None
         except Exception as e:
-            logger.error(f"Error finding previous cause: {str(e)}")
             return None
     
     def _validate_single_cause(self, cause, problem, prev_cause, request):
@@ -393,13 +282,7 @@ class CausesService:
             
         # FIX: Skip empty causes to prevent validating them
         if not cause.cause or cause.cause.strip() == "":
-            logger.info(f"Skipping validation for empty cause in col {'ABCDE'[cause.column]}, row {cause.row}")
             return
-        
-        cause_en = self.translate_to_english(cause.cause)
-        print("Cause in English:", cause_en)
-        problem_en = self.translate_to_english(problem.question)
-        print("Problem in English:", problem_en)
         
         user_prompt = ""
         system_message = (
@@ -415,7 +298,7 @@ class CausesService:
         
         if cause.row == 1:
             user_prompt = (
-                f"Is '{cause_en}' the cause of this question: '{problem_en}'? "
+                f"Is '{cause.cause}' the cause of this question: '{problem.question}'? "
                 f"Note: This is the first row of column {'ABCDE'[cause.column]}. "
                 "The cause should be a direct response to the main problem. "
                 "Answer only with True/False"
@@ -423,16 +306,13 @@ class CausesService:
         else:
             # FIX: Ensure we have a valid previous cause before proceeding
             if not prev_cause or not prev_cause.cause or prev_cause.cause.strip() == "":
-                logger.warning(f"No valid previous cause for col {'ABCDE'[cause.column]}, row {cause.row}")
                 cause.status = False
                 cause.feedback = f"Perlu validasi sebab di baris {cause.row-1} kolom {'ABCDE'[cause.column]} terlebih dahulu."
                 cause.save()
                 return
                 
-            prev_cause_en = self.translate_to_english(prev_cause.cause)
-            print("Previous Cause in English:", prev_cause_en)
             user_prompt = (
-                f"Is '{cause_en}' the cause of '{prev_cause_en}'? "
+                f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? "
                 f"Note: This is row {cause.row} of column {'ABCDE'[cause.column]}, and the previous cause is from row {cause.row - 1} of the same column. "
                 "The cause should be a direct explanation of its immediate parent cause in the same column. "
                 "Answer only with True/False"
@@ -471,7 +351,6 @@ class CausesService:
         """Check if a valid cause is a root cause."""
         # FIX: For empty causes or new cells without user input, skip root cause check
         if not cause.cause or cause.cause.strip() == "":
-            logger.info(f"Skipping root cause check for empty cause in col {'ABCDE'[cause.column]}, row {cause.row}")
             cause.root_status = False
             return
             
@@ -488,17 +367,11 @@ class CausesService:
             # For newly activated columns with just 1-2 validated causes, skip root check
             # This prevents premature root cause detection in new columns
             if column_causes_count <= 2:
-                logger.info(f"Skipping root cause check for col {'ABCDE'[cause.column]}, row {cause.row} - too early in column")
                 cause.root_status = False
                 return
         
-        cause_en = self.translate_to_english(cause.cause)
-        print("Cause (check root) in English:", cause_en)
-        problem_en = self.translate_to_english(problem.question)
-        print("Problem (check root) in English:", problem_en)
-        
         root_check_user_prompt = (
-            f"Is the cause '{cause_en}' the fundamental reason behind the problem '{problem_en}'? "
+            f"Is the cause '{cause.cause}' the fundamental reason behind the problem '{problem.question}'? "
             f"This cause is from column {'ABCDE'[cause.column]}, row {cause.row}. "
             "Answer only with True or False."
         )
@@ -515,32 +388,23 @@ class CausesService:
             "Respond only with True if this is indeed a root cause, or False if this is an intermediate cause that has deeper underlying causes."
         )
         
-        # FIX: Add more explicit logging
-        logger.info(f"Checking if cause in col {'ABCDE'[cause.column]}, row {cause.row} is a root cause")
-        
         if self.api_call(system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT, request=request) == 1:
-            logger.info(f"Root cause FOUND in col {'ABCDE'[cause.column]}, row {cause.row}")
             cause.root_status = True
             self.categorize_corruption(cause)
         else:
-            logger.info(f"NOT a root cause in col {'ABCDE'[cause.column]}, row {cause.row}")
             cause.root_status = False
     
     def categorize_corruption(self, cause: Causes):
         """Helper method to categorize corruption type"""
         # FIX: Added validation to prevent categorizing empty causes
         if not cause.cause or cause.cause.strip() == "":
-            logger.warning(f"Attempted to categorize empty cause in col {'ABCDE'[cause.column]}, row {cause.row}")
             cause.root_status = False
             cause.feedback = ""
             cause.save()
             return
         
-        cause_en = self.translate_to_english(cause.cause)
-        print("Cause (categorize corruption) in English:", cause_en)
-        
         korupsi_check_user_prompt = (
-            f"Please categorize the root cause '{cause_en}' into one of the following corruption categories: "
+            f"Please categorize the root cause '{cause.cause}' into one of the following corruption categories: "
             "'Harta' (corruption of wealth/money/resources), 'Tahta' (corruption of power/authority/position), or 'Cinta' (corruption of love/relationships/desires). "
             "IMPORTANT: You MUST choose one of these three categories, even if the fit isn't perfect. "
             "The root causes should ultimately fall into one of these categories as per the analysis framework. "
@@ -561,23 +425,16 @@ class CausesService:
             "Answer ONLY with '1' for Harta, '2' for Tahta, or '3' for Cinta."
         )
         
-        # Log the categorization attempt
-        logger.info(f"Categorizing root cause in col {'ABCDE'[cause.column]}, row {cause.row}")
-        
         korupsi_category = self.api_call(system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE, request=None)
 
         if korupsi_category == 1:
             cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."
-            logger.info(f"Root cause in col {'ABCDE'[cause.column]}, row {cause.row} categorized as: Harta")
         elif korupsi_category == 2:
             cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Tahta."
-            logger.info(f"Root cause in col {'ABCDE'[cause.column]}, row {cause.row} categorized as: Tahta")
         elif korupsi_category == 3:
             cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Cinta."
-            logger.info(f"Root cause in col {'ABCDE'[cause.column]}, row {cause.row} categorized as: Cinta")
         else:
             # Default to Harta if unclear
             cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."
-            logger.info(f"Root cause in col {'ABCDE'[cause.column]}, row {cause.row} defaulted to: Harta")
         
         cause.save()
