@@ -9,6 +9,8 @@ from question.models import Question
 from question.services import QuestionService
 from question.serializers import QuestionRequest, QuestionResponse, PaginatedQuestionResponse
 from rest_framework.permissions import AllowAny
+from rest_framework.generics import DestroyAPIView
+from validator.exceptions import NotFoundRequestException
 from utils.pagination import CustomPageNumberPagination
 
 @permission_classes([AllowAny])  # Mengizinkan guest user
@@ -147,6 +149,35 @@ class QuestionGetRecent(APIView):
             return Response({'detail': "No recent questions found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@permission_classes([AllowAny])
+class QuestionDelete(DestroyAPIView):
+    """
+    APIView to delete a specific question.
+    """
+    def delete(self, request, pk=None):
+        try:
+            service_class = QuestionService()
+            question = service_class.get(pk=pk)
+            
+            if question.user != request.user and question.user is not None:
+                return Response(
+                    {"detail": "You do not have permission to delete this question."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            service_class.delete(pk=pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except NotFoundRequestException as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"detail": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
 @permission_classes([IsAuthenticated])
 class QuestionGetPrivileged(APIView):

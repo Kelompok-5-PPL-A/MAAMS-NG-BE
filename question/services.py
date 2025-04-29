@@ -49,6 +49,13 @@ class QuestionService():
         except Exception:
             raise Question.DoesNotExist("No recent questions found.")
 
+    def delete(self, pk):
+        """
+        Delete a question by its primary key.
+        """
+        question = Question.objects.get(pk=pk)
+        question.delete()
+
     def _make_question_response(self, questions) -> list:
         response = []
         if len(questions) == 0:
