@@ -78,7 +78,7 @@ jobs:
           ARIZE_SPACE_ID: ${{ secrets.ARIZE_SPACE_ID }}
           ARIZE_API_KEY: ${{ secrets.ARIZE_API_KEY }}
         run: |
-          coverage run manage.py test --keepdb
+          coverage run manage.py test
           coverage report
           coverage html
           coverage xml
