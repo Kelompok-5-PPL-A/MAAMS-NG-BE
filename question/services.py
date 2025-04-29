@@ -88,7 +88,7 @@ class QuestionService():
         Returns a list of matched Question model instances for the logged-in user
         with the specified filters.
         """
-        is_admin = user.is_admin() or user.is_superuser
+        is_admin = user.is_staff and user.is_superuser
 
         if not q_filter:
             q_filter = 'semua'
@@ -121,12 +121,46 @@ class QuestionService():
         """
         Returns a list of  all questions corresponding to a specified user.
         """
-
         today_datetime = timezone.now()  + timedelta(hours=7)
         last_week_datetime = today_datetime - timedelta(days=7)
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
         questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
         return questions
+    
+    def get_field_values(self, user: CustomUser) -> FieldValuesDataClass:
+        """
+        Returns all unique field values attached to available questions for search bar dropdown functionality.
+        """
+        is_admin = user.is_superuser and user.is_staff
+
+        questions = Question.objects.all()
+
+        values = {
+            "judul": set(),
+            "topik": set()
+        }
+
+        # extract usernames if user is admin to allow filtering by pengguna
+        if is_admin: values['pengguna'] = set()
+        
+        for question in questions:
+            if is_admin and question.user is not None:
+                values['pengguna'].add(question.user.username)
+            values['judul'].add(question.title)
+            # extract list of tags from question
+            tags = [tag.name for tag in question.tags.all()]
+            values['topik'].update(tags)
+
+        response = FieldValuesDataClass(
+            pengguna=[],
+            judul=list(values['judul']), 
+            topik=list(values['topik'])
+        )
+
+        if is_admin:
+            response.pengguna=list(values['pengguna'])    
+
+        return response 
     
     def get_privileged(self, q_filter: str, user: CustomUser, keyword: str):
         """

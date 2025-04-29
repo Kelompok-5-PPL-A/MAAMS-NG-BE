@@ -66,3 +66,11 @@ class PaginatedQuestionResponse(serializers.Serializer):
     next = serializers.URLField(default="http://localhost:3000/question/?p=1")
     previous = serializers.URLField(default="http://localhost:3000/question/?p=1")
     results = QuestionResponse(many=True)
+
+class FieldValuesResponse(serializers.Serializer):
+    class Meta:
+        ref_name = 'FieldValues'
+
+    pengguna = serializers.ListField(child=serializers.CharField())
+    judul = serializers.ListField(child=serializers.CharField())
+    topik = serializers.ListField(child=serializers.CharField())
