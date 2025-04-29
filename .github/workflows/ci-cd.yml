@@ -68,6 +68,15 @@ jobs:
           pip install -r requirements.txt
           pip install coverage
       - name: Run tests and generate coverage
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          MOESIF_APPLICATION_ID: ${{ secrets.MOESIF_APPLICATION_ID }}
+          ARIZE_SPACE_ID: ${{ secrets.ARIZE_SPACE_ID }}
+          ARIZE_API_KEY: ${{ secrets.ARIZE_API_KEY }}
         run: |
           coverage run manage.py test
           coverage report
@@ -139,6 +148,9 @@ jobs:
             SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
   
   publish-production:
     name: Publish Production Docker Image
@@ -170,6 +182,9 @@ jobs:
             HOST_FE=${{ secrets.PROD_HOST_FE }}
             SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
   
   deploy-staging:
     name: Deploy to Staging
@@ -200,6 +215,9 @@ jobs:
             -e DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }} \
             -e SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }} \
             -e DEBUG=True \
+            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
+            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
+            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging"
   
   deploy-production:
@@ -230,4 +248,7 @@ jobs:
             -e DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }} \
             -e SECRET_KEY=${{ secrets.PROD_SECRET_KEY }} \
             -e DEBUG=False \
+            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
+            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
+            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:production"

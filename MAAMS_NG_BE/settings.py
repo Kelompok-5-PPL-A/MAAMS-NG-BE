@@ -75,7 +75,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'moesifdjango.middleware.moesif_middleware'
+    'moesifdjango.middleware.moesif_middleware',
+    'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -101,17 +102,6 @@ WSGI_APPLICATION = 'MAAMS_NG_BE.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv("DB_NAME"),
-#         'USER': os.getenv("DB_USER"),
-#         'PASSWORD': os.getenv("DB_PASSWORD"),
-#         'HOST': os.getenv("DB_HOST"),
-#         'PORT': os.getenv("DB_PORT"),
-#     }
-# }
 
 DATABASES = {
     'default': {
@@ -261,11 +251,73 @@ sentry_sdk.init(
     send_default_pii=True,
 )
 
-# MOESIF_MIDDLEWARE = {
-#     'APPLICATION_ID': os.getenv("MOESIF_APPLICATION_ID"),
+# Mesif middleware settings to monitor API call
+MOESIF_MIDDLEWARE = {
+    'APPLICATION_ID': os.getenv("MOESIF_APPLICATION_ID"),
 
-#     'CAPTURE_OUTGOING_REQUESTS': True,
-# }
+    'CAPTURE_OUTGOING_REQUESTS': True,
+}
 
-# ARIZE_SPACE_ID = os.getenv('ARIZE_SPACE_ID')
-# ARIZE_API_KEY = os.getenv('ARIZE_API_KEY')
+
+# Arize settings to monitor AI prompts and responses
+ARIZE_SPACE_ID = os.getenv('ARIZE_SPACE_ID')
+ARIZE_API_KEY = os.getenv('ARIZE_API_KEY')
+
+# Rate Limiter Configuration
+RATE_LIMIT = {
+    'DEFAULT': {
+        'RATE': 6,  # Number of requests allowed
+        'PER': 60,  # Time period in seconds
+    },
+    # Define custom rate limits for specific paths
+    'CUSTOM_RATES': {
+        # Example: Stricter rate limiting for validation API
+        '/cause/validate/': {
+            'RATE': 6,
+            'PER': 60,
+        },
+    },
+    # Paths that should be excluded from rate limiting
+    'EXEMPT_PATHS': [],
+    # If True, all paths are rate-limited unless explicitly exempt
+    # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
+    'RATE_LIMIT_ALL_PATHS': False,
+}
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',  # Set to DEBUG to capture all logs
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'validator.middleware.rate_limit_middleware': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

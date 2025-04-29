@@ -8,10 +8,18 @@ from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
 from validator.exceptions import AIServiceErrorException, RateLimitExceededException
-from validator.utils.rate_limiter import RateLimiter
+from arize.otel import register
+from openinference.instrumentation.groq import GroqInstrumentor
+
+tracer_provider = register(
+    space_id = settings.ARIZE_SPACE_ID,
+    api_key = settings.ARIZE_API_KEY,
+    project_name = "MAAMS NG"
+)
+GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
 class CausesService:
-    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType, request=None) -> int:
+    def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType, request=None) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
@@ -26,7 +34,7 @@ class CausesService:
                         "content": user_prompt
                     }
                 ],
-                model="deepseek-r1-distill-llama-70b",
+                model="llama-3.1-8b-instant",
                 temperature=0.7,
                 max_completion_tokens=8192,
                 top_p=0.95,
