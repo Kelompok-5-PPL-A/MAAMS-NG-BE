@@ -451,7 +451,7 @@ class CausesServiceTest(TransactionTestCase):
         self.service.retrieve_feedback(cause, self.question, prev_cause, self.mock_request)
         
         # Verify
-        self.assertEqual(cause.feedback, f"Sebab di kolom B baris 3 perlu diperbaiki.")
+        self.assertEqual(cause.feedback, "Sebab di kolom B baris 3 perlu diperbaiki.")
         mock_api_call.assert_called_once()
 
     @patch.object(CausesService, 'check_root_cause')
@@ -1133,9 +1133,10 @@ class CausesServiceTest(TransactionTestCase):
         self.assertEqual(causes_count_before, causes_count_after)
     
     # Tests for validate method
-    @patch.object(CausesService, '_validate_single_cause')
+    @patch.object(CausesService, '_validate_first_row_causes')
+    @patch.object(CausesService, '_validate_remaining_causes_by_column')
     @patch.object(CausesService, '_ensure_next_rows_exist')
-    def test_validate_no_unvalidated_causes(self, mock_ensure_next_rows, mock_validate_single_cause):
+    def test_validate_no_unvalidated_causes(self, mock_ensure_next_rows, mock_validate_remaining, mock_validate_first_row):
         """Test validate when there are no unvalidated causes"""
         # Delete all causes first
         Causes.objects.filter(question_id=self.question_id).delete()
@@ -1155,18 +1156,17 @@ class CausesServiceTest(TransactionTestCase):
         
         # Verify
         self.assertEqual(len(results), 3)
-        mock_validate_single_cause.assert_not_called()
+        mock_validate_first_row.assert_not_called()
+        mock_validate_remaining.assert_not_called()
         mock_ensure_next_rows.assert_not_called()
-        
+    
     @patch.object(CausesService, '_validate_single_cause')
-    @patch.object(CausesService, '_ensure_next_rows_exist')
-    def test_validate_row1_causes(self, mock_ensure_next_rows, mock_validate_single_cause):
-        """Test validate processes row 1 causes first"""
+    def test_validate_first_row_causes(self, mock_validate_single_cause):
+        """Test _validate_first_row_causes processes row 1 causes properly"""
         # Delete all causes first
         Causes.objects.filter(question_id=self.question_id).delete()
         
         # Create unvalidated causes in row 1 for multiple columns with short cause text
-        # Fix: Shortening the text to avoid "value too long for type character varying(50)" error
         row1_causes = []
         for i in range(3):  # Columns A, B, C
             cause = Causes.objects.create(
@@ -1178,33 +1178,35 @@ class CausesServiceTest(TransactionTestCase):
             )
             row1_causes.append(cause)
             
-        # Also add some non-row-1 causes with short names
+        # Also add some non-row-1 causes with short names (should be ignored in this test)
         for i in range(2):
             Causes.objects.create(
                 question_id=self.question_id,
-                cause=f"Row2 Col{i}",  # Shortened text
+                cause=f"Row2 Col{i}",
                 row=2,
                 column=i,
                 status=False
             )
         
-        # Execute - but mock save to prevent DB interactions
-        with patch.object(Causes, 'save'):
-            self.service.validate(self.question_id, self.mock_request)
+        # Get the unvalidated causes
+        unvalidated_causes = Causes.objects.filter(question_id=self.question_id, status=False)
+        problem = Question.objects.get(pk=self.question_id)
         
-        # Verify row 1 causes were validated first
+        # Execute the method directly
+        with patch.object(Causes, 'save'):
+            self.service._validate_first_row_causes(unvalidated_causes, problem, self.mock_request)
+        
+        # Verify row 1 causes were validated
         calls = []
         for cause in row1_causes:
-            calls.append(call(cause, ANY, None, self.mock_request))
+            calls.append(call(cause, problem, None, self.mock_request))
             
         mock_validate_single_cause.assert_has_calls(calls, any_order=False)
-        mock_ensure_next_rows.assert_called_once_with(self.question_id)
-        
+    
     @patch.object(CausesService, '_validate_single_cause')
     @patch.object(CausesService, '_get_previous_cause')
-    @patch.object(CausesService, '_ensure_next_rows_exist')
-    def test_validate_column_by_column(self, mock_ensure_next_rows, mock_get_previous, mock_validate_single_cause):
-        """Test validate processes columns sequentially"""
+    def test_process_column_causes(self, mock_get_previous, mock_validate_single_cause):
+        """Test _process_column_causes processes column properly"""
         # Delete all causes first
         Causes.objects.filter(question_id=self.question_id).delete()
         
@@ -1226,35 +1228,61 @@ class CausesServiceTest(TransactionTestCase):
             status=False
         )
         
-        # Create a valid cause in column B, row 1
-        col_b_row_1 = Causes.objects.create(
-            question_id=self.question_id,
-            cause="Valid cause B1",
-            row=1,
-            column=1,
-            status=True
-        )
-        
         # Mock the previous cause lookup
         mock_get_previous.return_value = col_a_row_1  # Return valid previous cause
         
-        # Execute
-        self.service.validate(self.question_id, self.mock_request)
+        # Get unvalidated causes
+        unvalidated_causes = Causes.objects.filter(question_id=self.question_id, status=False)
+        problem = Question.objects.get(pk=self.question_id)
+        
+        # Execute directly
+        self.service._process_column_causes(unvalidated_causes, 0, problem, self.mock_request)
         
         # Verify column A row 2 was validated with correct previous cause
-        mock_validate_single_cause.assert_called_with(col_a_row_2, ANY, col_a_row_1, self.mock_request)
-        mock_ensure_next_rows.assert_called_once_with(self.question_id)
+        mock_validate_single_cause.assert_called_with(col_a_row_2, problem, col_a_row_1, self.mock_request)
+    
+    def test_column_has_root_cause(self):
+        """Test _column_has_root_cause correctly checks for root causes"""
+        # Delete all causes first
+        Causes.objects.filter(question_id=self.question_id).delete()
         
+        # Create a non-root cause
+        Causes.objects.create(
+            question_id=self.question_id,
+            cause="Non-root cause",
+            row=1,
+            column=0,
+            status=True,
+            root_status=False
+        )
+        
+        # Check that column has no root cause
+        result = self.service._column_has_root_cause(self.question_id, 0)
+        self.assertFalse(result)
+        
+        # Create a root cause
+        Causes.objects.create(
+            question_id=self.question_id,
+            cause="Root cause",
+            row=2,
+            column=0,
+            status=True,
+            root_status=True
+        )
+        
+        # Check that column now has root cause
+        result = self.service._column_has_root_cause(self.question_id, 0)
+        self.assertTrue(result)
+    
     @patch.object(CausesService, '_validate_single_cause')
     @patch.object(CausesService, '_get_previous_cause')
-    @patch.object(CausesService, '_ensure_next_rows_exist')  
-    def test_validate_skip_empty_causes(self, mock_ensure_next_rows, mock_get_previous, mock_validate_single_cause):
-        """Test validate skips empty causes"""
+    def test_process_column_causes_skip_empty(self, mock_get_previous, mock_validate_single_cause):
+        """Test _process_column_causes skips empty causes"""
         # Delete all causes first
         Causes.objects.filter(question_id=self.question_id).delete()
         
         # Create a valid cause in row 1
-        Causes.objects.create(
+        row1_cause = Causes.objects.create(
             question_id=self.question_id,
             cause="Valid cause row 1",
             row=1,
@@ -1271,20 +1299,36 @@ class CausesServiceTest(TransactionTestCase):
             status=False
         )
         
+        # Create a non-empty cause
+        non_empty_cause = Causes.objects.create(
+            question_id=self.question_id,
+            cause="Non-empty cause",
+            row=3,
+            column=0,
+            status=False
+        )
+        
+        # Mock the previous cause lookup
+        mock_get_previous.return_value = row1_cause
+        
+        # Get unvalidated causes
+        unvalidated_causes = Causes.objects.filter(question_id=self.question_id, status=False)
+        problem = Question.objects.get(pk=self.question_id)
+        
         # Execute
-        self.service.validate(self.question_id, self.mock_request)
+        self.service._process_column_causes(unvalidated_causes, 0, problem, self.mock_request)
         
         # Verify empty cause was not validated
         for call_args in mock_validate_single_cause.call_args_list:
             self.assertNotEqual(call_args[0][0], empty_cause)
-            
-        mock_ensure_next_rows.assert_called_once_with(self.question_id)
         
+        # Verify non-empty cause was validated
+        mock_validate_single_cause.assert_called_with(non_empty_cause, problem, row1_cause, self.mock_request)
+    
     @patch.object(CausesService, '_validate_single_cause')
     @patch.object(CausesService, '_get_previous_cause')
-    @patch.object(CausesService, '_ensure_next_rows_exist')
-    def test_validate_handle_missing_previous(self, mock_ensure_next_rows, mock_get_previous, mock_validate_single_cause):
-        """Test validate handles missing previous cause"""
+    def test_process_column_causes_missing_previous(self, mock_get_previous, mock_validate_single_cause):
+        """Test _process_column_causes handles missing previous cause"""
         # Delete all causes first
         Causes.objects.filter(question_id=self.question_id).delete()
         
@@ -1301,71 +1345,33 @@ class CausesServiceTest(TransactionTestCase):
         # Mock the previous cause lookup to return None
         mock_get_previous.return_value = None
         
-        # Execute
+        # Get unvalidated causes
+        unvalidated_causes = Causes.objects.filter(question_id=self.question_id, status=False)
+        problem = Question.objects.get(pk=self.question_id)
+        
+        # Execute with a patched save method to capture the feedback
         with patch.object(Causes, 'save') as mock_save:
             def side_effect():
                 cause.feedback = f"Perlu validasi sebab di baris {cause.row-1} kolom {'ABCDE'[cause.column]} terlebih dahulu."
             
             mock_save.side_effect = side_effect
-            
-            self.service.validate(self.question_id, self.mock_request)
+            self.service._process_column_causes(unvalidated_causes, 0, problem, self.mock_request)
             
             self.assertEqual(cause.feedback, "Perlu validasi sebab di baris 1 kolom A terlebih dahulu.")
             mock_save.assert_called()
-
+        
         # Verify validation was not attempted
         mock_validate_single_cause.assert_not_called()
-        mock_ensure_next_rows.assert_called_once_with(self.question_id)
-        
+    
     @patch.object(CausesService, '_validate_single_cause')
-    @patch.object(CausesService, '_ensure_next_rows_exist')
-    def test_validate_skip_columns_without_previous_root(self, mock_ensure_next_rows, mock_validate_single_cause):
-        """Test validate skips columns if previous column has no root cause"""
-        # Delete all causes first
-        Causes.objects.filter(question_id=self.question_id).delete()
-        
-        # Create causes in column A (no root)
-        Causes.objects.create(
-            question_id=self.question_id,
-            cause="Column A cause 1",
-            row=1,
-            column=0,
-            status=True,
-            root_status=False
-        )
-        
-        # Create causes in column B that should be skipped
-        col_b_cause = Causes.objects.create(
-            question_id=self.question_id,
-            cause="Column B cause 1",
-            row=1,
-            column=1,
-            status=False
-        )
-        
-        # Execute
-        self.service.validate(self.question_id, self.mock_request)
-        
-        # Verify column B was processed in row 1 but not further
-        find_call = False
-        for call_args in mock_validate_single_cause.call_args_list:
-            if call_args[0][0] == col_b_cause:
-                find_call = True
-                break
-                
-        self.assertTrue(find_call, "First row in column B should be validated regardless of column A root status")
-        mock_ensure_next_rows.assert_called_once_with(self.question_id)
-        
-    @patch.object(CausesService, '_validate_single_cause')
-    @patch.object(CausesService, '_get_previous_cause')  
-    @patch.object(CausesService, '_ensure_next_rows_exist')
-    def test_validate_stop_at_root_cause(self, mock_ensure_next_rows, mock_get_previous, mock_validate_single_cause):
-        """Test validate stops processing a column when root cause is found"""
+    @patch.object(CausesService, '_get_previous_cause')
+    def test_process_column_causes_stop_at_root(self, mock_get_previous, mock_validate_single_cause):
+        """Test _process_column_causes stops at root cause"""
         # Delete all causes first
         Causes.objects.filter(question_id=self.question_id).delete()
         
         # Create causes in column A
-        Causes.objects.create(
+        row1_cause = Causes.objects.create(
             question_id=self.question_id,
             cause="Column A cause 1",
             row=1,
@@ -1389,21 +1395,62 @@ class CausesServiceTest(TransactionTestCase):
             status=False
         )
         
-        # Mock validation to mark cause_a2 as a root cause
+        # Mock get_previous_cause to return row1_cause
+        mock_get_previous.return_value = row1_cause
+        
+        # Mock validate_single_cause to mark cause_a2 as root
         def side_effect_validator(cause, *args):
             if cause == cause_a2:
                 cause.root_status = True
                 
         mock_validate_single_cause.side_effect = side_effect_validator
         
-        # Mock get_previous_cause to return a valid value
-        mock_get_previous.return_value = Mock(spec=Causes)
+        # Get unvalidated causes
+        unvalidated_causes = Causes.objects.filter(question_id=self.question_id, status=False)
+        problem = Question.objects.get(pk=self.question_id)
         
         # Execute
-        self.service.validate(self.question_id, self.mock_request)
+        self.service._process_column_causes(unvalidated_causes, 0, problem, self.mock_request)
         
         # Verify cause_a3 was not validated after root cause was found
         for call_args in mock_validate_single_cause.call_args_list:
             self.assertNotEqual(call_args[0][0], cause_a3)
-            
+    
+    @patch.object(CausesService, '_validate_first_row_causes')
+    @patch.object(CausesService, '_validate_remaining_causes_by_column')
+    @patch.object(CausesService, '_ensure_next_rows_exist')
+    def test_validate_integration(self, mock_ensure_next_rows, mock_validate_remaining, mock_validate_first_row):
+        """Test validate method calls all helper methods correctly"""
+        # Execute
+        self.service.validate(self.question_id, self.mock_request)
+        
+        # Verify all helper methods were called with correct arguments
+        mock_validate_first_row.assert_called_once()
+        mock_validate_remaining.assert_called_once()
         mock_ensure_next_rows.assert_called_once_with(self.question_id)
+    
+    @patch.object(CausesService, '_column_has_root_cause')
+    @patch.object(CausesService, '_process_column_causes')
+    def test_validate_remaining_causes_by_column(self, mock_process_column, mock_has_root):
+        """Test _validate_remaining_causes_by_column processes columns correctly"""
+        # Setup
+        unvalidated_causes = Mock()
+        question_id = self.question_id
+        problem = Mock()
+        request = self.mock_request
+        
+        # Configure mock to simulate column 0 has root but column 1 doesn't
+        mock_has_root.side_effect = lambda qid, col: col == 0
+        
+        # Execute
+        self.service._validate_remaining_causes_by_column(unvalidated_causes, question_id, problem, request)
+        
+        # Verify column 0 was processed
+        mock_process_column.assert_any_call(unvalidated_causes, 0, problem, request)
+        
+        # Verify column 2 was not processed (since column 1 has no root)
+        self.assertEqual(mock_process_column.call_count, 2)  # Only column 0 and 1
+        
+        # Verify the correct columns were checked for root causes
+        mock_has_root.assert_any_call(question_id, 0)  # For column 1 check
+        mock_has_root.assert_any_call(question_id, 1)  # For column 2 check
