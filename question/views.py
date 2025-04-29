@@ -86,6 +86,14 @@ class QuestionDelete(DestroyAPIView):
     def delete(self, request, pk=None):
         try:
             service_class = QuestionService()
+            question = service_class.get(pk=pk)
+            
+            if question.user != request.user:
+                return Response(
+                    {"detail": "You do not have permission to delete this question."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
             service_class.delete(pk=pk)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Question.DoesNotExist:
