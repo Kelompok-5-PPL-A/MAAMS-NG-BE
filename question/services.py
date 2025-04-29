@@ -51,6 +51,13 @@ class QuestionService():
         except Exception:
             raise Question.DoesNotExist("No recent questions found.")
 
+    def delete(self, pk):
+        """
+        Delete a question by its primary key.
+        """
+        question = Question.objects.get(pk=pk)
+        question.delete()
+
     def _make_question_response(self, questions) -> list:
         response = []
         if len(questions) == 0:
@@ -93,6 +100,8 @@ class QuestionService():
 
         # Filter by current user
         user_filter = Q(user=user)
+        if keyword == '':
+            raise InvalidFiltersException(ErrorMsg.EMPTY_KEYWORD)
 
         # Build query clauses
         clause = self._resolve_filter_type(q_filter, keyword, is_admin)

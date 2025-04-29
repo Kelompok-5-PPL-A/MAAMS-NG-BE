@@ -10,9 +10,9 @@ class CustomPageNumberPagination(pagination.PageNumberPagination):
     We can call
     <BASE>/api/history/search?keyword=Indo&count=4&p=1
     '''
-    page_size = 3
+    page_size = 6
     page_size_query_param = 'count'
-    max_page_size = 5
+    max_page_size = 10
     page_query_param = 'p'
 
     def get_paginated_response(self, data):

@@ -587,7 +587,65 @@ class TestQuestionGetPrivileged(TestCase):
                 keyword=''
             )
 
+class QuestionDeleteTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = CustomUser.objects.create_user(username='owner', email='owner@example.com', password='password123')
+        self.other_user = CustomUser.objects.create_user(username='other_user', email='other@example.com', password='password456')
+        self.question = Question.objects.create(
+            id=uuid.uuid4(),
+            question="Test question",
+            user=self.user
+        )
+        self.guest_question = Question.objects.create(
+            id=uuid.uuid4(),
+            question="Guest question",
+            user=None  # Indicates the question was created by a guest
+        )
+        self.url = f"/question/{self.question.id}/delete/"
+        self.guest_url = f"/question/{self.guest_question.id}/delete/"
 
+    def test_delete_question_success(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Question.objects.filter(id=self.question.id).exists())
+
+    def test_delete_question_not_found(self):
+        self.client.force_authenticate(user=self.user)
+        non_existent_id = uuid.uuid4()
+        response = self.client.delete(f"/question/{non_existent_id}/delete/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
+
+    def test_delete_question_unauthorized(self):
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Question.objects.filter(id=self.question.id).exists())
+
+    def test_guest_delete_question_success(self):
+        response = self.client.delete(self.guest_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Question.objects.filter(id=self.guest_question.id).exists())
+
+    def test_guest_delete_question_not_found(self):
+        non_existent_id = uuid.uuid4()
+        response = self.client.delete(f"/question/{non_existent_id}/delete/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
+
+    def test_delete_question_unexpected_error(self):
+        with patch('question.services.QuestionService.get', side_effect=Exception("Unexpected error")):
+            self.client.force_authenticate(user=self.user)
+            response = self.client.delete(self.url)
+            
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            self.assertIn("An unexpected error occurred", response.data['detail'])
+            self.assertIn("Unexpected error", response.data['detail'])
+
+            
 class TestQuestionServiceErrors(TestCase):
     def setUp(self):
         self.client = APIClient()
