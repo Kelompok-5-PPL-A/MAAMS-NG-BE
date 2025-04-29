@@ -360,18 +360,29 @@ class QuestionResponseGetTagsTest(TestCase):
 class QuestionDeleteTest(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.user = CustomUser.objects.create_user(username='owner', email='owner@example.com', password='password123')
+        self.other_user = CustomUser.objects.create_user(username='other_user', email='other@example.com', password='password456')
         self.question = Question.objects.create(
             id=uuid.uuid4(),
-            question="Test question"
+            question="Test question",
+            user=self.user
         )
         self.url = f"/question/{self.question.id}/delete/"
 
     def test_delete_question_success(self):
+        self.client.force_authenticate(user=self.user)
         response = self.client.delete(self.url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Question.objects.filter(id=self.question.id).exists())
 
     def test_delete_question_not_found(self):
+        self.client.force_authenticate(user=self.user)
         non_existent_id = uuid.uuid4()
         response = self.client.delete(f"/question/{non_existent_id}/delete/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_question_unauthorized(self):
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Question.objects.filter(id=self.question.id).exists())
