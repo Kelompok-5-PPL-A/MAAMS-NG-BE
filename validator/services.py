@@ -132,62 +132,68 @@ class CausesService:
             return Causes.objects.filter(question_id=question_id).order_by('column', 'row')
         
         problem = Question.objects.get(pk=question_id)
-        validated_causes = []
         
-        # First validate row 1 across all columns to ensure the foundation is correct
-        row1_causes = unvalidated_causes.filter(row=1).order_by('column')
-        for cause in row1_causes:
-            self._validate_single_cause(cause, problem, None, request)
-            validated_causes.append(cause)
+        # First validate row 1 across all columns
+        self._validate_first_row_causes(unvalidated_causes, problem, request)
         
-        # Then proceed column by column, validating completely one column before moving to the next
-        for column in range(5):  # Max 5 columns (A-E)
-            # For column beyond A, check if previous column has a root cause
-            if column > 0:
-                previous_column_has_root = Causes.objects.filter(
-                    question_id=question_id,
-                    column=column-1,
-                    root_status=True
-                ).exists()
-                
-                if not previous_column_has_root:
-                    # Skip this column if previous column doesn't have a root cause
-                    continue
-            
-            # Get all unvalidated causes in this column, ordered by row
-            column_causes = unvalidated_causes.filter(
-                question_id=question_id,
-                column=column,
-                row__gt=1  # Exclude row 1 as it's already validated
-            ).order_by('row')
-            
-            # Validate each cause in the column
-            for cause in column_causes:
-                # Skip empty causes - don't try to validate them
-                if not cause.cause or cause.cause.strip() == '':
-                    continue
-                
-                # Get the previous cause in the same column
-                prev_cause = self._get_previous_cause(cause, problem)
-                
-                if prev_cause:
-                    self._validate_single_cause(cause, problem, prev_cause, request)
-                else:
-                    cause.feedback = f"Perlu validasi sebab di baris {cause.row-1} kolom {'ABCDE'[cause.column]} terlebih dahulu."
-                    cause.save()
-                
-                validated_causes.append(cause)
-                
-                # If root cause found, stop validating more causes in this column
-                if cause.root_status:
-                    break
+        # Then proceed column by column
+        self._validate_remaining_causes_by_column(unvalidated_causes, question_id, problem, request)
         
         # Create or ensure rows exist for active columns with valid previous rows
         self._ensure_next_rows_exist(question_id)
         
         # Return all causes for the question, including newly validated ones
-        all_causes = Causes.objects.filter(question_id=question_id).order_by('column', 'row')
-        return all_causes
+        return Causes.objects.filter(question_id=question_id).order_by('column', 'row')
+
+    def _validate_first_row_causes(self, unvalidated_causes, problem, request):
+        """Validate all causes in the first row across all columns."""
+        row1_causes = unvalidated_causes.filter(row=1).order_by('column')
+        for cause in row1_causes:
+            if cause.cause and cause.cause.strip():  # Only validate non-empty causes
+                self._validate_single_cause(cause, problem, None, request)
+
+    def _validate_remaining_causes_by_column(self, unvalidated_causes, question_id, problem, request):
+        """Validate causes in rows > 1, proceeding column by column."""
+        for column in range(5):  # Max 5 columns (A-E)
+            # Skip column if previous column doesn't have a root cause (except for column A)
+            if column > 0 and not self._column_has_root_cause(question_id, column-1):
+                continue
+                
+            # Process each cause in the current column beyond row 1
+            self._process_column_causes(unvalidated_causes, column, problem, request)
+
+    def _column_has_root_cause(self, question_id, column):
+        """Check if the specified column has a root cause."""
+        return Causes.objects.filter(
+            question_id=question_id,
+            column=column,
+            root_status=True
+        ).exists()
+
+    def _process_column_causes(self, unvalidated_causes, column, problem, request):
+        """Process all unvalidated causes in a specific column (rows > 1)."""
+        column_causes = unvalidated_causes.filter(
+            question_id=problem.pk,
+            column=column,
+            row__gt=1  # Exclude row 1 as it's already validated
+        ).order_by('row')
+        
+        for cause in column_causes:
+            # Skip empty causes
+            if not cause.cause or cause.cause.strip() == '':
+                continue
+            
+            prev_cause = self._get_previous_cause(cause, problem)
+            
+            if prev_cause:
+                self._validate_single_cause(cause, problem, prev_cause, request)
+            else:
+                cause.feedback = f"Perlu validasi sebab di baris {cause.row-1} kolom {'ABCDE'[cause.column]} terlebih dahulu."
+                cause.save()
+            
+            # If root cause found, stop validating more causes in this column
+            if cause.root_status:
+                break
     
     def _ensure_next_rows_exist(self, question_id):
         """
