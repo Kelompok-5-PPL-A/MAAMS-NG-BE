@@ -5,3 +5,9 @@ class ValidationType(Enum):
     ROOT = 'root'
     FALSE = 'false'
     ROOT_TYPE = 'root_type'
+
+class FilterType(Enum):
+    SEMUA = 'semua'
+    TOPIK = 'topik'
+    JUDUL = 'judul'
+    PENGGUNA = 'pengguna'

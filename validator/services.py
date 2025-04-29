@@ -7,9 +7,18 @@ from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
 from validator.exceptions import AIServiceErrorException
+from arize.otel import register
+from openinference.instrumentation.groq import GroqInstrumentor
+
+tracer_provider = register(
+    space_id = settings.ARIZE_SPACE_ID,
+    api_key = settings.ARIZE_API_KEY,
+    project_name = "MAAMS NG"
+)
+GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
 class CausesService:
-    def api_call(self, system_message: str, user_prompt: str, validation_type:ValidationType) -> int:
+    def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
         
         try:
@@ -24,12 +33,11 @@ class CausesService:
                         "content": user_prompt
                     }
                 ],
-                model="deepseek-r1-distill-llama-70b",
+                model="llama-3.1-8b-instant",
                 temperature=0.7,
-                max_completion_tokens=1024,
+                max_completion_tokens=8192,
                 top_p=0.95,
                 stream=False,
-                reasoning_format="hidden",
                 seed=42
             )
             
@@ -80,7 +88,7 @@ class CausesService:
                 "Please respond ONLY WITH '1' if the cause is NOT THE CAUSE of the question, ONLY WITH '2' if the cause is positive or neutral"
             )
         
-        feedback_type = CausesService.api_call(self=self, system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE)
+        feedback_type = self.api_call(system_message=retrieve_feedback_system_message, user_prompt=retrieve_feedback_user_prompt, validation_type=ValidationType.FALSE)
             
         if feedback_type == 1 and prev_cause:
             cause.feedback = FeedbackMsg.FALSE_ROW_N_NOT_CAUSE.format(column='ABCDE'[cause.column], row=cause.row, prev_row=cause.row-1)
@@ -111,14 +119,14 @@ class CausesService:
                 prev_cause = Causes.objects.filter(question_id=question_id, row=max_row-1, column=cause.column).first()
                 user_prompt = f"Is '{cause.cause}' the cause of '{prev_cause.cause}'? Answer only with True/False"
                 
-            if self.api_call(self=self, system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL) == 1:
+            if self.api_call(system_message=system_message, user_prompt=user_prompt, validation_type=ValidationType.NORMAL) == 1:
                 cause.status = True
                 cause.feedback = ""
                 if max_row > 1:
-                    CausesService.check_root_cause(self=self, cause=cause, problem=problem)
+                    self.check_root_cause(cause=cause, problem=problem)
 
             else:
-                CausesService.retrieve_feedback(self=self, cause=cause, problem=problem, prev_cause = prev_cause)
+                self.retrieve_feedback(cause=cause, problem=problem, prev_cause = prev_cause)
             
             cause.save()
     
@@ -131,7 +139,7 @@ class CausesService:
             "Your task is to distinguish between direct causes and root causes, identifying whether the given cause is indeed the fundamental issue driving the problem."
         )
         
-        if CausesService.api_call(self=self, system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT) == 1:
+        if self.api_call(system_message=root_check_system_message, user_prompt=root_check_user_prompt, validation_type=ValidationType.ROOT) == 1:
             cause.root_status = True
     
             korupsi_check_user_prompt = (
@@ -147,8 +155,8 @@ class CausesService:
                 "Answer ONLY with '1' for Harta, '2' for Tahta, or '3' for Cinta."
             )
             
-            korupsi_category = CausesService.api_call(self=self, system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE)
-            
+            korupsi_category = self.api_call(system_message=korupsi_check_system_message, user_prompt=korupsi_check_user_prompt, validation_type=ValidationType.ROOT_TYPE)
+
             if korupsi_category == 1:
                 cause.feedback = f"{FeedbackMsg.ROOT_FOUND.format(column='ABCDE'[cause.column])} Korupsi Harta."
             elif korupsi_category == 2:

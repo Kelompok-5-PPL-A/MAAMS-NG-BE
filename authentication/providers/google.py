@@ -125,10 +125,11 @@ class GoogleAuthProvider(AuthenticationProvider):
         """
         google_id = user_info['sub']
         email = user_info['email']
+        username = email.split('@')[0]
         
         user = User.objects.create_user(
             email=email,
-            username=email,
+            username=username,
             google_id=google_id,
             first_name=user_info.get('given_name'),
             last_name=user_info.get('family_name'),

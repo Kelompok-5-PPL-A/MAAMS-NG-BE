@@ -24,9 +24,8 @@ class CustomUserManager(BaseUserManager):
         
         email = self.normalize_email(email)
         
-        # Use email as username if not provided
         if 'username' not in extra_fields:
-            extra_fields['username'] = email
+            extra_fields['username'] = email.split('@')[0]
         
         # Set defaults for required fields
         extra_fields.setdefault('is_active', True)
@@ -64,6 +63,8 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('role', 'admin')
+
+        extra_fields['username'] = email.split('@')[0]
         
         if extra_fields.get('is_staff') is not True:
             raise ValueError(_('Superuser must have is_staff=True.'))
@@ -78,13 +79,11 @@ class CustomUser(AbstractUser):
     Custom user model with additional fields for Google OAuth and SSO UI authentication.
     """
     
-    # Role choices
     ROLE_CHOICES = [
         ('user', _('Regular User')),
         ('admin', _('Administrator')),
     ]
     
-    # Primary key
     uuid = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -92,7 +91,6 @@ class CustomUser(AbstractUser):
         help_text=_('Unique identifier for the user')
     )
     
-    # Basic user information
     email = models.EmailField(
         unique=True,
         error_messages={
@@ -126,11 +124,10 @@ class CustomUser(AbstractUser):
         help_text=_('Student year (angkatan).')
     )
     
-    # Common fields for both authentication methods
     role = models.CharField(
         max_length=10,
         choices=ROLE_CHOICES,
-        default='guest',
+        default='user',
         help_text=_('User role in the application.')
     )
     
@@ -144,7 +141,6 @@ class CustomUser(AbstractUser):
         },
     )
     
-    # Override Django's Group and Permission related fields
     groups = models.ManyToManyField(
         Group,
         verbose_name=_('groups'),
@@ -168,7 +164,7 @@ class CustomUser(AbstractUser):
     
     # Basic user settings
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['first_name', 'last_name']
     
     objects = CustomUserManager()
     
@@ -181,21 +177,14 @@ class CustomUser(AbstractUser):
         ordering = ['email']
     
     def get_full_name(self):
-        """
-        Return the first_name plus the last_name, with a space in between.
-        If both are empty, return the email.
-        """
         full_name = f"{self.first_name} {self.last_name}".strip()
         return full_name if full_name else self.email
     
     def get_short_name(self):
-        """Return the short name for the user."""
         return self.first_name if self.first_name else self.email.split('@')[0]
     
     def is_admin(self):
-        """Check if the user is an admin."""
         return self.role == 'admin'
         
     def has_role(self, role):
-        """Check if the user has the specified role."""
         return self.role == role

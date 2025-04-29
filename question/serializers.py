@@ -45,6 +45,7 @@ class QuestionResponse(BaseQuestion):
     created_at = serializers.DateTimeField()
     tags = serializers.SerializerMethodField()
     user = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
 
     def get_tags(self, obj):
         if hasattr(obj.tags, 'all'):
@@ -53,3 +54,15 @@ class QuestionResponse(BaseQuestion):
     
     def get_user(self, obj):
         return obj.user.uuid if obj.user else None
+        
+    def get_username(self, obj):
+        return obj.user.username if obj.user else None
+    
+class PaginatedQuestionResponse(serializers.Serializer):
+    class Meta:
+        ref_name = 'QuestionResponsePaginated'
+
+    count = serializers.IntegerField(default=5)
+    next = serializers.URLField(default="http://localhost:3000/question/?p=1")
+    previous = serializers.URLField(default="http://localhost:3000/question/?p=1")
+    results = QuestionResponse(many=True)

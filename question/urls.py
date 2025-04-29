@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import (
-    QuestionPost, QuestionGet, QuestionGetRecent, QuestionDelete
+    QuestionPost, QuestionGet, QuestionGetRecent, QuestionGetPrivileged, QuestionDelete
 )
 
 urlpatterns = [
@@ -9,4 +9,5 @@ urlpatterns = [
     path('<uuid:pk>/', QuestionGet.as_view({'get': 'retrieve'}), name="get_question"),
     path('recent/', QuestionGetRecent.as_view(), name='recent-question'),
     path('<uuid:pk>/delete/', QuestionDelete.as_view(), name="delete_question"),
+    path('privileged/', QuestionGetPrivileged.as_view(), name='privileged-question'),
 ]
