@@ -367,7 +367,13 @@ class QuestionDeleteTest(TestCase):
             question="Test question",
             user=self.user
         )
+        self.guest_question = Question.objects.create(
+            id=uuid.uuid4(),
+            question="Guest question",
+            user=None  # Indicates the question was created by a guest
+        )
         self.url = f"/question/{self.question.id}/delete/"
+        self.guest_url = f"/question/{self.guest_question.id}/delete/"
 
     def test_delete_question_success(self):
         self.client.force_authenticate(user=self.user)
@@ -380,9 +386,21 @@ class QuestionDeleteTest(TestCase):
         non_existent_id = uuid.uuid4()
         response = self.client.delete(f"/question/{non_existent_id}/delete/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
 
     def test_delete_question_unauthorized(self):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.delete(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Question.objects.filter(id=self.question.id).exists())
+
+    def test_guest_delete_question_success(self):
+        response = self.client.delete(self.guest_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Question.objects.filter(id=self.guest_question.id).exists())
+
+    def test_guest_delete_question_not_found(self):
+        non_existent_id = uuid.uuid4()
+        response = self.client.delete(f"/question/{non_existent_id}/delete/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
