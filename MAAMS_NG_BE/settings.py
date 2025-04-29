@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_seed',
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
@@ -139,7 +140,7 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False # cause data seeding to fail when set to True
 
 CORS_ALLOW_ALL_ORIGINS = True
 
