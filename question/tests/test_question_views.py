@@ -404,3 +404,13 @@ class QuestionDeleteTest(TestCase):
         response = self.client.delete(f"/question/{non_existent_id}/delete/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
+
+    def test_delete_question_unexpected_error(self):
+        with patch('question.services.QuestionService.get', side_effect=Exception("Unexpected error")):
+            self.client.force_authenticate(user=self.user)
+            response = self.client.delete(self.url)
+            
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            self.assertIn("An unexpected error occurred", response.data['detail'])
+            self.assertIn("Unexpected error", response.data['detail'])
