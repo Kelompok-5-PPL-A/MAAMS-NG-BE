@@ -67,6 +67,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install coverage
+      - name: Data Seeding
+        run: |
+          python manage.py seed question --number=20
+          python manage.py loaddata question/fixtures/data.json
       - name: Run tests and generate coverage
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
