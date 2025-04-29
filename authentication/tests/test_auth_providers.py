@@ -265,7 +265,7 @@ class TestGoogleAuthProvider(unittest.TestCase):
             self.assertEqual(user, mock_new_user)
             mock_objects.create_user.assert_called_once_with(
                 email='test@example.com',
-                username='test@example.com',
+                username='test',
                 google_id='123456789',
                 first_name='Test',
                 last_name='User',

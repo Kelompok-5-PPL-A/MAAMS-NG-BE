@@ -3,12 +3,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import permission_classes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
 from question.models import Question
 from question.services import QuestionService
-from question.serializers import QuestionRequest, QuestionResponse
+from question.serializers import QuestionRequest, QuestionResponse, PaginatedQuestionResponse
 from rest_framework.permissions import AllowAny
+from utils.pagination import CustomPageNumberPagination
 
 @permission_classes([AllowAny])  # Mengizinkan guest user
 class QuestionPost(APIView):
@@ -34,9 +35,9 @@ class QuestionPost(APIView):
                 {"error": "Invalid input"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception:
+        except Exception as e:
             return Response(
-                {"error": "An unexpected error occurred"}, 
+                {"error": f"An unexpected error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -59,9 +60,8 @@ class QuestionGet(ViewSet):
             serializer = QuestionResponse(question)
             return Response(serializer.data)
         except Exception as e:
-            print(f"[DEBUG] retrieve error: {e}")
             return Response(
-                {"error": "An unexpected error occurred"},
+                {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -69,10 +69,77 @@ class QuestionGet(ViewSet):
 class QuestionGetRecent(APIView):
     def get(self, request):
         try:
-            recent_question = QuestionService.get_recent()
+            recent_question = QuestionService.get_recent(self, user=request.user)
+            
+            if not recent_question:
+                return Response({'detail': "No recent questions found for this user."}, status=status.HTTP_404_NOT_FOUND)
+                
             serializer = QuestionResponse(recent_question)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Question.DoesNotExist:
             return Response({'detail': "No recent questions found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+@permission_classes([IsAuthenticated])
+class QuestionGetPrivileged(APIView):
+    """
+    Returns privileged questions for authenticated users based on filter and keyword.
+    """
+
+    pagination_class = CustomPageNumberPagination()
+    service_class = QuestionService()
+
+    @extend_schema(
+        description='Returns questions with mode PENGAWASAN for privileged users based on keyword and time range.',
+        responses=PaginatedQuestionResponse,
+        parameters=[
+            OpenApiParameter(
+                name='filter',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Specify query filter mode.'
+            ),
+            OpenApiParameter(
+                name='keyword',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Specify the keyword to match user questions.'
+            ),
+            OpenApiParameter(
+                name='count',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description='Specify the count of results to return per page.'
+            ),
+            OpenApiParameter(
+                name='p',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description='Specify the page number for paginated results.'
+            ),
+        ]
+    )
+    def get(self, request):
+        try:
+            q_filter = request.query_params.get('filter') # ini untuk filter nya
+            keyword = request.query_params.get('keyword', '')
+
+            questions = self.service_class.get_privileged(
+                q_filter=q_filter,
+                user=request.user,
+                keyword=keyword
+            )
+
+            serializer = QuestionResponse(questions, many=True)
+
+            paginator = self.pagination_class
+            page = paginator.paginate_queryset(serializer.data, request)
+
+            return paginator.get_paginated_response(page)
+
+        except Exception as e:
+            return Response(
+                {'detail': f'Unexpected error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

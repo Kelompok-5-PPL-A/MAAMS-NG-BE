@@ -1,15 +1,15 @@
-from types import SimpleNamespace
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
-from authentication.models import CustomUser
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, ANY
 from question.models import Question
 from question.serializers import QuestionResponse
 from tag.models import Tag
 from datetime import datetime
 import uuid
 from authentication.models import CustomUser
+from types import SimpleNamespace
+from django.utils import timezone
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -23,7 +23,7 @@ class TestQuestionPostView(TestCase):
         }
         self.user = CustomUser.objects.create_user(username='tester', email='test@example.com', password='test123')
 
-    def test_create_question_success(self):
+    def test_create_question_as_authenticated_user(self):
         # Arrange
         mock_question = Mock(spec=Question)
         mock_question.id = '123e4567-e89b-12d3-a456-426614174000'
@@ -36,7 +36,6 @@ class TestQuestionPostView(TestCase):
         ]
         mock_question.user = self.user
         self.client.force_authenticate(user=self.user)
-
 
         with patch('question.services.QuestionService.create') as mock_create:
             mock_create.return_value = mock_question
@@ -51,6 +50,7 @@ class TestQuestionPostView(TestCase):
             # Assert
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['title'], self.valid_payload['title'])
+            self.assertEqual(response.data['username'], self.user.username)  # Check username field
             mock_create.assert_called_once_with(
                 title='Test Titles',
                 question='Test Question',
@@ -59,6 +59,41 @@ class TestQuestionPostView(TestCase):
                 tags=['tag1', 'tag2']
             )
 
+    def test_create_question_as_guest_user(self):
+        # Arrange - no authentication
+        mock_question = Mock(spec=Question)
+        mock_question.id = '123e4567-e89b-12d3-a456-426614174001'
+        mock_question.title = self.valid_payload['title']
+        mock_question.question = self.valid_payload['question']
+        mock_question.mode = self.valid_payload['mode']
+        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.tags.all.return_value = [
+            Tag(name=tag) for tag in self.valid_payload['tags']
+        ]
+        mock_question.user = None  # Guest user has no user object
+
+        with patch('question.services.QuestionService.create') as mock_create:
+            mock_create.return_value = mock_question
+            
+            # Act - not authenticating the client
+            response = self.client.post(
+                self.url,
+                data=self.valid_payload,
+                format='json'
+            )
+
+            # Assert
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['title'], self.valid_payload['title'])
+            self.assertIsNone(response.data['username'])  # Username should be None for guest
+            self.assertIsNone(response.data['user'])      # User should be None for guest
+            mock_create.assert_called_once_with(
+                title='Test Titles',
+                question='Test Question',
+                mode=Question.ModeChoices.PRIBADI,
+                user=None,  # Should pass None as user
+                tags=['tag1', 'tag2']
+            )
 
     def test_create_question_invalid_title(self):
         # Arrange
@@ -133,7 +168,6 @@ class TestQuestionPostView(TestCase):
         # Assert
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
-
     def test_create_question_service_error(self):
         # Arrange
         with patch('question.services.QuestionService.create') as mock_create:
@@ -148,7 +182,6 @@ class TestQuestionPostView(TestCase):
             # Assert
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    
     def test_create_question_maximum_length_title(self):
         # Arrange
         payload = {
@@ -158,7 +191,6 @@ class TestQuestionPostView(TestCase):
             'tags': ['tag1']
         }
 
-        # Arrange
         mock_question = Mock(spec=Question)
         mock_question.id = '123e4567-e89b-12d3-a456-426614174921'
         mock_question.title = payload['title']
@@ -171,13 +203,6 @@ class TestQuestionPostView(TestCase):
 
         mock_question.user = self.user
         self.client.force_authenticate(user=self.user)
-
-        # Act
-        response = self.client.post(
-            self.url,
-            data=payload,
-            format='json'
-        )
 
         with patch('question.services.QuestionService.create') as mock_create:
             mock_create.return_value = mock_question
@@ -194,7 +219,6 @@ class TestQuestionPostView(TestCase):
             self.assertEqual(response.data['title'], payload['title'])
             mock_create.assert_called_once_with(**payload, user=self.user)
     
-
     def test_create_question_maximum_length_question(self):
         # Arrange
         payload = {
@@ -204,7 +228,6 @@ class TestQuestionPostView(TestCase):
             'tags': ['tag1']
         }
 
-        # Arrange
         mock_question = Mock(spec=Question)
         mock_question.id = '123e4567-e89b-12d3-a456-426614174921'
         mock_question.title = payload['title']
@@ -216,13 +239,6 @@ class TestQuestionPostView(TestCase):
         ]
         mock_question.user = self.user
         self.client.force_authenticate(user=self.user)
-
-        # Act
-        response = self.client.post(
-            self.url,
-            data=payload,
-            format='json'
-        )
 
         with patch('question.services.QuestionService.create') as mock_create:      
             mock_create.return_value = mock_question
@@ -238,7 +254,7 @@ class TestQuestionPostView(TestCase):
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['title'], payload['title'])
             mock_create.assert_called_once_with(**payload, user=self.user)
-    
+
 
 class TestQuestionGet(TestCase):
     def setUp(self):
@@ -267,7 +283,6 @@ class TestQuestionGet(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
-
     def test_get_question_unexpected_error(self):
         """Test unexpected error during question retrieval"""
         with patch('question.services.QuestionService.get') as mock_get:
@@ -275,7 +290,6 @@ class TestQuestionGet(TestCase):
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-
     def test_get_question_success(self):
         """Test successful retrieval of a question"""
         response = self.client.get(f'/question/{self.question.id}/')
@@ -286,7 +300,9 @@ class TestQuestionGet(TestCase):
         self.assertEqual(response.data['question'], self.question.question)
         self.assertEqual(response.data['mode'], self.question.mode)
         self.assertEqual(set(response.data['tags']), {'test_tag1', 'test_tag2'})
-    
+        self.assertEqual(response.data['username'], self.user.username)
+
+
 class TestQuestionGetRecentAnalysis(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -294,50 +310,86 @@ class TestQuestionGetRecentAnalysis(TestCase):
         self.user = CustomUser.objects.create_user(username="testuser", email="testuser@example.com", password="password")
         self.client.force_authenticate(user=self.user)
 
+        # Create questions for the user
         self.old_question = Question.objects.create(
             title="Old Question",
             question="Old Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=datetime(2024, 1, 1),
-            id=uuid.uuid4()
+            created_at=timezone.make_aware(datetime(2024, 1, 1)),
+            id=uuid.uuid4(),
+            user=self.user
         )
 
         self.recent_question = Question.objects.create(
             title="Recent Question",
             question="Recent Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=datetime(2025, 3, 1),
-            id=uuid.uuid4()
+            created_at=timezone.make_aware(datetime(2025, 3, 1)),
+            id=uuid.uuid4(),
+            user=self.user
         )
 
     def test_get_recent_analysis_success(self):
         """Test successful retrieval of the most recent question"""
-        response = self.client.get(self.url)
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            mock_get_recent.return_value = self.recent_question
+            
+            response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['id'], str(self.recent_question.id))
-        self.assertEqual(response.data['title'], self.recent_question.title)
-        self.assertEqual(response.data['question'], self.recent_question.question)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['id'], str(self.recent_question.id))
+            self.assertEqual(response.data['title'], self.recent_question.title)
+            self.assertEqual(response.data['question'], self.recent_question.question)
+            self.assertEqual(response.data['username'], self.user.username)  # Check username
+            
+            # Verify the correct user was passed
+            mock_get_recent.assert_called_once_with(ANY, user=self.user)
 
     def test_get_recent_analysis_no_questions(self):
-        """Test retrieval when no questions exist"""
-        Question.objects.all().delete()
-        response = self.client.get(self.url)
+        """Test retrieval when no questions exist for the user"""
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            mock_get_recent.side_effect = Question.DoesNotExist("No recent questions found.")
+            
+            response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data['detail'], "No recent questions found.")   
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(response.data['detail'], "No recent questions found.")
+    
+    def test_get_recent_analysis_guest_user(self):
+        """Test retrieval when user is not authenticated"""
+        # Use a client without authentication
+        guest_client = APIClient()
+        
+        response = guest_client.get(self.url)
+        # Should return 401 since endpoint requires authentication
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     
     def test_get_recent_analysis_unexpected_error(self):
         """Test unexpected error during recent analysis retrieval"""
         with patch('question.services.QuestionService.get_recent') as mock_get_recent:
-            # Paksa service untuk melempar exception
+            # Force service to throw exception
             mock_get_recent.side_effect = Exception("Unexpected error occurred")
 
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data['detail'], "Unexpected error occurred")
+    
+    def test_get_recent_analysis_returns_none(self):
+        """Test when get_recent returns None (no exception), should return specific 404 message"""
+        with patch('question.services.QuestionService.get_recent') as mock_get_recent:
+            mock_get_recent.return_value = None  # <--- ini bikin masuk ke if not recent_question
+
+            response = self.client.get(self.url)
+
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(response.data['detail'], "No recent questions found for this user.")
+
             
-class QuestionResponseGetTagsTest(TestCase):
+
+class QuestionResponseSerializerTest(TestCase):
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(username="testuser", email="test@example.com", password="password")
+    
     def test_get_tags_without_all_method(self):
         # Arrange: obj.tags is a plain list, no .all()
         fake_question = SimpleNamespace(
@@ -356,3 +408,182 @@ class QuestionResponseGetTagsTest(TestCase):
 
         # Assert: fallback return path triggered
         self.assertEqual(data['tags'], ['tag1', 'tag2'])
+    
+    def test_get_username_with_user(self):
+        # Test serializer with authenticated user
+        fake_question = SimpleNamespace(
+            id=uuid.uuid4(),
+            title='User question',
+            question='With username',
+            created_at=datetime.now(),
+            mode='PRIBADI',
+            tags=['tag1', 'tag2'],
+            user=self.user
+        )
+        
+        serializer = QuestionResponse(instance=fake_question)
+        data = serializer.data
+        
+        self.assertEqual(data['username'], self.user.username)
+    
+    def test_get_username_with_guest(self):
+        # Test serializer with guest user (None)
+        fake_question = SimpleNamespace(
+            id=uuid.uuid4(),
+            title='Guest question',
+            question='No username',
+            created_at=datetime.now(),
+            mode='PRIBADI',
+            tags=['tag1', 'tag2'],
+            user=None
+        )
+        
+        serializer = QuestionResponse(instance=fake_question)
+        data = serializer.data
+        
+        self.assertIsNone(data['username'])
+        self.assertIsNone(data['user'])
+
+class TestQuestionGetPrivileged(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/question/privileged/'
+        self.user = CustomUser.objects.create_user(
+            username="regularuser", email="user@example.com", password="password"
+        )
+        self.admin_user = CustomUser.objects.create_user(
+            username="adminuser", email="admin@example.com", password="password"
+        )
+        self.admin_user.is_superuser = True
+        self.admin_user.is_staff = True
+        self.admin_user.save()
+
+        self.question1 = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Privileged Q1",
+            question="Isi Q1",
+            mode=Question.ModeChoices.PENGAWASAN,
+            created_at=timezone.now(),
+            user=self.admin_user
+        )
+
+    def test_get_privileged_success_as_superuser(self):
+        """Test superuser can successfully access get_privileged"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?filter=recent&keyword=test')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue("results" in response.data)
+            self.assertEqual(len(response.data["results"]), 1)
+            mock_get.assert_called_once_with(
+                q_filter='recent',
+                user=self.admin_user,
+                keyword='test'
+            )
+
+    def test_get_privileged_authenticated_regular_user_forbidden(self):
+        """Test that regular authenticated users are forbidden"""
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_get_privileged_unauthenticated_user_unauthorized(self):
+        """Test unauthenticated (guest) user gets unauthorized"""
+        guest_client = APIClient()
+        response = guest_client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_privileged_empty_result(self):
+        """Test superuser receives empty result without error"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = []
+
+            response = self.client.get(self.url + '?filter=recent')
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["results"], [])
+
+    def test_get_privileged_unexpected_error(self):
+        """Test server error when something unexpected occurs"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.side_effect = Exception("Unexpected failure")
+
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Unexpected failure", response.data["detail"])
+
+
+    # Test filter admin
+    def test_get_privileged_filter_semua_returns_all_pengawasan(self):
+        """Test superuser gets all PENGAWASAN questions when using 'semua' filter"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?filter=semua')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data["results"]), 1)
+            mock_get.assert_called_once_with(
+                q_filter='semua',
+                user=self.admin_user,
+                keyword=''
+            )
+    
+    def test_get_privileged_invalid_filter_returns_server_error(self):
+        """Test unknown filter value returns server error"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.side_effect = ValueError("Invalid filter value")
+
+            response = self.client.get(self.url + '?filter=unknown_filter')
+
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("detail", response.data)
+            self.assertIn("Invalid filter value", response.data["detail"])
+
+    def test_get_privileged_missing_filter_still_works_with_default(self):
+        """Test when filter is missing, still handles it gracefully"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = [self.question1]
+
+            response = self.client.get(self.url + '?keyword=Privileged')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            mock_get.assert_called_once_with(
+                q_filter=None,
+                user=self.admin_user,
+                keyword='Privileged'
+            )
+
+    def test_get_privileged_with_filter_but_empty_keyword(self):
+        """Test filter applied but keyword is empty string"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        with patch('question.services.QuestionService.get_privileged') as mock_get:
+            mock_get.return_value = []
+
+            response = self.client.get(self.url + '?filter=judul&keyword=')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            mock_get.assert_called_once_with(
+                q_filter='judul',
+                user=self.admin_user,
+                keyword=''
+            )
+
+
+
