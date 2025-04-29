@@ -150,6 +150,25 @@ class QuestionGetRecent(APIView):
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@permission_classes([IsAuthenticated])
+class QuestionGetAll(APIView):
+    pagination_class = CustomPageNumberPagination()
+    service_class = QuestionService()
+    @extend_schema(
+        description='Returns all questions corresponding to a specified user.',
+        responses=PaginatedQuestionResponse,
+    )
+    def get(self, request):
+        try:
+            time_range = request.query_params.get('time_range')
+            questions = self.service_class.get_all(user=request.user, time_range=time_range)
+            serializer = QuestionResponse(questions, many=True)
+            paginator = self.pagination_class
+            page = paginator.paginate_queryset(serializer.data, request)
+            return paginator.get_paginated_response(page)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @permission_classes([AllowAny])
 class QuestionDelete(DestroyAPIView):
     """
