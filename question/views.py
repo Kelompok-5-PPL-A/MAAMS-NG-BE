@@ -10,6 +10,7 @@ from question.services import QuestionService
 from question.serializers import QuestionRequest, QuestionResponse
 from rest_framework.permissions import AllowAny
 from rest_framework.generics import DestroyAPIView
+from validator.exceptions import NotFoundRequestException
 
 @permission_classes([AllowAny])  # Mengizinkan guest user
 class QuestionPost(APIView):
@@ -88,7 +89,7 @@ class QuestionDelete(DestroyAPIView):
             service_class = QuestionService()
             question = service_class.get(pk=pk)
             
-            if question.user != request.user:
+            if question.user != request.user and question.user is not None:
                 return Response(
                     {"detail": "You do not have permission to delete this question."},
                     status=status.HTTP_403_FORBIDDEN
@@ -96,8 +97,8 @@ class QuestionDelete(DestroyAPIView):
             
             service_class.delete(pk=pk)
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except Question.DoesNotExist:
+        except NotFoundRequestException as e:
             return Response(
-                {"detail": "Question not found."},
+                {"detail": str(e)},
                 status=status.HTTP_404_NOT_FOUND
             )
