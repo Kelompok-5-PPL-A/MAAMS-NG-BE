@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException
+from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException, InvalidTimeRangeRequestException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -10,6 +10,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from authentication.models import CustomUser
 from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 
 class TestQuestionService(TestCase):
     def setUp(self):
@@ -17,6 +19,16 @@ class TestQuestionService(TestCase):
         self.question_id = uuid.uuid4()
         self.user = CustomUser.objects.create(username="testuser68", password="password12389", email='testuser969@gmail.com')
         self.user.save()
+
+        self.user_admin = CustomUser.objects.create(
+            username="admin_user",
+            password="admin_password",
+            email='admin_user@gmail.com',
+            role='admin',
+            is_superuser=True,
+        )
+        self.user_admin.save()
+
         self.question = Question.objects.create(
             id=self.question_id,
             title="Test Title",
@@ -345,6 +357,146 @@ class TestQuestionService(TestCase):
             self.service._resolve_filter_type("invalid", "keyword", True)
         self.assertEqual(str(context.exception), ErrorMsg.INVALID_FILTERS)
 
+    def test_get_matched_time_range_exception(self):
+        user = CustomUser.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="password123"
+        )
+        service = QuestionService()
 
+        with self.assertRaises(InvalidTimeRangeRequestException) as context:
+            service.get_matched(
+                q_filter="semua",
+                user=user,
+                time_range="invalid_range", 
+                keyword="tes"
+            )
+        self.assertEqual(str(context.exception), ErrorMsg.INVALID_TIME_RANGE)
+    
 
-        
+    def test_get_matched_question_found_last_week(self):
+        keyword = "test"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='last_week',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertIn(question1.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+    
+
+    def test_get_matched_question_not_found_last_week(self):
+        keyword = "haha"
+        question1 = Question.objects.create(
+            title="Test Question 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='last_week',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertNotIn(question1.id, result_ids)
+    
+
+    def test_get_matched_question_found_older(self):
+        keyword = "test"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)  # Set to older than 7 days
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.save()
+
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='older',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertIn(question1.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+    
+
+    def test_get_matched_question_not_found_older(self):
+        keyword = "haha"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)
+        question1.save()
+
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='older',
+            q_filter=None
+        )
+        result_ids = [item.id for item in result]
+        self.assertNotIn(question1.id, result_ids)
+    
+    def test_get_matched_empty_keyword(self):
+        # Arrange
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        # Act
+        with self.assertRaises(InvalidFiltersException) as context:
+            self.service.get_matched(
+                user=self.user,
+                keyword="",
+                time_range='last_week',
+                q_filter=None
+            )
+        # Assert
+        self.assertEqual(str(context.exception), ErrorMsg.EMPTY_KEYWORD)

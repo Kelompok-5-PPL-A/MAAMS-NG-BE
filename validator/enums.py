@@ -11,3 +11,7 @@ class FilterType(Enum):
     TOPIK = 'topik'
     JUDUL = 'judul'
     PENGGUNA = 'pengguna'
+
+class HistoryType(Enum):
+    LAST_WEEK = 'last_week'
+    OLDER = 'older'

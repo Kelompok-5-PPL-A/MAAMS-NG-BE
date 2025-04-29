@@ -1,8 +1,10 @@
 import uuid
 from typing import List, Optional
+
+from validator.enums import HistoryType
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import UniqueTagException, ForbiddenRequestException, InvalidFiltersException
+from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException
 from validator.constants import ErrorMsg
 from validator.enums import FilterType
 from django.core.exceptions import ObjectDoesNotExist
@@ -10,6 +12,7 @@ from validator.exceptions import NotFoundRequestException
 from .dataclasses.create_question import CreateQuestionDataClass 
 from authentication.models import CustomUser
 from django.db.models import Q
+from datetime import datetime, timedelta
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
@@ -78,6 +81,40 @@ class QuestionService():
             
         return response
     
+    def get_matched(self, q_filter: str, user: CustomUser, time_range: str, keyword: str):
+        """
+        Returns a list of matched Question model instances for the logged-in user
+        with the specified filters.
+        """
+        is_admin = user.is_admin() or user.is_superuser
+
+        if not q_filter:
+            q_filter = 'semua'
+        if not keyword:
+            keyword = ''
+
+        today_datetime = datetime.now() + timedelta(hours=7)  # UTC+7
+        last_week_datetime = today_datetime - timedelta(days=7)
+
+        # Filter by current user
+        user_filter = Q(user=user)
+        if keyword == '':
+            raise InvalidFiltersException(ErrorMsg.EMPTY_KEYWORD)
+
+        # Build query clauses
+        clause = self._resolve_filter_type(q_filter, keyword, is_admin)
+        time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
+
+        # Final query
+        questions = (
+            Question.objects
+            .filter(user_filter & clause & time)
+            .order_by('-created_at')
+            .distinct()
+        )
+
+        return questions  # Return raw model instances
+    
     def _validate_tags(self, new_tags: List[str]):
         tags_object = []
         for tag_name in new_tags:
@@ -139,3 +176,17 @@ class QuestionService():
                 raise InvalidFiltersException(ErrorMsg.INVALID_FILTERS)
         
         return clause
+    
+    def _resolve_time_range(self, time_range: str, today_datetime: datetime, last_week_datetime: datetime) -> Q:
+        """
+        Returns where clause for questions with specified time range.
+        """
+        match time_range.lower():
+            case HistoryType.LAST_WEEK.value:
+                time = Q(created_at__range=[last_week_datetime, today_datetime])
+            case HistoryType.OLDER.value:
+                time = Q(created_at__lt=last_week_datetime)
+            case _:
+                raise InvalidTimeRangeRequestException(ErrorMsg.INVALID_TIME_RANGE)
+        
+        return time
