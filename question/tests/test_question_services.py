@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException, InvalidTimeRangeRequestException
+from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException, InvalidTimeRangeRequestException, ValueNotUpdatedException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -724,3 +724,85 @@ class TestQuestionService(TestCase):
 
         with self.assertRaises(Exception):  # Expect an exception if input is sanitized
             self.service.get_field_values(user=input)
+
+class TestUpdateQuestion(TestCase):
+    def setUp(self):
+        self.service = QuestionService()
+        self.question_id = uuid.uuid4()
+        self.user = CustomUser.objects.create(username="test_user", email="user@test.com")
+        self.user.set_password("password")
+        self.user.save()
+
+        self.other_user = CustomUser.objects.create(username="other_user", email="other@test.com")
+        self.other_user.set_password("password")
+        self.other_user.save()
+
+        self.question = Question.objects.create(
+            id=self.question_id,
+            title="Old Title",
+            question="Old Question",
+            mode="OLD",
+            user=self.user,
+        )
+        self.tag1 = Tag.objects.create(name="tag1")
+        self.question.tags.add(self.tag1)
+
+    def test_update_question_success(self):
+        # Arrange
+        new_title = "New Title"
+        new_mode = "NEW"
+        new_tags = ["tag2", "tag3"]
+        tag2 = Tag.objects.create(name="tag2")
+        tag3 = Tag.objects.create(name="tag3")
+
+        with patch.object(self.service, '_validate_tags') as mock_validate_tags:
+            mock_validate_tags.return_value = [tag2, tag3]
+
+            # Act
+            result = self.service.update_question(
+                user=self.user,
+                pk=self.question_id,
+                title=new_title,
+                mode=new_mode,
+                tags=new_tags
+            )
+
+            # Assert
+            self.assertEqual(result.title, new_title)
+            self.assertEqual(result.mode, new_mode)
+            self.assertSetEqual(set(result.tags.all()), {tag2, tag3})
+
+    def test_update_question_not_found(self):
+        # Arrange
+        random_id = uuid.uuid4()
+
+        # Act + Assert
+        with self.assertRaises(NotFoundRequestException) as ctx:
+            self.service.update_question(user=self.user, pk=random_id, title="New Title")
+
+        self.assertEqual(str(ctx.exception), ErrorMsg.NOT_FOUND)
+
+    def test_update_question_forbidden_user(self):
+        # Act + Assert
+        with self.assertRaises(ForbiddenRequestException) as ctx:
+            self.service.update_question(
+                user=self.other_user,
+                pk=self.question_id,
+                title="Another Title"
+            )
+
+        self.assertEqual(str(ctx.exception), ErrorMsg.FORBIDDEN_UPDATE)
+
+    def test_update_question_no_changes(self):
+        # Act + Assert
+        with self.assertRaises(ValueNotUpdatedException) as ctx:
+            self.service.update_question(
+                user=self.user,
+                pk=self.question_id,
+                title="Old Title",
+                question="Old Question",
+                mode="OLD",
+                tags=["tag1"]  # same as existing
+            )
+
+        self.assertEqual(str(ctx.exception), ErrorMsg.VALUE_NOT_UPDATED)
