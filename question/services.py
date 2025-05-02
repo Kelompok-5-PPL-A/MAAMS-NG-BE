@@ -5,7 +5,7 @@ from validator.dataclasses.field_values import FieldValuesDataClass
 from validator.enums import HistoryType
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException
+from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException, ValueNotUpdatedException
 from validator.constants import ErrorMsg
 from validator.enums import FilterType
 from django.core.exceptions import ObjectDoesNotExist

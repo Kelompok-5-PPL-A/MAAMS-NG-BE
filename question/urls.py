@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import (
-    QuestionGetMatched, QuestionPost, QuestionGet, QuestionGetRecent, QuestionGetPrivileged, QuestionDelete, QuestionGetAll, QuestionGetFieldValues
+    QuestionGetMatched, QuestionPost, QuestionGet, QuestionGetRecent, QuestionGetPrivileged, QuestionDelete, QuestionGetAll, QuestionGetFieldValues, QuestionPatch
 )
 
 urlpatterns = [
