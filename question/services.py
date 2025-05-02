@@ -237,3 +237,38 @@ class QuestionService():
                 raise InvalidTimeRangeRequestException(ErrorMsg.INVALID_TIME_RANGE)
         
         return time
+    
+    def update_question(self, user: CustomUser, pk: uuid, **fields):
+        try:
+            question_object = Question.objects.get(pk=pk)
+        except Question.DoesNotExist:
+            raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
+        
+        if user.uuid != question_object.user.uuid:
+            raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_UPDATE)
+        
+        updated = False
+        
+        if 'tags' in fields:
+            new_tags = fields.pop('tags')
+            
+            tags_object = self._validate_tags(new_tags)
+            
+            current_tags = set(question_object.tags.all())
+            new_tags_set = set(tags_object)
+            
+            if current_tags != new_tags_set:
+                question_object.tags.set(new_tags_set)
+                updated = True
+            
+        for field, new_value in fields.items():
+            if field != 'tags' and getattr(question_object, field) != new_value:
+                setattr(question_object, field, new_value)
+                updated = True
+                
+        question_object.save()
+                
+        if not updated:
+            raise ValueNotUpdatedException(ErrorMsg.VALUE_NOT_UPDATED)
+
+        return question_object
