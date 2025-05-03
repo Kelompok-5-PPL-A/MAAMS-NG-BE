@@ -67,16 +67,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install coverage
-      - name: Run tests and generate coverage
+      - name: Set up database and seed test data
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
-          MOESIF_APPLICATION_ID: ${{ secrets.MOESIF_APPLICATION_ID }}
-          ARIZE_SPACE_ID: ${{ secrets.ARIZE_SPACE_ID }}
-          ARIZE_API_KEY: ${{ secrets.ARIZE_API_KEY }}
+        run: |
+          python manage.py migrate
+          python manage.py seed_causes_server
+          mkdir -p cause/fixtures
+          python manage.py dumpdata cause question --indent 2 > cause/fixtures/server_data.json
+      - name: Run tests and generate coverage
         run: |
           coverage run manage.py test
           coverage report
@@ -96,6 +99,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           verbose: true
+      - name: Upload fixtures
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixtures
+          path: cause/fixtures/
   
   sonarcloud-analysis:
     name: SonarCloud Analysis
