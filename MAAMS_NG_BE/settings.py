@@ -138,7 +138,7 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 CORS_ALLOW_ALL_ORIGINS = True
 
