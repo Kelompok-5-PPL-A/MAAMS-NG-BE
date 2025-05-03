@@ -8,8 +8,6 @@ from rest_framework.exceptions import ValidationError
 from apps.blacklist.models import Blacklist
 from apps.blacklist.serializers import BlacklistResponseSerializer
 
-logger = logging.getLogger(__name__)
-
 class BlacklistService:
     """
     Service class for handling blacklist operations.
@@ -29,10 +27,7 @@ class BlacklistService:
         Returns:
             Dictionary with blacklist status and information
         """
-        logger.info(f"Checking blacklist status for NPM: {npm}")
-        
         if not npm:
-            logger.warning("Blacklist check attempted with empty NPM")
             return {
                 "npm": None,
                 "is_blacklisted": False,
@@ -42,8 +37,7 @@ class BlacklistService:
             
         blacklist = Blacklist.get_active_blacklist(npm)
         response_data = BlacklistResponseSerializer.format_response(npm, blacklist)
-        
-        logger.info(f"Blacklist check result for NPM {npm}: {'Blacklisted' if response_data['is_blacklisted'] else 'Not blacklisted'}")
+
         return response_data
     
     @staticmethod
@@ -62,10 +56,8 @@ class BlacklistService:
         Raises:
             ValidationError: If data validation fails
         """
-        logger.info(f"Adding NPM {npm} to blacklist until {end_date}")
         
         if not all([npm, reason, end_date]):
-            logger.warning(f"Attempted to add blacklist with missing data: npm={npm}, reason={'Present' if reason else 'Missing'}, end_date={'Present' if end_date else 'Missing'}")
             raise ValidationError("Missing required fields. NPM, reason, and end date are required.")
         
         try:
@@ -81,7 +73,6 @@ class BlacklistService:
             blacklist.full_clean()
             blacklist.save()
             
-            logger.info(f"Successfully added NPM {npm} to blacklist")
             return {
                 "success": True,
                 "message": f"Student with NPM {npm} added to blacklist successfully.",
@@ -89,11 +80,9 @@ class BlacklistService:
             }
             
         except ValidationError as e:
-            logger.warning(f"Validation error adding NPM {npm} to blacklist: {str(e)}")
             raise
             
         except Exception as e:
-            logger.error(f"Error adding NPM {npm} to blacklist: {str(e)}", exc_info=True)
             raise ValidationError(f"Failed to add student to blacklist: {str(e)}")
     
     @staticmethod
@@ -109,11 +98,8 @@ class BlacklistService:
             
         Raises:
             ValidationError: If validation fails or student not found
-        """
-        logger.info(f"Removing NPM {npm} from blacklist")
-        
+        """  
         if not npm:
-            logger.warning("Attempted to remove blacklist with missing NPM")
             raise ValidationError("Missing NPM field.")
         
         try:
@@ -124,14 +110,12 @@ class BlacklistService:
             )
             
             if not blacklist.exists():
-                logger.warning(f"No active blacklist found for NPM {npm}")
                 return {
                     "success": False,
                     "message": f"No active blacklist found for student with NPM {npm}."
                 }
                 
             count = blacklist.delete()[0]
-            logger.info(f"Removed {count} blacklist entries for NPM {npm}")
             
             return {
                 "success": True,
@@ -139,7 +123,6 @@ class BlacklistService:
             }
             
         except Exception as e:
-            logger.error(f"Error removing NPM {npm} from blacklist: {str(e)}", exc_info=True)
             raise ValidationError(f"Failed to remove student from blacklist: {str(e)}")
     
     @staticmethod
@@ -150,8 +133,7 @@ class BlacklistService:
         Returns:
             List of dictionaries with blacklist information
         """
-        logger.info("Retrieving all active blacklists")
-        
+
         today = timezone.now().date()
         active_blacklists = Blacklist.objects.filter(
             startDate__lte=today,
@@ -169,7 +151,6 @@ class BlacklistService:
                 'days_remaining': blacklist.days_remaining
             })
             
-        logger.info(f"Retrieved {len(result)} active blacklists")
         return result
     
     @staticmethod
@@ -183,10 +164,8 @@ class BlacklistService:
         Returns:
             List of dictionaries with blacklist history
         """
-        logger.info(f"Retrieving blacklist history for NPM {npm}")
         
         if not npm:
-            logger.warning("Attempted to get blacklist history with missing NPM")
             return []
             
         blacklists = Blacklist.objects.filter(npm=npm).order_by('-startDate')
@@ -203,5 +182,4 @@ class BlacklistService:
                 'days_remaining': blacklist.days_remaining
             })
             
-        logger.info(f"Retrieved {len(result)} blacklist records for NPM {npm}")
         return result
