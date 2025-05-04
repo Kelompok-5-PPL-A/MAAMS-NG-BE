@@ -12,6 +12,8 @@ class ErrorMsg:
     VALUE_NOT_UPDATED = "Tidak boleh sama dengan yang sebelumnya"
     INVALID_FILTERS = "Invalid filter option."
     AI_SERVICE_ERROR = "Failed to call the AI service."
+    EMPTY_KEYWORD = "Keyword tidak boleh kosong."
+    RATE_LIMIT_EXCEEDED = "Jumlah request melebihi batas. Silahkan tunggu beberapa saat."
     
 class FeedbackMsg:
     # Root Cause Messages

@@ -11,14 +11,21 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+import sentry_sdk
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
+from datetime import timedelta
 
-load_dotenv()
+env_file = find_dotenv(
+     filename=".env",
+     raise_error_if_not_found=False,
+     usecwd=False
+)
+if env_file:
+    load_dotenv(env_file, verbose=True)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -26,9 +33,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-vv6@i-05#(1k&p8*mrixezpjmgdx0p_&c=o#4er_=fnd@xp1a+'
 
-ALLOWED_HOSTS = ["*"]
+DEBUG = True
 
-# Application definition
+ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -38,17 +45,29 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'validator',
+
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
     'drf_spectacular',
+    'drf_yasg',
+    'django.contrib.sites',
+    'django_seed',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
+    'apps.blacklist',
+    'authentication',
+    'cause',
     'question',
     'tag',
-    'cause'
+    'validator',
 ]
 
 MIDDLEWARE = [
+    'allauth.account.middleware.AccountMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -57,6 +76,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'moesifdjango.middleware.moesif_middleware',
+    # 'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -90,7 +111,6 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -109,7 +129,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -122,7 +141,23 @@ USE_I18N = True
 USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOW_ORIGINS = [os.getenv("HOST_FE")]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
+    'x-refresh-token',
+    'access-control-allow-origin',
+    'access-control-allow-credentials',
+    'cache-control',
+    'user-agent',
+]
+
+CORS_EXPOSE_HEADERS = [
+    'authorization',
+    'x-refresh-token',
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
@@ -139,9 +174,151 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
+    'EXCEPTION_HANDLER': 'MAAMS_NG_BE.utils.custom_exception_handler',
 }
 
+AUTH_USER_MODEL = 'authentication.CustomUser'
+
+# Django allauth config
+SITE_ID = 1
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+ACCOUNT_LOGIN_METHODS = {'email'}
+
+# Google OAuth settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.getenv("GOOGLE_CLIENT_ID"),
+            'secret': os.getenv("GOOGLE_CLIENT_SECRET"),
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'FETCH_USERINFO' : True,
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'authentication.backends.EmailOrUsernameModelBackend',
+    'authentication.backends.GoogleOAuthBackend',
+    'authentication.backends.SSOUIBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# JWT settings
+SIMPLE_JWT = {
+    'USER_ID_FIELD': 'uuid',
+    'USER_ID_CLAIM': 'user_id',
+    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXP_TIME", 1800))),       # Set default 15 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv("REFRESH_TOKEN_EXP_TIME", 3600))),    # Set default 30 minutes
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': os.getenv("ACCESS_TOKEN_SECRET_KEY", ""),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# DRF-Spectacular configurations, OpenAPI3 schema generator
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MAAMS-NG-BE',
+    'DESCRIPTION': 'Backend API documentation for MAAMS.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    traces_sample_rate=1.0,
+    send_default_pii=True,
+)
+
+# # Mesif middleware settings to monitor API call
+# MOESIF_MIDDLEWARE = {
+#     'APPLICATION_ID': os.getenv("MOESIF_APPLICATION_ID"),
+
+#     'CAPTURE_OUTGOING_REQUESTS': True,
+# }
+
+
+# # Arize settings to monitor AI prompts and responses
+# ARIZE_SPACE_ID = os.getenv('ARIZE_SPACE_ID')
+# ARIZE_API_KEY = os.getenv('ARIZE_API_KEY')
+
+# # Rate Limiter Configuration
+# RATE_LIMIT = {
+#     'DEFAULT': {
+#         'RATE': 6,  # Number of requests allowed
+#         'PER': 60,  # Time period in seconds
+#     },
+#     # Define custom rate limits for specific paths
+#     'CUSTOM_RATES': {
+#         # Example: Stricter rate limiting for validation API
+#         '/cause/validate/': {
+#             'RATE': 6,
+#             'PER': 60,
+#         },
+#     },
+#     # Paths that should be excluded from rate limiting
+#     'EXEMPT_PATHS': [],
+#     # If True, all paths are rate-limited unless explicitly exempt
+#     # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
+#     'RATE_LIMIT_ALL_PATHS': False,
+# }
+
+# # Logging configuration
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '{levelname} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'console': {
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'verbose',
+#         },
+#     },
+#     'root': {
+#         'handlers': ['console'],
+#         'level': 'DEBUG',  # Set to DEBUG to capture all logs
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#         'validator.middleware.rate_limit_middleware': {
+#             'handlers': ['console'],
+#             'level': 'DEBUG',
+#             'propagate': False,
+#         },
+#     },
+# }

@@ -12,3 +12,6 @@ class CreateQuestionDataClass(BaseModel):
     created_at: datetime
     mode: str
     tags: List[str]
+    
+    class Config:
+        arbitrary_types_allowed = True

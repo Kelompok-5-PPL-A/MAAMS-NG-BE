@@ -49,14 +49,14 @@ class CausesService:
 
     def get_list(self, question_id: uuid) -> List[CreateCauseDataClass]:
         try:
-            cause = Causes.objects.filter(question_id=question_id)
-            current_question = Question.objects.get(pk=question_id)
+            causes = Causes.objects.filter(question_id=question_id)
+            question = Question.objects.get(pk=question_id)
         except ObjectDoesNotExist:
             raise NotFoundRequestException(ErrorMsg.CAUSE_NOT_FOUND)
 
         return [
             CreateCauseDataClass(
-                question_id=question_id,
+                question_id=question.id,
                 id=cause.id,
                 row=cause.row,
                 column=cause.column,
@@ -66,7 +66,7 @@ class CausesService:
                 root_status=cause.root_status,
                 feedback = cause.feedback
             )
-            for cause in cause
+            for cause in causes
         ]
 
     def patch_cause(self, question_id: uuid, pk: uuid, cause: str) -> CreateCauseDataClass:
