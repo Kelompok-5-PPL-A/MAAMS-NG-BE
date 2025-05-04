@@ -247,7 +247,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd')
     environment:
       name: staging
-      url: https://maams-ng-staging.vercel.app
+      url: https://maams-ng.netlify.app/
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
