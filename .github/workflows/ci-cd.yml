@@ -117,6 +117,8 @@ jobs:
   zap_scan:
     name: Scan the webapplication
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
 
     steps:
       - name: Checkout
