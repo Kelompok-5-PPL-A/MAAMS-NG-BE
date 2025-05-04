@@ -12,7 +12,7 @@ class Causes(models.Model):
     row = models.IntegerField()
     column = models.IntegerField()
     mode = models.CharField(max_length=20, choices=ModeChoices.choices, default=ModeChoices.PRIBADI)
-    cause = models.CharField(max_length=120)
+    cause = models.CharField(max_length=500)
     status = models.BooleanField(default=False)
     root_status = models.BooleanField(default=False)
     feedback = models.CharField(max_length=50, default='')

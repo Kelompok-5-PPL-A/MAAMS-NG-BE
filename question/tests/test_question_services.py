@@ -1,5 +1,5 @@
 from tag.models import Tag
-from validator.exceptions import UniqueTagException
+from validator.exceptions import InvalidFiltersException, UniqueTagException, ForbiddenRequestException, InvalidTimeRangeRequestException
 from validator.constants import ErrorMsg
 from django.test import TestCase
 from unittest.mock import Mock, patch
@@ -9,6 +9,9 @@ import uuid
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from authentication.models import CustomUser
+from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 
 class TestQuestionService(TestCase):
     def setUp(self):
@@ -16,6 +19,16 @@ class TestQuestionService(TestCase):
         self.question_id = uuid.uuid4()
         self.user = CustomUser.objects.create(username="testuser68", password="password12389", email='testuser969@gmail.com')
         self.user.save()
+
+        self.user_admin = CustomUser.objects.create(
+            username="admin_user",
+            password="admin_password",
+            email='admin_user@gmail.com',
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.user_admin.save()
+
         self.question = Question.objects.create(
             id=self.question_id,
             title="Test Title",
@@ -204,3 +217,510 @@ class TestQuestionService(TestCase):
         with self.assertRaises(UniqueTagException) as context:
             self.service._validate_tags([tag_name, tag_name])
         self.assertEqual(str(context.exception), ErrorMsg.TAG_MUST_BE_UNIQUE)
+
+    def test_get_privileged_with_admin_and_valid_filter(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin", 
+            password="password123", 
+            email="admin@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        question_pengawasan = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Pengawasan Question",
+            question="Should be visible to admin",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+        
+        # Act
+        result = self.service.get_privileged("semua", admin_user, "")
+
+        # Assert
+        self.assertIn(question_pengawasan, result)
+
+    def test_get_privileged_forbidden_for_non_admin(self):
+        # Arrange
+        non_admin = CustomUser.objects.create(
+            username="user", 
+            password="password123", 
+            email="user@example.com",
+            is_superuser=False, 
+            is_staff=False
+        )
+
+        # Act & Assert
+        with self.assertRaises(ForbiddenRequestException) as context:
+            self.service.get_privileged("semua", non_admin, "keyword")
+        self.assertEqual(str(context.exception), ErrorMsg.FORBIDDEN_GET)
+    
+    def test_get_privileged_sets_default_q_filter_when_empty(self):
+        # Arrange
+        admin_user = CustomUser.objects.create(
+            username="admin_default", 
+            password="password123", 
+            email="admin_default@example.com",
+            is_superuser=True, 
+            is_staff=True
+        )
+        question_pengawasan = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Pengawasan Question",
+            question="Should be visible when q_filter is empty",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin_user,
+        )
+
+        # Patch _resolve_filter_type to check input q_filter value
+        with patch.object(self.service, '_resolve_filter_type') as mock_resolve_filter:
+            mock_resolve_filter.return_value = Q()  # dummy filter
+            result = self.service.get_privileged('', admin_user, '')
+
+        # Assert _resolve_filter_type menerima q_filter 'semua' sebagai fallback
+        mock_resolve_filter.assert_called_once_with('semua', '', True)
+        self.assertIn(question_pengawasan, result)
+
+
+    # ini test buat filter
+    def test_resolve_filter_type_pengguna(self):
+        # Arrange
+        keyword = "john"
+        expected_clause = (
+            Q(user__username__icontains=keyword) |
+            Q(user__first_name__icontains=keyword) |
+            Q(user__last_name__icontains=keyword)
+        )
+
+        # Act
+        clause = self.service._resolve_filter_type("pengguna", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_judul(self):
+        # Arrange
+        keyword = "judul test"
+        expected_clause = (
+            Q(title__icontains=keyword) |
+            Q(question__icontains=keyword)
+        )
+
+        # Act
+        clause = self.service._resolve_filter_type("judul", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_topik(self):
+        # Arrange
+        keyword = "ekonomi"
+        expected_clause = Q(tags__name__icontains=keyword)
+
+        # Act
+        clause = self.service._resolve_filter_type("topik", keyword, True)
+
+        # Assert
+        self.assertEqual(str(clause), str(expected_clause))
+
+
+    def test_resolve_filter_type_semua_with_admin(self):
+        # Arrange
+        keyword = "cari"
+        clause = self.service._resolve_filter_type("semua", keyword, True)
+
+        # Assert
+        self.assertIn("title__icontains", str(clause))
+        self.assertIn("question__icontains", str(clause))
+        self.assertIn("tags__name__icontains", str(clause))
+        self.assertIn("user__username__icontains", str(clause))  # karena admin
+
+
+    def test_resolve_filter_type_semua_without_admin(self):
+        # Arrange
+        keyword = "cari"
+        clause = self.service._resolve_filter_type("semua", keyword, False)
+
+        # Assert
+        self.assertIn("title__icontains", str(clause))
+        self.assertIn("question__icontains", str(clause))
+        self.assertIn("tags__name__icontains", str(clause))
+        self.assertNotIn("user__username__icontains", str(clause))  # karena bukan admin
+
+
+    def test_resolve_filter_type_invalid_filter_raises_exception(self):
+        # Act & Assert
+        with self.assertRaises(InvalidFiltersException) as context:
+            self.service._resolve_filter_type("invalid", "keyword", True)
+        self.assertEqual(str(context.exception), ErrorMsg.INVALID_FILTERS)
+
+    def test_get_matched_time_range_exception(self):
+        user = CustomUser.objects.create_user(
+            username="testuser",
+            email="test@example.com",
+            password="password123"
+        )
+        service = QuestionService()
+
+        with self.assertRaises(InvalidTimeRangeRequestException) as context:
+            service.get_matched(
+                q_filter="semua",
+                user=user,
+                time_range="invalid_range", 
+                keyword="tes"
+            )
+        self.assertEqual(str(context.exception), ErrorMsg.INVALID_TIME_RANGE)
+    
+
+    def test_get_matched_question_found_last_week(self):
+        keyword = "test"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='last_week',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertIn(question1.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+    
+
+    def test_get_matched_question_not_found_last_week(self):
+        keyword = "haha"
+        question1 = Question.objects.create(
+            title="Test Question 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='last_week',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertNotIn(question1.id, result_ids)
+    
+
+    def test_get_matched_question_found_older(self):
+        keyword = "test"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)  # Set to older than 7 days
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.save()
+
+        # Act
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='older',
+            q_filter=None
+        )
+
+        result_ids = [item.id for item in result]
+        self.assertIn(question1.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+    
+
+    def test_get_matched_question_not_found_older(self):
+        keyword = "haha"
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)
+        question1.save()
+
+        result = self.service.get_matched(
+            user=self.user,
+            keyword=keyword,
+            time_range='older',
+            q_filter=None
+        )
+        result_ids = [item.id for item in result]
+        self.assertNotIn(question1.id, result_ids)
+    
+    def test_get_matched_empty_keyword(self):
+        # Act & Assert
+        with self.assertRaises(InvalidFiltersException) as context:
+            self.service.get_matched(
+                user=self.user,
+                keyword="",
+                time_range='last_week',
+                q_filter=None
+            )
+        
+        # Check that the right error message is returned
+        self.assertEqual(str(context.exception), ErrorMsg.EMPTY_KEYWORD)
+    
+    def test_get_all_questions_last_week(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question3 = Question.objects.create(
+            title="Test Title 3",
+            question="Test Question 3",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question4 = Question.objects.create(
+            title="Test Title 4",
+            question="Test Question 4",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        result = self.service.get_all(user=self.user, time_range='last_week')
+        result_ids = [item.id for item in result]
+        self.assertIn(question4.id, result_ids)
+        self.assertIn(question3.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+        self.assertIn(question1.id, result_ids)
+        self.assertEqual(len(result), 4)
+    
+    def test_get_all_questions_last_week_not_found(self):
+        # Test get_all with last_week time range and no questions found
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.save()
+        result = self.service.get_all(user=self.user, time_range='last_week')
+        self.assertEqual(list(result), [])
+        self.assertEqual(len(result), 0)
+
+    def test_get_all_questions_older(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.created_at = timezone.now() - timedelta(days=8)  # Set to older than 7 days
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.save()
+
+        question3 = Question.objects.create(
+            title="Test Title 3",
+            question="Test Question 3",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question3.created_at = timezone.now() - timedelta(days=8)
+        question3.save()
+
+        question4 = Question.objects.create(
+            title="Test Title 4",
+            question="Test Question 4",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question4.created_at = timezone.now() - timedelta(days=8)
+        question4.save()
+        
+
+        result = self.service.get_all(user=self.user, time_range='older')
+        result_ids = [item.id for item in result]
+        self.assertIn(question4.id, result_ids)
+        self.assertIn(question3.id, result_ids)
+        self.assertIn(question2.id, result_ids)
+        self.assertIn(question1.id, result_ids)
+        self.assertEqual(len(result), 4)
+    
+    def test_get_all_questions_older_not_found(self):
+        # Test get_all with older time range and no questions found
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Test Title 1",
+            question="Test Question 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question1.save()
+
+        question2 = Question.objects.create(
+            title="Test Title 2",
+            question="Test Question 2",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2.save()
+        question3 = Question.objects.create(
+            title="Test Title 3",
+            question="Test Question 3",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        question3.save()
+
+        result = self.service.get_all(user=self.user, time_range='older')
+        self.assertEqual(list(result), [])
+        self.assertEqual(len(result), 0)
+
+    def test_get_all_questions_empty(self):
+        self.question.delete()
+        result = self.service.get_all(user=self.user, time_range='last_week')
+        self.assertEqual(list(result), [])
+        self.assertEqual(len(result), 0)
+    
+    def test_get_field_values_user(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Question 1",
+            question="Content 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user,
+        )
+        question2 = Question.objects.create(
+            title="Question 2",
+            question="Content 2",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user,
+        )
+        tag1 = Tag.objects.create(name="Tag1")
+        tag2 = Tag.objects.create(name="Tag2")
+        question1.tags.add(tag1)
+        question2.tags.add(tag2)
+
+        result = self.service.get_field_values(self.user)
+
+        # Assert (for admin user)
+        self.assertEqual([], result.pengguna)  
+        self.assertIn("Question 1", result.judul)
+        self.assertIn("Question 2", result.judul)
+        self.assertIn("Tag1", result.topik)
+        self.assertIn("Tag2", result.topik)
+    
+    def test_get_field_values_admin(self):
+        self.question.delete()
+        question1 = Question.objects.create(
+            title="Question 1",
+            question="Content 1",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user_admin,
+        )
+        question2 = Question.objects.create(
+            title="Question 2",
+            question="Content 2",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=self.user_admin,
+        )
+        question3 = Question.objects.create(
+                title="Question 3",
+                question="Content 3",
+                mode=Question.ModeChoices.PENGAWASAN,
+                user=self.user,
+            )
+        tag1 = Tag.objects.create(name="Tag1")
+        tag2 = Tag.objects.create(name="Tag2")
+        tag3 = Tag.objects.create(name="Tag3")
+        question1.tags.add(tag1)
+        question2.tags.add(tag2)
+        question3.tags.add(tag3)
+
+        result = self.service.get_field_values(self.user_admin)
+
+        # Assert (for admin user)
+        self.assertEqual(set(['admin_user', 'testuser68']), set(result.pengguna))        
+        self.assertIn("Question 1", result.judul) 
+        self.assertIn("Question 2", result.judul) 
+        self.assertIn("Question 3", result.judul)       
+        self.assertIn("Tag1", result.topik)
+        self.assertIn("Tag2", result.topik)
+        self.assertIn("Tag3", result.topik)
+    
+    def test_get_field_values_no_questions(self):
+        self.question.delete()
+        admin_user = CustomUser.objects.create(
+            username="adminuser",
+            email="admin@example.com",
+            password="password123",
+            is_superuser=True,
+            is_staff=True
+        )
+
+        # Act
+        result = self.service.get_field_values(user=admin_user)
+
+        # Assert
+        self.assertEqual(result.pengguna, [])
+        self.assertEqual(result.judul, [])
+        self.assertEqual(result.topik, [])
+
+    def test_get_field_values_unauthorized_access(self):
+        self.client.logout() 
+        response = self.client.get('/question/history/field-values/') ## Attempt to access without authentication
+        self.assertEqual(response.status_code, 401)  # Expect 401 (Unauthorized)
+    
+    def test_get_field_values_sql_injection(self):
+        input = "'; DROP TABLE question_question; --"
+
+        with self.assertRaises(Exception):  # Expect an exception if input is sanitized
+            self.service.get_field_values(user=input)

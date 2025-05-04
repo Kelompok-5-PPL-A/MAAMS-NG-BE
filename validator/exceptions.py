@@ -25,5 +25,8 @@ class ForbiddenRequestException(APIException):
 class NotFoundRequestException(APIException):
     status_code = status.HTTP_404_NOT_FOUND
 
+class RateLimitExceededException(APIException):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+
 class AIServiceErrorException(APIException):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE

@@ -19,8 +19,6 @@ from apps.blacklist.serializers import (
 from apps.blacklist.services import BlacklistService
 from authentication.permissions import IsAdmin
 
-logger = logging.getLogger(__name__)
-
 class BlacklistCheckView(APIView):
     @swagger_auto_schema(
         operation_description="Check if a student is currently blacklisted by their NPM number",
@@ -53,9 +51,6 @@ class BlacklistCheckView(APIView):
         """
         Check if a student is blacklisted based on their NPM number provided as a query parameter.
         """
-        client_ip = request.META.get('REMOTE_ADDR', 'unknown')
-        logger.info(f"Blacklist check request received from IP: {client_ip}")
-        
         npm = request.GET.get('npm')
         
         if not npm:
@@ -149,7 +144,6 @@ class BlacklistAddView(APIView):
             return Response(result, status=status.HTTP_201_CREATED)
                 
         except Exception as e:
-            logger.error(f"Failed to add blacklist entry: {str(e)}")
             return Response({
                 "success": False,
                 "message": f"Failed to add student to blacklist: {str(e)}"
@@ -203,7 +197,6 @@ class BlacklistRemoveView(APIView):
             return Response(result)
                 
         except Exception as e:
-            logger.error(f"Failed to remove blacklist entry: {str(e)}")
             return Response({
                 "success": False,
                 "message": f"Failed to remove student from blacklist: {str(e)}"
