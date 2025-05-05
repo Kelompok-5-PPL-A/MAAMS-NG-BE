@@ -188,10 +188,12 @@ jobs:
       - name: Generate Version
         id: version
         run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           CURRENT_BRANCH=${GITHUB_REF##*/}
-          COMMIT_COUNT=$(git rev-list --count HEAD ^$LATEST_TAG)
+          
+          COMMIT_COUNT=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short HEAD)
+          
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           
           if [[ $CURRENT_BRANCH == "main" ]]; then
             VERSION="${LATEST_TAG}-${COMMIT_COUNT}-${COMMIT_HASH}"
@@ -203,8 +205,21 @@ jobs:
           echo "git_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
           
           if [[ $CURRENT_BRANCH == "main" ]]; then
-            git tag "v${VERSION}"
-            git push origin "v${VERSION}"
+            # Simple date-based tagging for main
+            DATE_VERSION=$(date +'%Y.%m.%d')
+            COUNTER=1
+            FINAL_TAG="${DATE_VERSION}.${COUNTER}"
+            
+            # Check if tag already exists and increment if needed
+            while git rev-parse "${FINAL_TAG}" >/dev/null 2>&1; do
+              COUNTER=$((COUNTER + 1))
+              FINAL_TAG="${DATE_VERSION}.${COUNTER}"
+            done
+            
+            git tag "${FINAL_TAG}"
+            git push origin "${FINAL_TAG}"
+            
+            echo "new_tag=${FINAL_TAG}" >> $GITHUB_OUTPUT
           fi
 
   build-staging:
@@ -250,7 +265,7 @@ jobs:
     needs: [build-staging, versioning]
     environment:
       name: staging
-      url: https://staging.maams-ng.com
+      url: https://maams-ng.netlify.app/
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
