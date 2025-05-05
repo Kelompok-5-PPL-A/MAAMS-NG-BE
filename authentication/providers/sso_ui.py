@@ -10,7 +10,6 @@ from sso_ui.ticket import validate_ticket, ValidateTicketError
 from apps.blacklist.models import Blacklist
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
 
 class SSOUIAuthProvider(AuthenticationProvider):
     """
@@ -85,10 +84,8 @@ class SSOUIAuthProvider(AuthenticationProvider):
             return auth_success
             
         except ValidateTicketError as e:
-            logger.error(f"SSO ticket validation error: {str(e)}")
             raise AuthenticationFailed(f"SSO ticket validation failed: {str(e)}")
         except Exception as e:
-            logger.exception("Unexpected error during SSO ticket validation")
             raise AuthenticationFailed(f"Ticket verification failed: {str(e)}")
     
     def get_or_create_user(self, user_info: Dict[str, Any]) -> Tuple[User, bool]:
@@ -163,8 +160,7 @@ class SSOUIAuthProvider(AuthenticationProvider):
             angkatan=angkatan,
             role='user'
         )
-        
-        logger.info(f"Created new user via SSO UI: {username}")
+
         return user
         
     def _update_user_info(self, user, username, email, npm, first_name, last_name) -> None:
@@ -208,4 +204,3 @@ class SSOUIAuthProvider(AuthenticationProvider):
             
         if update_fields:
             user.save(update_fields=update_fields)
-            logger.info(f"Updated user info for {user.username}: {', '.join(update_fields)}")

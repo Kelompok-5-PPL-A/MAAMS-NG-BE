@@ -9,7 +9,6 @@ from rest_framework_simplejwt.exceptions import TokenError
 from authentication.services.interfaces import TokenServiceInterface
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
 
 class JWTTokenService(TokenServiceInterface):
     def generate_tokens(self, user: User) -> Dict[str, str]:
@@ -73,10 +72,8 @@ class JWTTokenService(TokenServiceInterface):
             return {k: v for k, v in token_obj.payload.items()}
             
         except TokenError as e:
-            logger.warning(f"Token validation failed: {str(e)}")
             raise
         except Exception as e:
-            logger.exception("Unexpected error during token validation")
             raise TokenError(f"Token validation failed: {str(e)}")
     
     def blacklist_token(self, token: str) -> bool:
@@ -96,12 +93,9 @@ class JWTTokenService(TokenServiceInterface):
             # Add to blacklist
             token_obj.blacklist()
             
-            logger.info(f"Successfully blacklisted token with jti: {token_obj['jti']}")
             return True
             
         except TokenError as e:
-            logger.warning(f"Failed to blacklist token: {str(e)}")
             return False
         except Exception as e:
-            logger.exception("Unexpected error during token blacklisting")
             return False

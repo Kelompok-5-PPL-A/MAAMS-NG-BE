@@ -5,8 +5,6 @@ from authentication.providers.base import AuthenticationProvider
 from authentication.providers.google import GoogleAuthProvider
 from authentication.providers.sso_ui import SSOUIAuthProvider
 
-logger = logging.getLogger(__name__)
-
 class AuthProviderFactory:
     """
     Factory for creating authentication provider instances.
@@ -37,7 +35,6 @@ class AuthProviderFactory:
         provider_class = cls._providers.get(provider_type.lower())
         
         if not provider_class:
-            logger.error(f"Requested unknown auth provider: {provider_type}")
             raise ValueError(f"Unknown authentication provider: {provider_type}")
             
         return provider_class()
@@ -52,7 +49,6 @@ class AuthProviderFactory:
             provider_class: The provider class to register
         """
         cls._providers[provider_type.lower()] = provider_class
-        logger.info(f"Registered new auth provider: {provider_type}")
     
     @classmethod
     def get_available_providers(cls) -> list:

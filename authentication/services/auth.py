@@ -8,7 +8,6 @@ from authentication.providers.factory import AuthProviderFactory
 from authentication.services.interfaces import TokenServiceInterface
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
 
 class AuthenticationService:
     """
@@ -59,7 +58,6 @@ class AuthenticationService:
             # Re-raise authentication failures
             raise
         except Exception as e:
-            logger.exception(f"Authentication failed with {provider_type}")
             raise AuthenticationFailed(f"Authentication failed: {str(e)}")
     
     def logout(self, refresh_token: str) -> bool:
@@ -109,13 +107,11 @@ class AuthenticationService:
         # Get the user from the token
         user_id = token_data.get('user_id')
         if not user_id:
-            logger.warning("Refresh token missing user_id claim")
             raise AuthenticationFailed("Invalid refresh token")
             
         try:
             user = User.objects.get(uuid=user_id)
         except User.DoesNotExist:
-            logger.warning(f"User with ID {user_id} from refresh token not found")
             raise AuthenticationFailed("User not found")
             
         # Generate new tokens
