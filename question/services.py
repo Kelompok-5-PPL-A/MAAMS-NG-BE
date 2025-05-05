@@ -238,14 +238,17 @@ class QuestionService():
         
         return time
     
-    def update_question(self, user: CustomUser, pk: uuid, **fields):
+    def update_question(self, pk: uuid, user: Optional[CustomUser] = None, **fields):
         try:
             question_object = Question.objects.get(pk=pk)
         except Question.DoesNotExist:
             raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
-        
-        if user.uuid != question_object.user.uuid:
-            raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_UPDATE)
+            
+        if user is not None:
+            if user.uuid != question_object.user.uuid:
+                raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_UPDATE)
+        else:
+            user = None
         
         updated = False
         
