@@ -416,7 +416,10 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       
-      - name: Configure Autoscaling Policies
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure Instance Limits
         run: |
           gcloud run services update maams-ng-staging \
             --min-instances 2 \
@@ -426,14 +429,15 @@ jobs:
             --execution-environment gen2 \
             --platform managed \
             --region $REGION
-          
+      
+      - name: Configure Autoscaling Annotations
+        run: |
           gcloud run services update maams-ng-staging \
-            --update-annotations \
-            autoscaling.knative.dev/metric=concurrency \
-            autoscaling.knative.dev/target=80 \
-            run.googleapis.com/cpu-throttling=true \
             --platform managed \
-            --region $REGION
+            --region $REGION \
+            --update-annotations="autoscaling.knative.dev/metric=concurrency" \
+            --update-annotations="autoscaling.knative.dev/target=80" \
+            --update-annotations="run.googleapis.com/cpu-throttling=true"
 
   rollback-preparation:
     name: Prepare Rollback Plan
