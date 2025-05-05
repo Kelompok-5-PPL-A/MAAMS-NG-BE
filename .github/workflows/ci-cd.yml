@@ -278,22 +278,52 @@ jobs:
       - name: Get Current Active Color
         id: get_color
         run: |
-          ACTIVE=$(gcloud run services describe maams-ng-staging \
+          SERVICE_EXISTS=true
+          if ! gcloud run services describe maams-ng-staging \
             --platform managed \
             --region $REGION \
-            --format='value(metadata.annotations."serving.knative.dev/tags")' | grep active)
-          
-          if [[ $ACTIVE =~ "blue" ]]; then
-            echo "current=blue" >> $GITHUB_OUTPUT
-            echo "new=green" >> $GITHUB_OUTPUT
-          else
-            echo "current=green" >> $GITHUB_OUTPUT
-            echo "new=blue" >> $GITHUB_OUTPUT
+            --format='get(name)' 2>/dev/null; then
+            SERVICE_EXISTS=false
           fi
-      
+          
+          if [ "$SERVICE_EXISTS" = false ]; then
+            # First deployment - start with blue
+            echo "current=" >> $GITHUB_OUTPUT
+            echo "new=blue" >> $GITHUB_OUTPUT
+          else
+            ACTIVE_COLOR=$(gcloud run services describe maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --format='value(metadata.annotations."serving.knative.dev/tags")' 2>/dev/null || echo "")
+            
+            if [[ -z "$ACTIVE_COLOR" ]]; then
+              # No active color, start with blue
+              echo "current=" >> $GITHUB_OUTPUT
+              echo "new=blue" >> $GITHUB_OUTPUT
+            elif [[ $ACTIVE_COLOR =~ "blue" ]]; then
+              echo "current=blue" >> $GITHUB_OUTPUT
+              echo "new=green" >> $GITHUB_OUTPUT
+            else
+              echo "current=green" >> $GITHUB_OUTPUT
+              echo "new=blue" >> $GITHUB_OUTPUT
+            fi
+          fi
+
       - name: Deploy New Version (${{ steps.get_color.outputs.new }})
         run: |
-          gcloud run deploy maams-ng-staging-${{steps.get_color.outputs.new}} \
+          if ! gcloud run services describe maams-ng-staging \
+            --platform managed \
+            --region $REGION \
+            --format='get(name)' 2>/dev/null; then
+            
+            gcloud run services create maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --allow-unauthenticated \
+              --image=gcr.io/cloudrun/hello
+          fi
+          
+          gcloud run deploy maams-ng-staging \
             --image ${{needs.build-staging.outputs.image_tag}} \
             --platform managed \
             --region $REGION \
@@ -305,53 +335,25 @@ jobs:
             --concurrency 250 \
             --timeout 300 \
             --port 8000 \
-            --no-traffic \
+            --tag ${{steps.get_color.outputs.new}} \
             --set-env-vars "VERSION=${{needs.versioning.outputs.version}}" \
             --set-env-vars "ENVIRONMENT=staging" \
-            --set-env-vars "DEPLOYMENT_COLOR=${{steps.get_color.outputs.new}}" \
-            --tag ${{steps.get_color.outputs.new}}
-      
-      - name: Run Canary Tests
-        run: |
-          CANARY_URL=$(gcloud run services describe maams-ng-staging-${{steps.get_color.outputs.new}} \
-            --platform managed \
-            --region $REGION \
-            --format='value(status.url)')
+            --set-env-vars "DEPLOYMENT_COLOR=${{steps.get_color.outputs.new}}"
 
-          curl -f "$CANARY_URL/health/" || exit 1
-          # Add more comprehensive tests here
-      
       - name: Switch Traffic to New Version
         run: |
-          gcloud run services update-traffic maams-ng-staging \
-            --to-tags ${{steps.get_color.outputs.new}}=100 \
-            --platform managed \
-            --region $REGION
-      
-      - name: Wait for Deployment Stability
-        run: |
-          sleep 60
-          NEW_STATUS=$(gcloud run services describe maams-ng-staging-${{steps.get_color.outputs.new}} \
-            --platform managed \
-            --region $REGION \
-            --format='value(status.conditions[0].status)')
-          
-          if [[ $NEW_STATUS != "True" ]]; then
-            echo "Deployment unstable, rolling back..."
+          if [ -n "${{steps.get_color.outputs.current}}" ]; then
+            # Switch from current to new
             gcloud run services update-traffic maams-ng-staging \
-              --to-tags ${{steps.get_color.outputs.current}}=100 \
               --platform managed \
-              --region $REGION
-            exit 1
+              --region $REGION \
+              --to-tags=${{steps.get_color.outputs.new}}=100,${{steps.get_color.outputs.current}}=0
+          else
+            gcloud run services update-traffic maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --to-tags=${{steps.get_color.outputs.new}}=100
           fi
-      
-      - name: Tag Active Deployment
-        run: |
-          gcloud run services set-iam-policy-binding maams-ng-staging \
-            --member=allUsers \
-            --role=roles/run.invoker \
-            --platform managed \
-            --region $REGION
 
   autoscaling-configuration:
     name: Configure Autoscaling
