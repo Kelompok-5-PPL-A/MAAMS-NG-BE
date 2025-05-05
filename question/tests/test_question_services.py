@@ -225,7 +225,8 @@ class TestQuestionService(TestCase):
             password="password123", 
             email="admin@example.com",
             is_superuser=True, 
-            is_staff=True
+            is_staff=True,
+            role = "admin"
         )
         question_pengawasan = Question.objects.create(
             id=uuid.uuid4(),
@@ -263,7 +264,8 @@ class TestQuestionService(TestCase):
             password="password123", 
             email="admin_default@example.com",
             is_superuser=True, 
-            is_staff=True
+            is_staff=True,
+            role = "admin"
         )
         question_pengawasan = Question.objects.create(
             id=uuid.uuid4(),
@@ -727,7 +729,7 @@ class TestQuestionService(TestCase):
 
     # More test to refactor is_admin
     def test_get_field_values_sets_pengguna_for_admin(self):
-        admin = CustomUser.objects.create_user(username="adminuser", role="admin", password="pass")
+        admin = CustomUser.objects.create_user(username="adminuser", email='adminuser@gmail.com', role="admin", password="pass")
         question = Question.objects.create(
             title="Judul Admin",
             question="Isi",
@@ -740,7 +742,7 @@ class TestQuestionService(TestCase):
         self.assertIn("adminuser", result.pengguna)
 
     def test_get_privileged_defaults_to_semua_and_empty_keyword(self):
-        admin = CustomUser.objects.create_user(username="adminuser", role="admin", password="pass")
+        admin = CustomUser.objects.create_user(username="adminuser", email='adminuser@gmail.com', role="admin", password="pass")
         with patch.object(self.service, '_resolve_filter_type') as mock_resolve:
             mock_resolve.return_value = Q()
             result = self.service.get_privileged('', admin, '')
@@ -748,7 +750,7 @@ class TestQuestionService(TestCase):
             self.assertIsInstance(result, list)
 
     def test_get_privileged_filters_pengawasan_questions(self):
-        admin = CustomUser.objects.create_user(username="adminuser", role="admin", password="pass")
+        admin = CustomUser.objects.create_user(username="adminuser", email='adminuser@gmail.com', role="admin", password="pass")
         pengawasan_q = Question.objects.create(
             title="Pengawasan Only",
             question="Isi",

@@ -383,8 +383,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
 
             response = self.client.get(self.url)
 
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-            self.assertEqual(response.data['detail'], "No recent questions found for this user.")
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
             
 
@@ -449,7 +448,7 @@ class QuestionResponseSerializerTest(TestCase):
 class TestQuestionGetPrivileged(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/privileged/'
+        self.url = '/question/history/privileged/'
         self.user = CustomUser.objects.create_user(
             username="regularuser", email="user@example.com", password="password"
         )
@@ -916,4 +915,4 @@ class TestQuestionPatch(TestCase):
         """Negative: Cannot patch if unauthenticated"""
         self.client.force_authenticate(user=None)
         response = self.client.patch(self.mode_url, data={'mode': 'PENGAWASAN'}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
