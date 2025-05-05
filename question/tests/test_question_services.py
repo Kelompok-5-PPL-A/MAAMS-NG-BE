@@ -725,6 +725,64 @@ class TestQuestionService(TestCase):
         with self.assertRaises(Exception):  # Expect an exception if input is sanitized
             self.service.get_field_values(user=input)
 
+    # More test to refactor is_admin
+    def test_get_field_values_sets_pengguna_for_admin(self):
+        admin = CustomUser.objects.create_user(username="adminuser", role="admin", password="pass")
+        question = Question.objects.create(
+            title="Judul Admin",
+            question="Isi",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin
+        )
+
+        result = self.service.get_field_values(admin)
+
+        self.assertIn("adminuser", result.pengguna)
+
+    def test_get_privileged_defaults_to_semua_and_empty_keyword(self):
+        admin = CustomUser.objects.create_user(username="adminuser", role="admin", password="pass")
+        with patch.object(self.service, '_resolve_filter_type') as mock_resolve:
+            mock_resolve.return_value = Q()
+            result = self.service.get_privileged('', admin, '')
+            mock_resolve.assert_called_once_with('semua', '', True)
+            self.assertIsInstance(result, list)
+
+    def test_get_privileged_filters_pengawasan_questions(self):
+        admin = CustomUser.objects.create_user(username="adminuser", role="admin", password="pass")
+        pengawasan_q = Question.objects.create(
+            title="Pengawasan Only",
+            question="Isi",
+            mode=Question.ModeChoices.PENGAWASAN,
+            user=admin
+        )
+        with patch.object(self.service, '_resolve_filter_type') as mock_resolve:
+            mock_resolve.return_value = Q(id=pengawasan_q.id)
+            result = self.service.get_privileged('judul', admin, 'Pengawasan')
+            self.assertIn(pengawasan_q, result)
+
+    def test_get_field_values_as_admin_includes_pengguna(self):
+        self.user_admin.role = "admin"
+        self.user_admin.save()
+        
+        response = self.service.get_field_values(self.user_admin)
+
+        self.assertIn(self.user.username, response.pengguna)
+        self.assertIn("Test Title", response.judul)
+        self.assertIn("test_tag", response.topik)
+    
+    def test_get_privileged_with_empty_filter_and_keyword(self):
+        self.question.mode = Question.ModeChoices.PENGAWASAN
+        self.question.save()
+
+        self.user_admin.role = "admin"
+        self.user_admin.save()
+
+        result = self.service.get_privileged(q_filter="", keyword="", user=self.user_admin)
+        
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0], self.question)
+
+
 class TestUpdateQuestion(TestCase):
     def setUp(self):
         self.service = QuestionService()

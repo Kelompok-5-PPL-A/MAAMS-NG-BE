@@ -88,7 +88,7 @@ class QuestionService():
         Returns a list of matched Question model instances for the logged-in user
         with the specified filters.
         """
-        is_admin = user.is_staff and user.is_superuser
+        is_admin = user.role == 'admin'
 
         if not q_filter:
             q_filter = 'semua'
@@ -131,7 +131,7 @@ class QuestionService():
         """
         Returns all unique field values attached to available questions for search bar dropdown functionality.
         """
-        is_admin = user.is_superuser and user.is_staff
+        is_admin = user.role == 'admin'
 
         questions = Question.objects.all()
 
@@ -167,7 +167,7 @@ class QuestionService():
         Return a list of pengawasan questions by keyword and filter type for privileged users.
         """
         # hanya boleh diakses oleh admin (staff dan superuser)
-        is_admin = user.is_superuser and user.is_staff
+        is_admin = user.role == 'admin'
         if not is_admin:
             raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_GET)
         
