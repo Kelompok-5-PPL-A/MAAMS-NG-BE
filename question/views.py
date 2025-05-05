@@ -140,8 +140,8 @@ class QuestionGetRecent(APIView):
         try:
             recent_question = QuestionService.get_recent(self, user=request.user)
             
-            if not recent_question:
-                return Response({'detail': "No recent questions found for this user."}, status=status.HTTP_404_NOT_FOUND)
+            if recent_question is None:
+                return Response(status=status.HTTP_204_NO_CONTENT)
                 
             serializer = QuestionResponse(recent_question)
             return Response(serializer.data, status=status.HTTP_200_OK)

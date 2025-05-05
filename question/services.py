@@ -46,7 +46,7 @@ class QuestionService():
         try:
             recent_question = Question.objects.filter(user=user).order_by('-created_at').first()
             if not recent_question:
-                raise Question.DoesNotExist("No recent questions found for this user.")
+                return None
             return recent_question
         except Exception:
             raise Question.DoesNotExist("No recent questions found.")
