@@ -245,23 +245,37 @@ jobs:
       - name: Build and Push Docker Image
         id: build
         run: |
-          echo "Version: ${{needs.versioning.outputs.version}}"
+          VERSION="${{needs.versioning.outputs.version}}"
+          echo "Version: $VERSION"
           
-          IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:${{needs.versioning.outputs.version}}"
+          IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
           
           docker build \
-            --build-arg VERSION=${{needs.versioning.outputs.version}} \
-            --build-arg BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-            --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
-            -t $IMAGE_TAG \
-            -t gcr.io/$PROJECT_ID/maams-ng-staging:latest \
+            --build-arg VERSION="$VERSION" \
+            --build-arg BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --build-arg GIT_COMMIT="$(git rev-parse HEAD)" \
+            -t "$IMAGE_TAG" \
+            -t "gcr.io/$PROJECT_ID/maams-ng-staging:latest" \
             .
             
-          docker push gcr.io/$PROJECT_ID/maams-ng-staging:${{needs.versioning.outputs.version}}
-          docker push gcr.io/$PROJECT_ID/maams-ng-staging:latest
+          docker push "$IMAGE_TAG"
+          docker push "gcr.io/$PROJECT_ID/maams-ng-staging:latest"
           
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "$IMAGE_TAG" > image_tag.txt
           echo "Debug - IMAGE_TAG set to: $IMAGE_TAG"
+
+          if [ -f "$GITHUB_OUTPUT" ]; then
+            echo "GITHUB_OUTPUT file exists and contains:"
+            cat $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload Image Tag as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-tag
+          path: image_tag.txt
+          retention-days: 1
 
   deploy-staging-blue-green:
     name: Blue/Green Deployment to Staging
@@ -270,6 +284,8 @@ jobs:
     environment:
       name: staging
       url: https://maams-ng.netlify.app/
+    env:
+      VERSION: ${{needs.versioning.outputs.version}}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -278,6 +294,31 @@ jobs:
       
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Download Image Tag Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-tag
+      
+      - name: Determine Image Tag
+        id: get_image_tag
+        run: |
+          IMAGE_TAG="${{needs.build-staging.outputs.image_tag}}"
+          
+          if [ -z "$IMAGE_TAG" ] && [ -f "image_tag.txt" ]; then
+            IMAGE_TAG=$(cat image_tag.txt)
+            echo "Using image tag from artifact: $IMAGE_TAG"
+          fi
+
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "WARNING: Constructing image tag manually"
+            IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
+            echo "Constructed image tag: $IMAGE_TAG"
+          fi
+          
+          echo "Using IMAGE_TAG: $IMAGE_TAG"
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
       
       - name: Get Current Active Color
         id: get_color
@@ -315,7 +356,7 @@ jobs:
 
       - name: Deploy New Version (${{ steps.get_color.outputs.new }})
         run: |
-          echo "Image tag: ${{needs.build-staging.outputs.image_tag}}"
+          echo "Image tag: $IMAGE_TAG"
           
           if ! gcloud run services describe maams-ng-staging \
             --platform managed \
@@ -329,7 +370,6 @@ jobs:
               --image=gcr.io/cloudrun/hello
           fi
           
-          IMAGE_TAG="${{needs.build-staging.outputs.image_tag}}"
           if [ -z "$IMAGE_TAG" ]; then
             echo "Error: Image tag is empty"
             exit 1
@@ -348,14 +388,13 @@ jobs:
             --timeout 300 \
             --port 8000 \
             --tag ${{steps.get_color.outputs.new}} \
-            --set-env-vars "VERSION=${{needs.versioning.outputs.version}}" \
+            --set-env-vars "VERSION=$VERSION" \
             --set-env-vars "ENVIRONMENT=staging" \
             --set-env-vars "DEPLOYMENT_COLOR=${{steps.get_color.outputs.new}}"        
 
       - name: Switch Traffic to New Version
         run: |
           if [ -n "${{steps.get_color.outputs.current}}" ]; then
-            # Switch from current to new
             gcloud run services update-traffic maams-ng-staging \
               --platform managed \
               --region $REGION \
