@@ -222,6 +222,7 @@ jobs:
             echo "new_tag=${FINAL_TAG}" >> $GITHUB_OUTPUT
           fi
 
+  # Pastikan job build-staging mengeluarkan image_tag dengan benar
   build-staging:
     name: Build and Package for Staging
     runs-on: ubuntu-latest
@@ -247,7 +248,10 @@ jobs:
       - name: Build and Push Docker Image
         id: build
         run: |
+          echo "Version: ${{needs.versioning.outputs.version}}"
+          
           IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:${{needs.versioning.outputs.version}}"
+          
           docker build \
             --build-arg VERSION=${{needs.versioning.outputs.version}} \
             --build-arg BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
@@ -255,9 +259,12 @@ jobs:
             -t $IMAGE_TAG \
             -t gcr.io/$PROJECT_ID/maams-ng-staging:latest \
             .
+            
           docker push gcr.io/$PROJECT_ID/maams-ng-staging:${{needs.versioning.outputs.version}}
           docker push gcr.io/$PROJECT_ID/maams-ng-staging:latest
+          
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Debug - IMAGE_TAG set to: $IMAGE_TAG"
 
   deploy-staging-blue-green:
     name: Blue/Green Deployment to Staging
@@ -309,36 +316,45 @@ jobs:
             fi
           fi
 
-      - name: Deploy New Version (${{ steps.get_color.outputs.new }})
-        run: |
-          if ! gcloud run services describe maams-ng-staging \
-            --platform managed \
-            --region $REGION \
-            --format='get(name)' 2>/dev/null; then
+          - name: Deploy New Version (${{ steps.get_color.outputs.new }})
+          run: |
+            echo "Image tag: ${{needs.build-staging.outputs.image_tag}}"
             
-            gcloud run services create maams-ng-staging \
+            if ! gcloud run services describe maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --format='get(name)' 2>/dev/null; then
+              
+              gcloud run services create maams-ng-staging \
+                --platform managed \
+                --region $REGION \
+                --allow-unauthenticated \
+                --image=gcr.io/cloudrun/hello
+            fi
+            
+            IMAGE_TAG="${{needs.build-staging.outputs.image_tag}}"
+            if [ -z "$IMAGE_TAG" ]; then
+              echo "Error: Image tag is empty"
+              exit 1
+            fi
+            
+            # Deploy to the new color
+            gcloud run deploy maams-ng-staging \
+              --image "$IMAGE_TAG" \
               --platform managed \
               --region $REGION \
               --allow-unauthenticated \
-              --image=gcr.io/cloudrun/hello
-          fi
-          
-          gcloud run deploy maams-ng-staging \
-            --image ${{needs.build-staging.outputs.image_tag}} \
-            --platform managed \
-            --region $REGION \
-            --allow-unauthenticated \
-            --memory 512Mi \
-            --cpu 1 \
-            --min-instances 1 \
-            --max-instances 10 \
-            --concurrency 250 \
-            --timeout 300 \
-            --port 8000 \
-            --tag ${{steps.get_color.outputs.new}} \
-            --set-env-vars "VERSION=${{needs.versioning.outputs.version}}" \
-            --set-env-vars "ENVIRONMENT=staging" \
-            --set-env-vars "DEPLOYMENT_COLOR=${{steps.get_color.outputs.new}}"
+              --memory 512Mi \
+              --cpu 1 \
+              --min-instances 1 \
+              --max-instances 10 \
+              --concurrency 250 \
+              --timeout 300 \
+              --port 8000 \
+              --tag ${{steps.get_color.outputs.new}} \
+              --set-env-vars "VERSION=${{needs.versioning.outputs.version}}" \
+              --set-env-vars "ENVIRONMENT=staging" \
+              --set-env-vars "DEPLOYMENT_COLOR=${{steps.get_color.outputs.new}}"        
 
       - name: Switch Traffic to New Version
         run: |
