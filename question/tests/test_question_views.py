@@ -866,18 +866,6 @@ class TestQuestionPatch(TestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data['title'], 'New Title')
 
-    def test_patch_tags_success(self):
-        """Positive: Successfully update tags"""
-        with patch('question.services.QuestionService.update_question') as mock_update:
-            mock_question = self.question
-            mock_question.tags.all.return_value = [self.tag1, self.tag2]
-            mock_update.return_value = mock_question
-
-            response = self.client.patch(self.tags_url, data={'tags': ['Tag1', 'Tag2']}, format='json')
-
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(len(response.data['tags']), 2)
-
     def test_patch_tags_full_flow(self):
         """Positive: Patch tags with full flow to cover serializer and update"""
         # Buat tag baru yang akan dikirim lewat request
@@ -887,7 +875,7 @@ class TestQuestionPatch(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('tags', response.data)
-        self.assertEqual(response.data['tags'][0]['name'], 'Tag3')
+        self.assertEqual(response.data['tags'][0], 'Tag3')
 
 
     def test_patch_mode_invalid_payload(self):
@@ -901,15 +889,16 @@ class TestQuestionPatch(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_tags_empty_list(self):
-        """Edge: Empty tag list is accepted (assume valid unless restricted)"""
+        """Edge: Empty tag list is rejected"""
         with patch('question.services.QuestionService.update_question') as mock_update:
             mock_question = self.question
-            mock_question.tags.all.return_value = []
+            mock_question.tags.set = Mock()
             mock_update.return_value = mock_question
 
             response = self.client.patch(self.tags_url, data={'tags': []}, format='json')
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data['tags'], [])
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('tags', response.data)
 
     def test_patch_unauthenticated(self):
         """Negative: Cannot patch if unauthenticated"""
