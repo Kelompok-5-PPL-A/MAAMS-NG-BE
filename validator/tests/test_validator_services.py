@@ -62,6 +62,7 @@ class CausesServiceTest(TransactionTestCase):
         Question.objects.all().delete()
 
     @patch('validator.services.Groq')
+
     def test_api_call_normal_validation_true(self, mock_groq):
         """Test API call with normal validation returning true"""
         # Configure mock
@@ -104,6 +105,7 @@ class CausesServiceTest(TransactionTestCase):
         )
 
     @patch('validator.services.Groq')
+
     def test_api_call_normal_validation_false(self, mock_groq):
         """Test API call with normal validation returning false"""
         # Configure mock
