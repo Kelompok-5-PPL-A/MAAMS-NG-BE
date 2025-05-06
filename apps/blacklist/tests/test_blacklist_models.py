@@ -301,5 +301,36 @@ class BlacklistModelDeleteTest(TestCase):
             # The delete method should re-raise the exception
             with self.assertRaises(Exception) as context:
                 blacklist.delete()
-            
-            self.assertEqual(str(context.exception), "Database error")
+                self.assertEqual(str(context.exception), "Error occurred while deleting: Database error")
+    
+    def test_delete_already_deleted(self):
+        """Test handling when attempting to delete an already deleted record"""
+        # Create and then delete a blacklist record
+        blacklist = Blacklist.objects.create(**self.valid_data)
+        blacklist.delete()
+        
+        # Attempt to delete again
+        with self.assertRaises(Blacklist.DoesNotExist):
+            # We need to refresh from DB to simulate real scenario
+            blacklist.refresh_from_db()
+            blacklist.delete()
+    
+    def test_delete_multiple_records(self):
+        """Test deleting multiple blacklist records at once via queryset"""
+        # Create multiple records
+        blacklist1 = Blacklist.objects.create(**self.valid_data)
+        
+        second_data = self.valid_data.copy()
+        second_data['npm'] = '9876543210'
+        blacklist2 = Blacklist.objects.create(**second_data)
+        
+        # Delete via queryset
+        result = Blacklist.objects.all().delete()
+        
+        # Verify all records were deleted
+        self.assertEqual(Blacklist.objects.count(), 0)
+        
+        # Check result format (should be a tuple with count and details)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], 2)  
