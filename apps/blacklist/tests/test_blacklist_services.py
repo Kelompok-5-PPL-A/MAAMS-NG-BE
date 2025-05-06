@@ -205,6 +205,29 @@ class TestBlacklistService(TestCase):
         
         # Verify the result
         self.assertEqual(len(result), 0)
+    
+    def test_validation_error_from_model(self):
+            """Test handling of ValidationError from model validation"""
+            self.today = timezone.now().date()
+            self.tomorrow = self.today + timedelta(days=1)
+            self.yesterday = self.today - timedelta(days=1)
+            
+            self.valid_data = {
+                'npm': '1234567890',
+                'reason': 'Test blacklisting reason',
+                'end_date': self.yesterday  # Past date will trigger validation error
+            }
+            
+            with self.assertRaises(DRFValidationError) as context:
+                BlacklistService.add_to_blacklist(
+                    npm=self.valid_data['npm'],
+                    reason=self.valid_data['reason'],
+                    end_date=self.valid_data['end_date']
+                )
+            
+            # The error should be wrapped in a DRF ValidationError with our custom message
+            self.assertIn("Failed to add student to blacklist", str(context.exception))
+            self.assertIn("End date cannot be before start date", str(context.exception))
         
     # def test_get_blacklist_history(self):
     #     """Test get_blacklist_history"""
