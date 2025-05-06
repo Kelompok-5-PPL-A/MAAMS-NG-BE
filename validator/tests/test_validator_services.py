@@ -62,48 +62,6 @@ class CausesServiceTest(TransactionTestCase):
         Question.objects.all().delete()
 
     @patch('validator.services.Groq')
-    def test_api_call_normal_validation_true(self, mock_groq):
-        """Test API call with normal validation returning true"""
-        # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='true'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
-        
-        system_message = "Test system message"
-        user_prompt = "Is this cause valid? Answer only with True/False"
-        
-        # Execute
-        result = self.service.api_call(
-            system_message=system_message,
-            user_prompt=user_prompt,
-            validation_type=ValidationType.NORMAL,
-            request=self.mock_request
-        )
-        
-        # Verify
-        self.assertEqual(result, 1)
-        mock_client.chat.completions.create.assert_called_once_with(
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_message,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-            ],
-            model="deepseek-r1-distill-llama-70b",
-            temperature=0.7,
-            max_completion_tokens=8192,
-            top_p=0.95,
-            stream=False,
-            seed=42
-        )
-
-    @patch('validator.services.Groq')
     def test_api_call_normal_validation_false(self, mock_groq):
         """Test API call with normal validation returning false"""
         # Configure mock

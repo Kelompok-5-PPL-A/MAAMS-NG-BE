@@ -5,7 +5,7 @@ from validator.dataclasses.field_values import FieldValuesDataClass
 from validator.enums import HistoryType
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException
+from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException, ValueNotUpdatedException
 from validator.constants import ErrorMsg
 from validator.enums import FilterType
 from django.core.exceptions import ObjectDoesNotExist
@@ -46,7 +46,7 @@ class QuestionService():
         try:
             recent_question = Question.objects.filter(user=user).order_by('-created_at').first()
             if not recent_question:
-                raise Question.DoesNotExist("No recent questions found for this user.")
+                return None
             return recent_question
         except Exception:
             raise Question.DoesNotExist("No recent questions found.")
@@ -88,7 +88,7 @@ class QuestionService():
         Returns a list of matched Question model instances for the logged-in user
         with the specified filters.
         """
-        is_admin = user.is_staff and user.is_superuser
+        is_admin = user.role == 'admin'
 
         if not q_filter:
             q_filter = 'semua'
@@ -131,7 +131,7 @@ class QuestionService():
         """
         Returns all unique field values attached to available questions for search bar dropdown functionality.
         """
-        is_admin = user.is_superuser and user.is_staff
+        is_admin = user.role == 'admin'
 
         questions = Question.objects.all()
 
@@ -167,7 +167,7 @@ class QuestionService():
         Return a list of pengawasan questions by keyword and filter type for privileged users.
         """
         # hanya boleh diakses oleh admin (staff dan superuser)
-        is_admin = user.is_superuser and user.is_staff
+        is_admin = user.role == 'admin'
         if not is_admin:
             raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_GET)
         
@@ -237,3 +237,41 @@ class QuestionService():
                 raise InvalidTimeRangeRequestException(ErrorMsg.INVALID_TIME_RANGE)
         
         return time
+    
+    def update_question(self, pk: uuid, user: Optional[CustomUser] = None, **fields):
+        try:
+            question_object = Question.objects.get(pk=pk)
+        except Question.DoesNotExist:
+            raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
+            
+        if user is not None:
+            if user.uuid != question_object.user.uuid:
+                raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_UPDATE)
+        else:
+            user = None
+        
+        updated = False
+        
+        if 'tags' in fields:
+            new_tags = fields.pop('tags')
+            
+            tags_object = self._validate_tags(new_tags)
+            
+            current_tags = set(question_object.tags.all())
+            new_tags_set = set(tags_object)
+            
+            if current_tags != new_tags_set:
+                question_object.tags.set(new_tags_set)
+                updated = True
+            
+        for field, new_value in fields.items():
+            if field != 'tags' and getattr(question_object, field) != new_value:
+                setattr(question_object, field, new_value)
+                updated = True
+                
+        question_object.save()
+                
+        if not updated:
+            raise ValueNotUpdatedException(ErrorMsg.VALUE_NOT_UPDATED)
+
+        return question_object
