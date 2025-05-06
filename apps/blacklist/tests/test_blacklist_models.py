@@ -260,3 +260,46 @@ class BlacklistModelSaveTest(TestCase):
         
         self.assertIn("This student already has a blacklist record for an overlapping period", 
                      str(context.exception))
+
+class BlacklistModelDeleteTest(TestCase):
+    def setUp(self):
+        self.today = timezone.now().date()
+        self.valid_data = {
+            'npm': '1234567890',
+            'startDate': self.today,
+            'endDate': self.today + timedelta(days=10),
+            'keterangan': 'Test blacklist'
+        }
+
+    def test_delete_successful(self):
+        """Test that deleting a blacklist record is successful"""
+        # Create a blacklist record
+        blacklist = Blacklist.objects.create(**self.valid_data)
+        
+        # Verify it exists
+        self.assertTrue(Blacklist.objects.filter(pk=blacklist.id).exists())
+        
+        # Delete the record
+        result = blacklist.delete()
+        
+        # Verify it was deleted
+        self.assertFalse(Blacklist.objects.filter(pk=blacklist.id).exists())
+        
+        # Check the result tuple format
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], 1)  # 1 object deleted
+    
+    def test_delete_exception_handling(self):
+        """Test the exception handling in the delete method"""
+        blacklist = Blacklist.objects.create(**self.valid_data)
+        
+        # Mock the super().delete() method to raise an exception
+        with patch('django.db.models.Model.delete') as mock_delete:
+            mock_delete.side_effect = Exception("Database error")
+            
+            # The delete method should re-raise the exception
+            with self.assertRaises(Exception) as context:
+                blacklist.delete()
+            
+            self.assertEqual(str(context.exception), "Database error")
