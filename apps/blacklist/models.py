@@ -60,7 +60,7 @@ class Blacklist(models.Model):
             result = super().save(*args, **kwargs)
             return result
         except ValidationError as e:
-            raise
+            raise ValidationError("Validation error occurred: " + str(e))
     
     def delete(self, *args, **kwargs):
         try:
