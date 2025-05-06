@@ -67,7 +67,7 @@ class Blacklist(models.Model):
             result = super().delete(*args, **kwargs)
             return result
         except Exception as e:
-            raise
+            raise Exception("Error occurred while deleting: " + str(e))
     
     @property
     def is_active(self):
