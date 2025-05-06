@@ -228,3 +228,35 @@ class BlacklistModelSaveTest(TestCase):
             blacklist.save()
         
         self.assertIn("End date cannot be before start date", str(context.exception))
+    
+    def test_save_extreme_date_range(self):
+        """Test saving with an extremely long blacklist period"""
+        extreme_data = self.valid_data.copy()
+        extreme_data['startDate'] = self.today
+        extreme_data['endDate'] = self.today + timedelta(days=3650)  # ~10 years
+        
+        blacklist = Blacklist(**extreme_data)
+        result = blacklist.save()
+        
+        # Verify the blacklist was saved with the extreme date range
+        saved_blacklist = Blacklist.objects.get(pk=blacklist.id)
+        self.assertEqual(saved_blacklist.endDate, extreme_data['endDate'])
+    
+    def test_save_with_overlapping_records(self):
+        """Test saving when there's already an overlapping record"""
+        # Create first blacklist entry
+        Blacklist.objects.create(**self.valid_data)
+        
+        # Try to create another with a slight overlap
+        overlapping_data = {
+            'npm': self.valid_data['npm'],
+            'startDate': self.valid_data['endDate'] - timedelta(days=1),
+            'endDate': self.valid_data['endDate'] + timedelta(days=10),
+            'keterangan': 'Overlapping blacklist'
+        }
+        
+        with self.assertRaises(ValidationError) as context:
+            Blacklist(**overlapping_data).save()
+        
+        self.assertIn("This student already has a blacklist record for an overlapping period", 
+                     str(context.exception))
