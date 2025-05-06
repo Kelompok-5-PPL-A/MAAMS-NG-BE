@@ -196,3 +196,35 @@ class TestBlacklistModel(TestCase):
         result = Blacklist.get_active_blacklist('9999999999')
         
         self.assertIsNone(result)
+
+class BlacklistModelSaveTest(TestCase):
+    def setUp(self):
+        self.today = timezone.now().date()
+        self.valid_data = {
+            'npm': '1234567890',
+            'startDate': self.today,
+            'endDate': self.today + timedelta(days=10),
+            'keterangan': 'Test blacklist'
+        }
+
+    def test_save_valid_blacklist(self):
+        # Test that saving a valid blacklist succeeds
+        blacklist = Blacklist(**self.valid_data)
+        result = blacklist.save()
+        
+        # Verify the blacklist was saved to the database
+        saved_blacklist = Blacklist.objects.get(pk=blacklist.id)
+        self.assertEqual(saved_blacklist.npm, self.valid_data['npm'])
+        self.assertEqual(saved_blacklist.keterangan, self.valid_data['keterangan'])
+    
+    def test_save_invalid_dates(self):
+        # Test that saving with end date before start date raises ValidationError
+        invalid_data = self.valid_data.copy()
+        invalid_data['startDate'] = self.today
+        invalid_data['endDate'] = self.today - timedelta(days=1)
+        
+        blacklist = Blacklist(**invalid_data)
+        with self.assertRaises(ValidationError) as context:
+            blacklist.save()
+        
+        self.assertIn("End date cannot be before start date", str(context.exception))
