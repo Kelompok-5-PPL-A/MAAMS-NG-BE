@@ -1,13 +1,20 @@
 import uuid
 from typing import List, Optional
+
+from validator.dataclasses.field_values import FieldValuesDataClass
+from validator.enums import HistoryType
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import UniqueTagException
+from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException, ValueNotUpdatedException
 from validator.constants import ErrorMsg
+from validator.enums import FilterType
 from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from .dataclasses.create_question import CreateQuestionDataClass 
 from authentication.models import CustomUser
+from django.db.models import Q
+from datetime import timedelta
+from django.utils import timezone
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
@@ -39,10 +46,17 @@ class QuestionService():
         try:
             recent_question = Question.objects.filter(user=user).order_by('-created_at').first()
             if not recent_question:
-                raise Question.DoesNotExist("No recent questions found for this user.")
+                return None
             return recent_question
         except Exception:
             raise Question.DoesNotExist("No recent questions found.")
+
+    def delete(self, pk):
+        """
+        Delete a question by its primary key.
+        """
+        question = Question.objects.get(pk=pk)
+        question.delete()
 
     def _make_question_response(self, questions) -> list:
         response = []
@@ -69,6 +83,107 @@ class QuestionService():
             
         return response
     
+    def get_matched(self, q_filter: str, user: CustomUser, time_range: str, keyword: str):
+        """
+        Returns a list of matched Question model instances for the logged-in user
+        with the specified filters.
+        """
+        is_admin = user.role == 'admin'
+
+        if not q_filter:
+            q_filter = 'semua'
+        if not keyword:
+            keyword = ''
+
+        today_datetime = timezone.now()  + timedelta(hours=7)
+        last_week_datetime = today_datetime - timedelta(days=7)
+
+        # Filter by current user
+        user_filter = Q(user=user)
+        if keyword == '':
+            raise InvalidFiltersException(ErrorMsg.EMPTY_KEYWORD)
+
+        # Build query clauses
+        clause = self._resolve_filter_type(q_filter, keyword, is_admin)
+        time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
+
+        # Final query
+        questions = (
+            Question.objects
+            .filter(user_filter & clause & time)
+            .order_by('-created_at')
+            .distinct()
+        )
+
+        return questions  
+    
+    def get_all(self, user: CustomUser, time_range: str):
+        """
+        Returns a list of  all questions corresponding to a specified user.
+        """
+        today_datetime = timezone.now()  + timedelta(hours=7)
+        last_week_datetime = today_datetime - timedelta(days=7)
+        time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
+        questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
+        return questions
+    
+    def get_field_values(self, user: CustomUser) -> FieldValuesDataClass:
+        """
+        Returns all unique field values attached to available questions for search bar dropdown functionality.
+        """
+        is_admin = user.role == 'admin'
+
+        questions = Question.objects.all()
+
+        values = {
+            "judul": set(),
+            "topik": set()
+        }
+
+        # extract usernames if user is admin to allow filtering by pengguna
+        if is_admin: values['pengguna'] = set()
+        
+        for question in questions:
+            if is_admin and question.user is not None:
+                values['pengguna'].add(question.user.username)
+            values['judul'].add(question.title)
+            # extract list of tags from question
+            tags = [tag.name for tag in question.tags.all()]
+            values['topik'].update(tags)
+
+        response = FieldValuesDataClass(
+            pengguna=[],
+            judul=list(values['judul']), 
+            topik=list(values['topik'])
+        )
+
+        if is_admin:
+            response.pengguna=list(values['pengguna'])    
+
+        return response 
+    
+    def get_privileged(self, q_filter: str, user: CustomUser, keyword: str):
+        """
+        Return a list of pengawasan questions by keyword and filter type for privileged users.
+        """
+        # hanya boleh diakses oleh admin (staff dan superuser)
+        is_admin = user.role == 'admin'
+        if not is_admin:
+            raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_GET)
+        
+        if not q_filter:
+            q_filter = 'semua'
+        if not keyword:
+            keyword = ''
+
+        clause = self._resolve_filter_type(q_filter, keyword, is_admin)
+
+        # hanya ambil pertanyaan mode PENGAWASAN + klausa filter lainnya
+        mode = Q(mode=Question.ModeChoices.PENGAWASAN)
+        questions = Question.objects.filter(mode & clause).order_by('-created_at').distinct()
+
+        return questions
+
     def _validate_tags(self, new_tags: List[str]):
         tags_object = []
         for tag_name in new_tags:
@@ -82,3 +197,81 @@ class QuestionService():
                     tags_object.append(tag)
         
         return tags_object
+    
+    def _resolve_filter_type(self, filter: str, keyword: str, is_admin: bool) -> Q:
+        """
+        Returns where clause for questions with specified filters/keywords.
+        Only allow superusers/admin to filter by user.
+        """
+        match filter.lower():
+            case FilterType.PENGGUNA.value:
+                clause = (Q(user__username__icontains=keyword) | 
+                          Q(user__first_name__icontains=keyword) | 
+                          Q(user__last_name__icontains=keyword))
+            case FilterType.JUDUL.value:
+                clause = (Q(title__icontains=keyword) |
+                          Q(question__icontains=keyword))
+            case FilterType.TOPIK.value:
+                clause = Q(tags__name__icontains=keyword)
+            case FilterType.SEMUA.value:
+                clause = (Q(title__icontains=keyword) |
+                          Q(question__icontains=keyword) |
+                          Q(tags__name__icontains=keyword))
+                if is_admin:
+                    clause |= Q(user__username__icontains=keyword)
+            case _:
+                raise InvalidFiltersException(ErrorMsg.INVALID_FILTERS)
+        
+        return clause
+    
+    def _resolve_time_range(self, time_range: str, today_datetime: timezone.datetime, last_week_datetime: timezone.datetime) -> Q:
+        """
+        Returns where clause for questions with specified time range.
+        """
+        match time_range.lower():
+            case HistoryType.LAST_WEEK.value:
+                time = Q(created_at__range=[last_week_datetime, today_datetime])
+            case HistoryType.OLDER.value:
+                time = Q(created_at__lt=last_week_datetime)
+            case _:
+                raise InvalidTimeRangeRequestException(ErrorMsg.INVALID_TIME_RANGE)
+        
+        return time
+    
+    def update_question(self, pk: uuid, user: Optional[CustomUser] = None, **fields):
+        try:
+            question_object = Question.objects.get(pk=pk)
+        except Question.DoesNotExist:
+            raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
+            
+        if user is not None:
+            if user.uuid != question_object.user.uuid:
+                raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_UPDATE)
+        else:
+            user = None
+        
+        updated = False
+        
+        if 'tags' in fields:
+            new_tags = fields.pop('tags')
+            
+            tags_object = self._validate_tags(new_tags)
+            
+            current_tags = set(question_object.tags.all())
+            new_tags_set = set(tags_object)
+            
+            if current_tags != new_tags_set:
+                question_object.tags.set(new_tags_set)
+                updated = True
+            
+        for field, new_value in fields.items():
+            if field != 'tags' and getattr(question_object, field) != new_value:
+                setattr(question_object, field, new_value)
+                updated = True
+                
+        question_object.save()
+                
+        if not updated:
+            raise ValueNotUpdatedException(ErrorMsg.VALUE_NOT_UPDATED)
+
+        return question_object

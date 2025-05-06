@@ -57,3 +57,20 @@ class QuestionResponse(BaseQuestion):
         
     def get_username(self, obj):
         return obj.user.username if obj.user else None
+    
+class PaginatedQuestionResponse(serializers.Serializer):
+    class Meta:
+        ref_name = 'QuestionResponsePaginated'
+
+    count = serializers.IntegerField(default=5)
+    next = serializers.URLField(default="http://localhost:3000/question/?p=1")
+    previous = serializers.URLField(default="http://localhost:3000/question/?p=1")
+    results = QuestionResponse(many=True)
+
+class FieldValuesResponse(serializers.Serializer):
+    class Meta:
+        ref_name = 'FieldValues'
+
+    pengguna = serializers.ListField(child=serializers.CharField())
+    judul = serializers.ListField(child=serializers.CharField())
+    topik = serializers.ListField(child=serializers.CharField())

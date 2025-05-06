@@ -6,8 +6,6 @@ from rest_framework import status
 from django.http import Http404
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-logger = logging.getLogger(__name__)
-
 def handle_django_validation_error(exc):
     if hasattr(exc, 'message_dict'):
         detail = exc.message_dict
@@ -19,7 +17,6 @@ def handle_404_error():
     return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
 def handle_other_exceptions(exc):
-    logger.exception(f"Unhandled exception: {str(exc)}")
     return Response({'detail': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def custom_exception_handler(exc, context):
@@ -41,19 +38,7 @@ def custom_exception_handler(exc, context):
             
         elif isinstance(exc, Exception):
             response = handle_other_exceptions(exc)
-    
-    if response is not None and status.is_server_error(response.status_code):
-        view = context.get('view')
-        if view:
-            request = context.get('request')
-            view_name = view.__class__.__name__
-            endpoint = request.path if request else 'unknown'
-            method = request.method if request else 'unknown'
             
-            logger.error(
-                f"Error in {view_name} ({method} {endpoint}): {str(exc)}"
-            )
-    
     return response
 
 class ServiceException(APIException):

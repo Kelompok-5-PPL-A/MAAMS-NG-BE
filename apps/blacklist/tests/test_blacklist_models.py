@@ -109,56 +109,6 @@ class TestBlacklistModel(TestCase):
         
         # This should not raise ValidationError
         blacklist.clean()
-        
-    @patch('apps.blacklist.models.logger')
-    def test_save_with_full_clean(self, mock_logger):
-        """Test save method calls full_clean"""
-        blacklist = Blacklist(**self.valid_data)
-        blacklist.save()
-        
-        # Verify logger was called
-        mock_logger.info.assert_called()
-        
-    @patch('apps.blacklist.models.logger')
-    def test_save_validation_error(self, mock_logger):
-        """Test save method with validation error"""
-        # Create invalid data
-        invalid_data = self.valid_data.copy()
-        invalid_data['endDate'] = self.yesterday
-        
-        blacklist = Blacklist(**invalid_data)
-        
-        with self.assertRaises(ValidationError):
-            blacklist.save()
-            
-        # Verify logger was called
-        mock_logger.error.assert_called()
-        
-    @patch('apps.blacklist.models.logger')
-    def test_delete(self, mock_logger):
-        """Test delete method"""
-        blacklist = Blacklist.objects.create(**self.valid_data)
-        blacklist.delete()
-        
-        # Verify logger was called
-        mock_logger.info.assert_any_call(f"Deleting blacklist entry for NPM: {blacklist.npm}, period: {blacklist.startDate} to {blacklist.endDate}")
-        mock_logger.info.assert_any_call(f"Successfully deleted blacklist entry for NPM: {blacklist.npm}")
-        
-    @patch('apps.blacklist.models.logger')
-    def test_delete_error(self, mock_logger):
-        """Test delete method with error"""
-        # Create blacklist
-        blacklist = Blacklist.objects.create(**self.valid_data)
-        
-        # Mock super().delete to raise an error
-        with patch('django.db.models.Model.delete') as mock_delete:
-            mock_delete.side_effect = Exception("Delete error")
-            
-            with self.assertRaises(Exception):
-                blacklist.delete()
-                
-            # Verify logger was called
-            mock_logger.error.assert_called()
             
     def test_is_active_property_active(self):
         """Test is_active property with active blacklist"""
