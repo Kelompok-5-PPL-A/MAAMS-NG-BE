@@ -15,6 +15,11 @@ on:
       - development
       - ci-cd
 
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+
 jobs:
   build:
     name: Build
@@ -68,15 +73,6 @@ jobs:
           pip install -r requirements.txt
           pip install coverage
       - name: Run tests and generate coverage
-        env:
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          MOESIF_APPLICATION_ID: ${{ secrets.MOESIF_APPLICATION_ID }}
-          ARIZE_SPACE_ID: ${{ secrets.ARIZE_SPACE_ID }}
-          ARIZE_API_KEY: ${{ secrets.ARIZE_API_KEY }}
         run: |
           coverage run manage.py test
           coverage report
@@ -97,8 +93,8 @@ jobs:
           fail_ci_if_error: true
           verbose: true
   
-  sonarcloud-analysis:
-    name: SonarCloud Analysis
+  sonarqube-analysis:
+    name: SonarQube Analysis
     runs-on: ubuntu-latest
     needs: test
 
@@ -116,139 +112,355 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  
-  publish-staging:
-    name: Publish Staging Docker Image
-    runs-on: ubuntu-latest
-    needs: [test, sonarcloud-analysis]
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd')
+  data-seeding:
+    name: Automatic Data Seeding
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Set up database and seed test data
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          python manage.py migrate
+          python manage.py seed_causes_server
+          mkdir -p cause/fixtures
+          python manage.py dumpdata cause question --indent 2 > cause/fixtures/server_data.json
+      - name: Upload fixtures
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixtures
+          path: cause/fixtures/
+
+  zap-scan:
+    name: Scan the Web Application
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: ZAP Scan
+        uses: zaproxy/action-full-scan@v0.12.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
+          target: 'https://maams-ng.vercel.app/'
+          
+  versioning:
+    name: Version Tagging
+    runs-on: ubuntu-latest
+    needs: [test, sonarqube-analysis]
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      git_tag: ${{ steps.version.outputs.git_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate Version
+        id: version
+        run: |
+          CURRENT_BRANCH=${GITHUB_REF##*/}
+          
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          
+          if [[ $CURRENT_BRANCH == "main" ]]; then
+            VERSION="${LATEST_TAG}-${COMMIT_COUNT}-${COMMIT_HASH}"
+          else
+            VERSION="${LATEST_TAG}-${CURRENT_BRANCH}-${COMMIT_COUNT}-${COMMIT_HASH}"
+          fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "git_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          
+          if [[ $CURRENT_BRANCH == "main" ]]; then
+            DATE_VERSION=$(date +'%Y.%m.%d')
+            COUNTER=1
+            FINAL_TAG="${DATE_VERSION}.${COUNTER}"
+            
+            while git rev-parse "${FINAL_TAG}" >/dev/null 2>&1; do
+              COUNTER=$((COUNTER + 1))
+              FINAL_TAG="${DATE_VERSION}.${COUNTER}"
+            done
+            
+            git tag "${FINAL_TAG}"
+            git push origin "${FINAL_TAG}"
+            
+            echo "new_tag=${FINAL_TAG}" >> $GITHUB_OUTPUT
+          fi
+
+  build-staging:
+    name: Build and Package for Staging
+    runs-on: ubuntu-latest
+    needs: versioning
+    environment: staging
+    outputs:
+      image_tag: ${{ steps.build.outputs.image_tag }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          username: ${{ secrets.REGISTRY_USER }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging
-          build-args: |
-            ENVIRONMENT=staging
-            DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
-            DATABASE_USERNAME=${{ secrets.STAGING_DATABASE_USERNAME }}
-            DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }}
-            HOST_FE=${{ secrets.STAGING_HOST_FE }}
-            SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
-            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
-            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
-            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
-  
-  publish-production:
-    name: Publish Production Docker Image
-    runs-on: ubuntu-latest
-    needs: [test, sonarcloud-analysis]
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure Docker
+        run: gcloud auth configure-docker
+      
+      - name: Build and Push Docker Image
+        id: build
+        run: |
+          VERSION="${{needs.versioning.outputs.version}}"
+          echo "Version: $VERSION"
+          
+          IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
+          
+          docker build \
+            --build-arg VERSION="$VERSION" \
+            --build-arg BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --build-arg GIT_COMMIT="$(git rev-parse HEAD)" \
+            -t "$IMAGE_TAG" \
+            -t "gcr.io/$PROJECT_ID/maams-ng-staging:latest" \
+            .
+            
+          docker push "$IMAGE_TAG"
+          docker push "gcr.io/$PROJECT_ID/maams-ng-staging:latest"
+          
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "$IMAGE_TAG" > image_tag.txt
+          echo "Debug - IMAGE_TAG set to: $IMAGE_TAG"
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
+          if [ -f "$GITHUB_OUTPUT" ]; then
+            echo "GITHUB_OUTPUT file exists and contains:"
+            cat $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload Image Tag as Artifact
+        uses: actions/upload-artifact@v4
         with:
-          username: ${{ secrets.REGISTRY_USER }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:production
-          build-args: |
-            ENVIRONMENT=production
-            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
-            DATABASE_USERNAME=${{ secrets.PROD_DATABASE_USERNAME }}
-            DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }}
-            HOST_FE=${{ secrets.PROD_HOST_FE }}
-            SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
-            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
-            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
-            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
-  
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: publish-staging
+          name: image-tag
+          path: image_tag.txt
+          retention-days: 1
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd')
+  deploy-staging-blue-green:
+    name: Blue/Green Deployment to Staging
+    runs-on: ubuntu-latest
+    needs: [build-staging, versioning]
     environment:
       name: staging
-      url: https://maams-ng-staging.vercel.app
+      url: https://maams-ng.netlify.app/
+    env:
+      VERSION: ${{needs.versioning.outputs.version}}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Install SSH client
-        run: sudo apt-get install openssh-client
-      - name: Create SSH key
-        run: echo "${{ secrets.STAGING_SSH_KEY }}" > ssh-key.pem
-      - name: Update permissions
-        run: chmod 400 ssh-key.pem
-      - name: Deploy to Staging Server
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Download Image Tag Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-tag
+      
+      - name: Determine Image Tag
+        id: get_image_tag
         run: |
-          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.STAGING_USERNAME }}@${{ secrets.STAGING_IP }} "
-            sudo docker container rm -f maams-ng-staging || true &&
-            sudo docker image rm -f ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging || true &&
-            sudo docker run --name maams-ng-staging -d -p 80:8000 \
-            -e DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }} \
-            -e DATABASE_USERNAME=${{ secrets.STAGING_DATABASE_USERNAME }} \
-            -e DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }} \
-            -e SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }} \
-            -e DEBUG=True \
-            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
-            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
-            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
-            ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging"
-  
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: publish-production
+          IMAGE_TAG="${{needs.build-staging.outputs.image_tag}}"
+          
+          if [ -z "$IMAGE_TAG" ] && [ -f "image_tag.txt" ]; then
+            IMAGE_TAG=$(cat image_tag.txt)
+            echo "Using image tag from artifact: $IMAGE_TAG"
+          fi
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    environment:
-      name: production
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Install SSH client
-        run: sudo apt-get install openssh-client
-      - name: Create SSH key
-        run: echo "${{ secrets.PROD_SSH_KEY }}" > ssh-key.pem
-      - name: Update permissions
-        run: chmod 400 ssh-key.pem
-      - name: Deploy to Production Server
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "WARNING: Constructing image tag manually"
+            IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
+            echo "Constructed image tag: $IMAGE_TAG"
+          fi
+          
+          echo "Using IMAGE_TAG: $IMAGE_TAG"
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+      
+      - name: Get Current Active Color
+        id: get_color
         run: |
-          ssh -o StrictHostKeyChecking=no -i ssh-key.pem ${{ secrets.PROD_USERNAME }}@${{ secrets.PROD_IP }} "
-            sudo docker container rm -f maams || true &&
-            sudo docker image rm -f ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:production || true &&
-            sudo docker run --name maams -d -p 80:8000 \
-            -e DATABASE_URL=${{ secrets.PROD_DATABASE_URL }} \
-            -e DATABASE_USERNAME=${{ secrets.PROD_DATABASE_USERNAME }} \
-            -e DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }} \
-            -e SECRET_KEY=${{ secrets.PROD_SECRET_KEY }} \
-            -e DEBUG=False \
-            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
-            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
-            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
-            ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:production"
+          SERVICE_EXISTS=true
+          if ! gcloud run services describe maams-ng-staging \
+            --platform managed \
+            --region $REGION \
+            --format='get(name)' 2>/dev/null; then
+            SERVICE_EXISTS=false
+          fi
+          
+          if [ "$SERVICE_EXISTS" = false ]; then
+            # First deployment - start with blue
+            echo "current=" >> $GITHUB_OUTPUT
+            echo "new=blue" >> $GITHUB_OUTPUT
+          else
+            ACTIVE_COLOR=$(gcloud run services describe maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --format='value(metadata.annotations."serving.knative.dev/tags")' 2>/dev/null || echo "")
+            
+            if [[ -z "$ACTIVE_COLOR" ]]; then
+              # No active color, start with blue
+              echo "current=" >> $GITHUB_OUTPUT
+              echo "new=blue" >> $GITHUB_OUTPUT
+            elif [[ $ACTIVE_COLOR =~ "blue" ]]; then
+              echo "current=blue" >> $GITHUB_OUTPUT
+              echo "new=green" >> $GITHUB_OUTPUT
+            else
+              echo "current=green" >> $GITHUB_OUTPUT
+              echo "new=blue" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Deploy New Version (${{ steps.get_color.outputs.new }})
+        run: |
+          echo "Image tag: $IMAGE_TAG"
+          
+          if ! gcloud run services describe maams-ng-staging \
+            --platform managed \
+            --region $REGION \
+            --format='get(name)' 2>/dev/null; then
+            
+            gcloud run services create maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --allow-unauthenticated \
+              --image=gcr.io/cloudrun/hello
+          fi
+          
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "Error: Image tag is empty"
+            exit 1
+          fi
+          
+          gcloud run deploy maams-ng-staging \
+            --image "$IMAGE_TAG" \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 1 \
+            --max-instances 10 \
+            --concurrency 250 \
+            --timeout 300 \
+            --port 8000 \
+            --tag ${{steps.get_color.outputs.new}} \
+            --set-env-vars "VERSION=$VERSION" \
+            --set-env-vars "ENVIRONMENT=staging" \
+            --set-env-vars "DEPLOYMENT_COLOR=${{steps.get_color.outputs.new}}"        
+
+      - name: Switch Traffic to New Version
+        run: |
+          if [ -n "${{steps.get_color.outputs.current}}" ]; then
+            gcloud run services update-traffic maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --to-tags=${{steps.get_color.outputs.new}}=100,${{steps.get_color.outputs.current}}=0
+          else
+            gcloud run services update-traffic maams-ng-staging \
+              --platform managed \
+              --region $REGION \
+              --to-tags=${{steps.get_color.outputs.new}}=100
+          fi
+
+  autoscaling-configuration:
+    name: Configure Autoscaling
+    runs-on: ubuntu-latest
+    needs: [deploy-staging-blue-green]
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure Instance Limits
+        run: |
+          gcloud run services update maams-ng-staging \
+            --min-instances 2 \
+            --max-instances 20 \
+            --cpu-throttling \
+            --cpu-boost \
+            --execution-environment gen2 \
+            --platform managed \
+            --region $REGION
+      
+      - name: Configure Autoscaling Annotations
+        run: |
+          gcloud run services update maams-ng-staging \
+            --platform managed \
+            --region $REGION \
+            --update-annotations="autoscaling.knative.dev/metric=concurrency" \
+            --update-annotations="autoscaling.knative.dev/target=80" \
+            --update-annotations="run.googleapis.com/cpu-throttling=true"
+
+  rollback-preparation:
+    name: Prepare Rollback Plan
+    runs-on: ubuntu-latest
+    needs: [deploy-staging-blue-green, versioning]
+    steps:
+      - name: Store Deployment Metadata
+        run: |
+          METADATA='{
+            "version": "${{needs.versioning.outputs.version}}",
+            "timestamp": "'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'",
+            "git_commit": "'${{ github.sha }}'",
+            "deployed_by": "'${{ github.actor }}'",
+            "deployment_color": "'${{ needs.deploy-staging-blue-green.steps.get_color.outputs.new }}'",
+            "rollback_version": "'${{ needs.versioning.outputs.git_tag }}'",
+            "rollback_command": "gcloud run services update-traffic maams-ng-staging --to-tags '${{ needs.deploy-staging-blue-green.steps.get_color.outputs.current }}'=100"
+          }'
+          
+          echo "$METADATA" > deployment-metadata.json
+      
+      - name: Upload Rollback Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-plan-${{needs.versioning.outputs.version}}
+          path: deployment-metadata.json
+          retention-days: 30

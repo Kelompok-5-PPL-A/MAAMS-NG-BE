@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_yasg',
     'django.contrib.sites',
+    'django_seed',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -140,9 +141,7 @@ USE_I18N = True
 USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
-
 CORS_ALLOW_CREDENTIALS = True
-
 CORS_ALLOW_HEADERS = [
     'authorization',
     'content-type',
