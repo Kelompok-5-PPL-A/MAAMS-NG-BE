@@ -12,6 +12,15 @@ import uuid
 from authentication.models import CustomUser
 from types import SimpleNamespace
 from django.utils import timezone
+from types import SimpleNamespace
+from question.services import QuestionService
+
+class MockTagsList:
+    def __init__(self, tags):
+        self._tags = tags
+
+    def all(self):
+        return self._tags
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -33,14 +42,18 @@ class TestQuestionPostView(TestCase):
         mock_question.question = self.valid_payload['question']
         mock_question.mode = self.valid_payload['mode']
         mock_question.created_at = datetime.now().isoformat() + 'Z'
-        mock_question.tags.all.return_value = [
+        mock_question.tags = MockTagsList([
             Tag(name=tag) for tag in self.valid_payload['tags']
-        ]
+        ])
+
         mock_question.user = self.user
         self.client.force_authenticate(user=self.user)
 
-        with patch('question.services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create, \
+            patch('question.views.Question.objects') as mock_manager:
+
             mock_create.return_value = mock_question
+            mock_manager.prefetch_related.return_value.select_related.return_value.get.return_value = mock_question
             
             # Act
             response = self.client.post(
@@ -69,13 +82,17 @@ class TestQuestionPostView(TestCase):
         mock_question.question = self.valid_payload['question']
         mock_question.mode = self.valid_payload['mode']
         mock_question.created_at = datetime.now().isoformat() + 'Z'
-        mock_question.tags.all.return_value = [
+        mock_question.tags = MockTagsList([
             Tag(name=tag) for tag in self.valid_payload['tags']
-        ]
+        ])
         mock_question.user = None  # Guest user has no user object
 
-        with patch('question.services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create, \
+            patch('question.views.Question.objects') as mock_manager:
+
             mock_create.return_value = mock_question
+            mock_manager.prefetch_related.return_value.select_related.return_value.get.return_value = mock_question
+
             
             # Act - not authenticating the client
             response = self.client.post(
@@ -199,15 +216,19 @@ class TestQuestionPostView(TestCase):
         mock_question.question = payload['question']
         mock_question.mode = payload['mode']
         mock_question.created_at = datetime.now().isoformat() + 'Z'
-        mock_question.tags.all.return_value = [
-            Tag(name=tag) for tag in payload['tags']
-        ]
+        mock_question.tags = MockTagsList([
+            SimpleNamespace(name=tag) for tag in payload['tags']
+        ])
 
         mock_question.user = self.user
         self.client.force_authenticate(user=self.user)
 
-        with patch('question.services.QuestionService.create') as mock_create:
+        with patch('question.services.QuestionService.create') as mock_create, \
+            patch('question.views.Question.objects') as mock_manager:
+
             mock_create.return_value = mock_question
+            mock_manager.prefetch_related.return_value.select_related.return_value.get.return_value = mock_question
+
             
             # Act
             response = self.client.post(
@@ -236,14 +257,18 @@ class TestQuestionPostView(TestCase):
         mock_question.question = payload['question']
         mock_question.mode = payload['mode']
         mock_question.created_at = datetime.now().isoformat() + 'Z'
-        mock_question.tags.all.return_value = [
-            Tag(name=tag) for tag in payload['tags']
-        ]
+        mock_question.tags = MockTagsList([
+            SimpleNamespace(name=tag) for tag in payload['tags']
+        ])
         mock_question.user = self.user
         self.client.force_authenticate(user=self.user)
 
-        with patch('question.services.QuestionService.create') as mock_create:      
+        with patch('question.services.QuestionService.create') as mock_create, \
+            patch('question.views.Question.objects') as mock_manager:
+
             mock_create.return_value = mock_question
+            mock_manager.prefetch_related.return_value.select_related.return_value.get.return_value = mock_question
+
             
             # Act
             response = self.client.post(
@@ -392,14 +417,17 @@ class QuestionResponseSerializerTest(TestCase):
         self.user = CustomUser.objects.create_user(username="testuser", email="test@example.com", password="password")
     
     def test_get_tags_without_all_method(self):
-        # Arrange: obj.tags is a plain list, no .all()
+        # Arrange: obj.tags adalah mock object yang punya .all()
         fake_question = SimpleNamespace(
             id=uuid.uuid4(),
             title='No all() tags',
             question='Plain tags',
             created_at=datetime.now(),
             mode='PRIBADI',
-            tags=['tag1', 'tag2'],
+            tags=MockTagsList([
+                SimpleNamespace(name='tag1'),
+                SimpleNamespace(name='tag2')
+            ]),
             user=None
         )
 
@@ -407,8 +435,9 @@ class QuestionResponseSerializerTest(TestCase):
         serializer = QuestionResponse(instance=fake_question)
         data = serializer.data
 
-        # Assert: fallback return path triggered
+        # Assert
         self.assertEqual(data['tags'], ['tag1', 'tag2'])
+
     
     def test_get_username_with_user(self):
         # Test serializer with authenticated user
@@ -418,14 +447,18 @@ class QuestionResponseSerializerTest(TestCase):
             question='With username',
             created_at=datetime.now(),
             mode='PRIBADI',
-            tags=['tag1', 'tag2'],
+            tags=MockTagsList([
+                SimpleNamespace(name='tag1'),
+                SimpleNamespace(name='tag2')
+            ]),
             user=self.user
         )
-        
+
         serializer = QuestionResponse(instance=fake_question)
         data = serializer.data
-        
+
         self.assertEqual(data['username'], self.user.username)
+
     
     def test_get_username_with_guest(self):
         # Test serializer with guest user (None)
@@ -435,15 +468,46 @@ class QuestionResponseSerializerTest(TestCase):
             question='No username',
             created_at=datetime.now(),
             mode='PRIBADI',
-            tags=['tag1', 'tag2'],
+            tags=MockTagsList([
+                SimpleNamespace(name='tag1'),
+                SimpleNamespace(name='tag2')
+            ]),
             user=None
         )
-        
+
         serializer = QuestionResponse(instance=fake_question)
         data = serializer.data
-        
+
         self.assertIsNone(data['username'])
         self.assertIsNone(data['user'])
+    
+    def test_get_tags_with_prefetched_tags(self):
+        # Arrange
+        fake_question = SimpleNamespace(
+            id=uuid.uuid4(),
+            title='Prefetched Tags',
+            question='Test question',
+            created_at=datetime.now(),
+            user=None,
+            mode='PRIBADI',  # Tambahkan ini
+            _prefetched_objects_cache={
+                'tags': [
+                    SimpleNamespace(name='tag1'),
+                    SimpleNamespace(name='tag2')
+                ]
+            }
+        )
+
+        serializer = QuestionResponse(instance=fake_question)
+
+        # Act
+        data = serializer.data
+
+        # Assert
+        self.assertEqual(data['tags'], ['tag1', 'tag2'])
+
+
+
 
 class TestQuestionGetPrivileged(TestCase):
     def setUp(self):

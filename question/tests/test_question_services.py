@@ -129,6 +129,13 @@ class TestQuestionService(TestCase):
         
         result = self.service.get_recent(user_without_questions)
         self.assertIsNone(result, "Should return None when no questions exist")
+    
+    def test_get_recent_with_exception(self):
+        with patch('question.models.Question.objects.filter', side_effect=Exception("DB error")):
+            with self.assertRaises(Question.DoesNotExist) as context:
+                self.service.get_recent(self.user)
+
+            self.assertEqual(str(context.exception), "No recent questions found.")
 
     def test_make_question_response_empty_list(self):
         # Test _make_question_response with empty list
