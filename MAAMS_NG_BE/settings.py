@@ -64,14 +64,12 @@ INSTALLED_APPS = [
     'question',
     'tag',
     'validator',
-    'silk',
 ]
 
 MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'silk.middleware.SilkyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -322,3 +320,7 @@ sentry_sdk.init(
 #         },
 #     },
 # }
+
+if DEBUG:
+    INSTALLED_APPS += ['silk']
+    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
