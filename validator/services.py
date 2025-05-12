@@ -18,6 +18,10 @@ from openinference.instrumentation.groq import GroqInstrumentor
 # )
 # GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
+
 class CausesService:
     def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType, request=None) -> int:
         client = Groq(api_key=settings.GROQ_API_KEY)
