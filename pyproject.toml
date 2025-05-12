@@ -7,8 +7,6 @@ upload_to_pypi = false
 upload_to_release = true
 build_command = "pip install -e ."
 commit_version_number = true
-commit_subject = "chore(release): {version} [skip ci]"
-commit_message = "chore(release): {version} [skip ci]\n\n{changelog}"
 commit_author = "github-actions <actions@github.com>"
 changelog_sections = [
     "feature",
