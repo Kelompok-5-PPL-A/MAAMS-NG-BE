@@ -265,11 +265,6 @@ jobs:
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "$IMAGE_TAG" > image_tag.txt
           echo "Debug - IMAGE_TAG set to: $IMAGE_TAG"
-
-          if [ -f "$GITHUB_OUTPUT" ]; then
-            echo "GITHUB_OUTPUT file exists and contains:"
-            cat $GITHUB_OUTPUT
-          fi
       
       - name: Upload Image Tag as Artifact
         uses: actions/upload-artifact@v4
@@ -306,12 +301,11 @@ jobs:
         id: get_image_tag
         run: |
           IMAGE_TAG="${{needs.build-staging.outputs.image_tag}}"
-          
           if [ -z "$IMAGE_TAG" ] && [ -f "image_tag.txt" ]; then
             IMAGE_TAG=$(cat image_tag.txt)
             echo "Using image tag from artifact: $IMAGE_TAG"
           fi
-
+  
           if [ -z "$IMAGE_TAG" ]; then
             echo "WARNING: Constructing image tag manually"
             IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
