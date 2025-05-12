@@ -43,6 +43,10 @@ class CausesService:
                     }
                 ],
                 "model": "accounts/fireworks/models/qwen3-30b-a3b",
+                "max_tokens": 8692,
+                "temperature": 0.6,
+                "seed": 42,
+                "separate_reasoning": False,
             })
 
             answer = chat_completion["choices"][0]["message"]["content"]
