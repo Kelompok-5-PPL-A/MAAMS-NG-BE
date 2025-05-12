@@ -189,6 +189,13 @@ jobs:
       - name: Generate Version
         id: version
         run: |
+          if [ ! -f version.txt ]; then
+            echo "v0.0.0" > version.txt
+            git add version.txt
+            git commit -m "Initialize version.txt with v0.0.0"
+            git push origin HEAD # Push the initial version.txt
+          fi
+
           current_version=$(cat version.txt)
           IFS='.' read -r major minor patch <<< "$current_version"
 
@@ -207,9 +214,10 @@ jobs:
           new_version="v$major.$minor.$patch"
 
           echo "$new_version" > version.txt
+
           git add version.txt
           git commit -m "Bump version to $new_version"
-          git push origin HEAD # Push the commit with the updated version
+          git push origin HEAD
 
           echo "version=${new_version}" >> $GITHUB_OUTPUT
           echo "git_tag=${new_version}" >> $GITHUB_OUTPUT
