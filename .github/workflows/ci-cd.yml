@@ -189,38 +189,33 @@ jobs:
       - name: Generate Version
         id: version
         run: |
-          if [ ! -f version.txt ]; then
-            echo "v0.0.0" > version.txt
-            git add version.txt
-            git commit -m "Initialize version.txt with v0.0.0"
-            git push origin HEAD # Push the initial version.txt
+          latest_version="v0.0.0"
+
+          PREVIOUS_VERSION=$(git describe --tags --abbrev=0)
+          if [ ! -z "$PREVIOUS_VERSION" ]; then
+            latest_version="$PREVIOUS_VERSION"
           fi
 
-          current_version=$(cat version.txt)
-          IFS='.' read -r major minor patch <<< "$current_version"
+          IFS='.' read -r major minor patch <<< "${latest_version#v}"
 
           branch="${GITHUB_REF#refs/heads/}"
           if [ "$branch" == "main" ]; then
-            major=$((major + 1))   
-            minor=0               
-            patch=0                
+            major=$((major + 1))   # Increment major version
+            minor=0                # Reset minor version
+            patch=0                # Reset patch version
           elif [ "$branch" == "staging" ]; then
-            minor=$((minor + 1))  
-            patch=0                
+            minor=$((minor + 1))   # Increment minor version
+            patch=0                # Reset patch version
           else
-            patch=$((patch + 1))   
+            patch=$((patch + 1))   # Increment patch version
           fi
 
           new_version="v$major.$minor.$patch"
 
-          echo "$new_version" > version.txt
-
-          git add version.txt
-          git commit -m "Bump version to $new_version"
-          git push origin HEAD
-
           echo "version=${new_version}" >> $GITHUB_OUTPUT
           echo "git_tag=${new_version}" >> $GITHUB_OUTPUT
+
+          echo "VERSION=${new_version}" >> $GITHUB_ENV
 
       - name: Tag the Version
         run: |
