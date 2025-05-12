@@ -1,3 +1,4 @@
+import os
 import uuid
 from django.conf import settings
 import requests
@@ -9,13 +10,20 @@ from question.models import Question
 from cause.models import Causes
 from validator.exceptions import AIServiceErrorException, RateLimitExceededException
 
+API_URL = os.getenv("HUGGINGFACE_URL")
+headers = {
+    "Authorization": os.getenv("HUGGINGFACE_TOKEN"),
+}
+
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
+
 class CausesService:
     def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType, request=None) -> int:
-        client = Groq(api_key=settings.GROQ_API_KEY)
-        
         try:
-            chat_completion = client.chat.completions.create(
-                messages=[
+            chat_completion = query({
+                "messages": [
                     {
                         "role": "system",
                         "content": system_message,
@@ -25,15 +33,14 @@ class CausesService:
                         "content": user_prompt
                     }
                 ],
-                model="llama-3.3-70b-versatile",
-                temperature=0.7,
-                max_completion_tokens=8192,
-                top_p=0.95,
-                stream=False,
-                seed=42
-            )
-            
-            answer = chat_completion.choices[0].message.content
+                "model": "accounts/fireworks/models/qwen3-30b-a3b",
+                "max_tokens": 8692,
+                "temperature": 0.6,
+                "seed": 42,
+                "separate_reasoning": False,
+            })
+
+            answer = chat_completion["choices"][0]["message"]["content"]
         
         except requests.exceptions.RequestException:
             raise AIServiceErrorException(ErrorMsg.AI_SERVICE_ERROR)
