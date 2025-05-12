@@ -18,6 +18,11 @@ from openinference.instrumentation.groq import GroqInstrumentor
 # )
 # GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
+API_URL = os.getenv("HUGGINGFACE_URL")
+headers = {
+    "Authorization": os.getenv("HUGGINGFACE_TOKEN"),
+}
+
 def query(payload):
     response = requests.post(API_URL, headers=headers, json=payload)
     return response.json()
