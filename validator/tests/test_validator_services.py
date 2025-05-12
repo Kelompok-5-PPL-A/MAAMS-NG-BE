@@ -303,6 +303,29 @@ class CausesServiceTest(TransactionTestCase):
         # Verify
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='C', row=1))
         mock_query.assert_called_once()
+    
+    @patch('validator.services.query')
+    def test_validate_single_cause_already_validated(self, mock_query):
+        """Test _validate_single_cause when the cause is already validated"""
+        # Create already validated cause
+        cause = Causes.objects.create(
+            question_id=self.question_id,
+            cause="Valid first cause",
+            row=1,
+            column=0,
+            status=True,
+            feedback=""
+        )
+        
+        # Execute
+        self.service._validate_single_cause(cause, self.question, None, self.mock_request)
+        
+        # Verify
+        cause.refresh_from_db()
+        self.assertTrue(cause.status)
+        self.assertEqual(cause.feedback, "")
+        mock_query.assert_not_called()
+
 
     @patch.object(CausesService, 'api_call')
     def test_retrieve_feedback_row_1_positive_neutral(self, mock_api_call):
