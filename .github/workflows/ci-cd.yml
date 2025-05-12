@@ -190,8 +190,8 @@ jobs:
       - name: Create VERSION file
         run: |
           if [ ! -f "VERSION" ]; then
-            echo "__version__ = '0.0.0'" > VERSION
-            echo "Created VERSION file with initial version 0.0.0"
+            echo "__version__ = '0.1.0'" > VERSION
+            echo "Created VERSION file with initial version 0.1.0"
           fi
       
       - name: Set up Python
