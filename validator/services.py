@@ -44,10 +44,8 @@ class CausesService:
                 ],
                 "model": "accounts/fireworks/models/qwen3-30b-a3b",
             })
-            print("\nChat completion:", chat_completion)
 
             answer = chat_completion["choices"][0]["message"]["content"]
-            print("\n\nAnswer:", answer)
         
         except requests.exceptions.RequestException:
             raise AIServiceErrorException(ErrorMsg.AI_SERVICE_ERROR)
