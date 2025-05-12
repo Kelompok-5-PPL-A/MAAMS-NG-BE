@@ -191,7 +191,7 @@ jobs:
         run: |
           latest_version="v0.0.0"
 
-          PREVIOUS_VERSION=$(git describe --tags --abbrev=0)
+          PREVIOUS_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ ! -z "$PREVIOUS_VERSION" ]; then
             latest_version="$PREVIOUS_VERSION"
           fi
