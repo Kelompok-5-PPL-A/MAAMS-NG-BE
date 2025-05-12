@@ -180,6 +180,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       git_tag: ${{ steps.version.outputs.git_tag }}
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,6 +228,7 @@ jobs:
     environment: staging
     outputs:
       image_tag: ${{ steps.build.outputs.image_tag }}
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -286,6 +288,7 @@ jobs:
       url: https://maams-ng.netlify.app/
     env:
       VERSION: ${{needs.versioning.outputs.version}}
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd'
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -433,6 +436,7 @@ jobs:
     name: Configure Autoscaling
     runs-on: ubuntu-latest
     needs: [deploy-staging-blue-green]
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd'
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -466,6 +470,7 @@ jobs:
     name: Prepare Rollback Plan
     runs-on: ubuntu-latest
     needs: [deploy-staging-blue-green, versioning]
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd'
     steps:
       - name: Store Deployment Metadata
         run: |
