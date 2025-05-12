@@ -217,12 +217,6 @@ jobs:
 
           echo "VERSION=${new_version}" >> $GITHUB_ENV
 
-      - name: Tag the Version
-        run: |
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
-
-
   build-staging:
     name: Build and Package for Staging
     runs-on: ubuntu-latest
