@@ -1,4 +1,4 @@
-FROM python:3.10-slim as builder
+FROM python:3.10-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -30,9 +30,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=MAAMS_NG_BE.settings \
     PORT=8000
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && apt-get update && apt-get install -y --no-install-recommends \
     curl \
     default-mysql-client \
     libpq5 \

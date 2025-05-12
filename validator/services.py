@@ -1,6 +1,5 @@
 import uuid
 from django.conf import settings
-from groq import Groq
 import requests
 from django.core.cache import cache
 from validator.constants import ErrorMsg, FeedbackMsg
@@ -8,15 +7,6 @@ from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
 from validator.exceptions import AIServiceErrorException, RateLimitExceededException
-# from arize.otel import register
-from openinference.instrumentation.groq import GroqInstrumentor
-
-# tracer_provider = register(
-#     space_id = settings.ARIZE_SPACE_ID,
-#     api_key = settings.ARIZE_API_KEY,
-#     project_name = "MAAMS NG"
-# )
-# GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
 class CausesService:
     def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType, request=None) -> int:
@@ -128,11 +118,6 @@ class CausesService:
             cause.feedback = f"Sebab di kolom {'ABCDE'[cause.column]} baris {cause.row} perlu diperbaiki."
 
     def validate(self, question_id: uuid, request):
-        """
-        Validate all unvalidated causes for a question.
-        Returns the list of validated causes.
-        """
-        # Get all causes that need validation (all those with status=False)
         unvalidated_causes = Causes.objects.filter(question_id=question_id, status=False)
         
         # If no causes need validation, return all causes for the question
@@ -141,37 +126,28 @@ class CausesService:
         
         problem = Question.objects.get(pk=question_id)
         
-        # First validate row 1 across all columns
+
         self._validate_first_row_causes(unvalidated_causes, problem, request)
-        
-        # Then proceed column by column
         self._validate_remaining_causes_by_column(unvalidated_causes, question_id, problem, request)
-        
-        # Create or ensure rows exist for active columns with valid previous rows
         self._ensure_next_rows_exist(question_id)
         
-        # Return all causes for the question, including newly validated ones
         return Causes.objects.filter(question_id=question_id).order_by('column', 'row')
 
     def _validate_first_row_causes(self, unvalidated_causes, problem, request):
-        """Validate all causes in the first row across all columns."""
         row1_causes = unvalidated_causes.filter(row=1).order_by('column')
         for cause in row1_causes:
             if cause.cause and cause.cause.strip():  # Only validate non-empty causes
                 self._validate_single_cause(cause, problem, None, request)
 
     def _validate_remaining_causes_by_column(self, unvalidated_causes, question_id, problem, request):
-        """Validate causes in rows > 1, proceeding column by column."""
         for column in range(5):  # Max 5 columns (A-E)
             # Skip column if previous column doesn't have a root cause (except for column A)
             if column > 0 and not self._column_has_root_cause(question_id, column-1):
                 continue
                 
-            # Process each cause in the current column beyond row 1
             self._process_column_causes(unvalidated_causes, column, problem, request)
 
     def _column_has_root_cause(self, question_id, column):
-        """Check if the specified column has a root cause."""
         return Causes.objects.filter(
             question_id=question_id,
             column=column,
@@ -179,11 +155,10 @@ class CausesService:
         ).exists()
 
     def _process_column_causes(self, unvalidated_causes, column, problem, request):
-        """Process all unvalidated causes in a specific column (rows > 1)."""
         column_causes = unvalidated_causes.filter(
             question_id=problem.pk,
             column=column,
-            row__gt=1  # Exclude row 1 as it's already validated
+            row__gt=1
         ).order_by('row')
         
         for cause in column_causes:
@@ -204,10 +179,6 @@ class CausesService:
                 break
     
     def _ensure_next_rows_exist(self, question_id):
-        """
-        Ensure that for each column with a valid row but no root cause,
-        the next row exists for data entry.
-        """
         # For each active column, find the maximum valid row
         for column in range(5):  # Columns A-E (0-4)
             # Skip if the column has a root cause already
@@ -256,16 +227,14 @@ class CausesService:
                     column=column,
                     row=max_valid_row + 1,
                     mode=max_row_cause.mode,
-                    cause="",  # Empty cause
+                    cause="",
                     status=False,
-                    root_status=False,  # Explicitly NOT a root cause
-                    feedback=""  # No feedback to avoid confusion
+                    root_status=False,
+                    feedback=""
                 )
     
     def _get_previous_cause(self, cause, problem):
-        """Get the valid cause from the previous row in the same column."""
         try:
-            # Add validation for row number
             if cause.row <= 1:
                 return None
                 
@@ -274,8 +243,8 @@ class CausesService:
                 question_id=problem.pk,
                 column=cause.column,
                 row=cause.row-1,
-                status=True  # Only get validated causes
-            ).first()  # Get the first matching cause if there are multiple
+                status=True
+            ).first()
             
             if prev_cause:
                 # Check that the previous cause actually has content
@@ -289,7 +258,6 @@ class CausesService:
             return None
     
     def _validate_single_cause(self, cause, problem, prev_cause, request):
-        """Helper method to validate a single cause"""
         # Skip if already validated with a positive status
         if cause.status and cause.feedback == "":
             return
@@ -354,15 +322,14 @@ class CausesService:
                 self.check_root_cause(cause=cause, problem=problem, request=request)
         else:
             # Cause is not valid - provide feedback
-            cause.status = False  # Ensure status is explicitly marked as false
-            cause.root_status = False  # Ensure invalid causes are NOT marked as root causes
+            cause.status = False
+            cause.root_status = False
             self.retrieve_feedback(cause=cause, problem=problem, prev_cause=prev_cause, request=request)
         
         # Save the updated cause
         cause.save()
     
     def check_root_cause(self, cause: Causes, problem: Question, request):
-        """Check if a valid cause is a root cause."""
         # For empty causes or new cells without user input, skip root cause check
         if not cause.cause or cause.cause.strip() == "":
             cause.root_status = False
@@ -409,7 +376,6 @@ class CausesService:
             cause.root_status = False
     
     def categorize_corruption(self, cause: Causes):
-        """Helper method to categorize corruption type"""
         # Added validation to prevent categorizing empty causes
         if not cause.cause or cause.cause.strip() == "":
             cause.root_status = False
