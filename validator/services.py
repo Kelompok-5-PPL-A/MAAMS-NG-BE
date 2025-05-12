@@ -1,6 +1,7 @@
 import uuid
 from django.conf import settings
 import requests
+from groq import Groq
 from django.core.cache import cache
 from validator.constants import ErrorMsg, FeedbackMsg
 from validator.enums import ValidationType
