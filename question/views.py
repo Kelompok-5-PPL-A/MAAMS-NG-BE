@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.generics import DestroyAPIView
 from validator.exceptions import NotFoundRequestException
 from utils.pagination import CustomPageNumberPagination
+from silk.profiling.profiler import silk_profile
 
 @permission_classes([AllowAny])  # Mengizinkan guest user
 class QuestionPost(APIView):
@@ -21,27 +22,31 @@ class QuestionPost(APIView):
         responses=QuestionResponse,
     )
     def post(self, request):
-        try:
-            request_serializer = QuestionRequest(data=request.data)
-            request_serializer.is_valid(raise_exception=True)
+        with silk_profile(name='Create Question'):
+            try:
+                request_serializer = QuestionRequest(data=request.data)
+                request_serializer.is_valid(raise_exception=True)
 
-            service_class = QuestionService()
-            question = service_class.create(
-                **request_serializer.validated_data,
-                user=request.user if request.user.is_authenticated else None
-            )
-            response_serializer = QuestionResponse(question)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        except serializers.ValidationError:
-            return Response(
-                {"error": "Invalid input"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response(
-                {"error": f"An unexpected error occurred: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+                service_class = QuestionService()
+                question = service_class.create(
+                    **request_serializer.validated_data,
+                    user=request.user if request.user.is_authenticated else None
+                )
+                # Re-fetch dengan prefetch
+                question = Question.objects.prefetch_related('tags').select_related('user').get(id=question.id)
+                
+                response_serializer = QuestionResponse(question)
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            except serializers.ValidationError:
+                return Response(
+                    {"error": "Invalid input"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"An unexpected error occurred: {str(e)}"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
 
 @permission_classes([AllowAny])

@@ -319,3 +319,7 @@ sentry_sdk.init(
 #         },
 #     },
 # }
+
+if DEBUG:
+    INSTALLED_APPS += ['silk']
+    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']

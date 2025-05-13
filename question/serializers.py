@@ -48,9 +48,10 @@ class QuestionResponse(BaseQuestion):
     username = serializers.SerializerMethodField()
 
     def get_tags(self, obj):
-        if hasattr(obj.tags, 'all'):
-            return [tag.name for tag in obj.tags.all()]
-        return obj.tags
+        tags = getattr(obj, '_prefetched_objects_cache', {}).get('tags')
+        if tags is not None:
+            return [tag.name for tag in tags]
+        return [tag.name for tag in obj.tags.all()]
     
     def get_user(self, obj):
         return obj.user.uuid if obj.user else None
