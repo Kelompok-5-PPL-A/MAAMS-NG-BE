@@ -1,0 +1,15 @@
+{
+    "sonarlint.connectedMode.project": {
+        "connectionId": "https-sonarqube-cs-ui-ac-id",
+        "projectKey": "MAAMS-NG-BE"
+    },
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        ".",
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true
+}

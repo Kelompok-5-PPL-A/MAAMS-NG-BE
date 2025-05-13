@@ -1,33 +1,35 @@
 from django.db import models
-from django.core.exceptions import ValidationError
 import uuid
+from authentication.models import CustomUser
+from tag.models import Tag
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
-class Problem(models.Model):
-    STATUS_CHOICES = [
-        ('PRIBADI', 'Pribadi'),
-        ('PENGAWASAN', 'Pengawasan'),
-    ]
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_email = models.EmailField(null=True)
-    title = models.CharField(max_length=255, null=False, default='N/A')
-    question = models.CharField(max_length=255, null=False, default='N/A')
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default='PRIBADI'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.question
+class Question(models.Model):
+    class Meta:
+        app_label = 'question'
+        db_table = 'question_question'
+        
+    class ModeChoices(models.TextChoices):
+        PRIBADI = "PRIBADI", "pribadi"
+        PENGAWASAN = "PENGAWASAN", "pengawasan"
     
-    def clean(self):
-        if not self.title:
-            raise ValidationError('Title is required.')
-        if not self.question:
-            raise ValidationError('Question content is required.')
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    title = models.CharField(max_length=40, default='')
+    question = models.CharField(max_length=255)
+    mode = models.CharField(max_length=20, choices=ModeChoices.choices, default=ModeChoices.PRIBADI)
+    created_at = models.DateTimeField(null=True, blank=True)
+    tags = models.ManyToManyField(Tag)
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='question',
+    )
 
     def save(self, *args, **kwargs):
-        self.clean()
+        if not self.created_at:
+            self.created_at = timezone.now() + timedelta(hours=7)
         super().save(*args, **kwargs)
