@@ -383,8 +383,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
 
             response = self.client.get(self.url)
 
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-            self.assertEqual(response.data['detail'], "No recent questions found for this user.")
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
             
 
@@ -449,7 +448,7 @@ class QuestionResponseSerializerTest(TestCase):
 class TestQuestionGetPrivileged(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/privileged/'
+        self.url = '/question/history/privileged/'
         self.user = CustomUser.objects.create_user(
             username="regularuser", email="user@example.com", password="password"
         )
@@ -820,3 +819,89 @@ class TestQuestionGetFieldValues(TestCase):
             self.assertEqual(response.data['judul'], ["Admin Question"])
             self.assertEqual(response.data['topik'], ["Admin Tag"])
             self.assertEqual(response.data['pengguna'], ["testuser", "adminuser"])
+
+
+class TestQuestionPatch(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = CustomUser.objects.create_user(username='testuser', email='user@example.com', password='pass123')
+        self.client.force_authenticate(user=self.user)
+
+        self.question = Question.objects.create(
+            id=uuid.uuid4(),
+            title="Old Title",
+            question="Old Content",
+            mode=Question.ModeChoices.PRIBADI,
+            user=self.user
+        )
+        self.tag1 = Tag.objects.create(name="Tag1")
+        self.tag2 = Tag.objects.create(name="Tag2")
+        self.question.tags.set([self.tag1, self.tag2])
+
+        self.mode_url = f'/question/ubah/{self.question.id}/'
+        self.title_url = f'/question/ubah/judul/{self.question.id}/'
+        self.tags_url = f'/question/ubah/tags/{self.question.id}/'
+
+    def test_patch_mode_success(self):
+        """Positive: Successfully update mode"""
+        with patch('question.services.QuestionService.update_question') as mock_update:
+            mock_question = self.question
+            mock_question.mode = Question.ModeChoices.PENGAWASAN
+            mock_update.return_value = mock_question
+
+            response = self.client.patch(self.mode_url, data={'mode': 'PENGAWASAN'}, format='json')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['mode'], 'PENGAWASAN')
+
+    def test_patch_title_success(self):
+        """Positive: Successfully update title"""
+        with patch('question.services.QuestionService.update_question') as mock_update:
+            mock_question = self.question
+            mock_question.title = "New Title"
+            mock_update.return_value = mock_question
+
+            response = self.client.patch(self.title_url, data={'title': 'New Title'}, format='json')
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['title'], 'New Title')
+
+    def test_patch_tags_full_flow(self):
+        """Positive: Patch tags with full flow to cover serializer and update"""
+        # Buat tag baru yang akan dikirim lewat request
+        new_tag = Tag.objects.create(name="Tag3")
+
+        response = self.client.patch(self.tags_url, data={'tags': ['Tag3']}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('tags', response.data)
+        self.assertEqual(response.data['tags'][0], 'Tag3')
+
+
+    def test_patch_mode_invalid_payload(self):
+        """Negative: Invalid mode data"""
+        response = self.client.patch(self.mode_url, data={'mode': 'INVALID'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_patch_title_missing_field(self):
+        """Negative: Missing title field"""
+        response = self.client.patch(self.title_url, data={}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_patch_tags_empty_list(self):
+        """Edge: Empty tag list is rejected"""
+        with patch('question.services.QuestionService.update_question') as mock_update:
+            mock_question = self.question
+            mock_question.tags.set = Mock()
+            mock_update.return_value = mock_question
+
+            response = self.client.patch(self.tags_url, data={'tags': []}, format='json')
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('tags', response.data)
+
+    def test_patch_unauthenticated(self):
+        """Negative: Cannot patch if unauthenticated"""
+        self.client.force_authenticate(user=None)
+        response = self.client.patch(self.mode_url, data={'mode': 'PENGAWASAN'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

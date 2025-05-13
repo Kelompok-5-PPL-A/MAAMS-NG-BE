@@ -62,6 +62,7 @@ class CausesServiceTest(TransactionTestCase):
         Question.objects.all().delete()
 
     @patch('validator.services.Groq')
+
     def test_api_call_normal_validation_true(self, mock_groq):
         """Test API call with normal validation returning true"""
         # Configure mock
@@ -95,7 +96,7 @@ class CausesServiceTest(TransactionTestCase):
                     "content": user_prompt
                 }
             ],
-            model="deepseek-r1-distill-llama-70b",
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
             max_completion_tokens=8192,
             top_p=0.95,
@@ -104,6 +105,7 @@ class CausesServiceTest(TransactionTestCase):
         )
 
     @patch('validator.services.Groq')
+
     def test_api_call_normal_validation_false(self, mock_groq):
         """Test API call with normal validation returning false"""
         # Configure mock
