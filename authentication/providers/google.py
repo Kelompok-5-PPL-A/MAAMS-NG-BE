@@ -10,7 +10,6 @@ from rest_framework.exceptions import AuthenticationFailed, ParseError
 from authentication.providers.base import AuthenticationProvider
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
 
 class GoogleAuthProvider(AuthenticationProvider):
     """
@@ -70,10 +69,8 @@ class GoogleAuthProvider(AuthenticationProvider):
             return user_info
             
         except ValueError as e:
-            logger.error(f"Google token validation error: {str(e)}")
             raise AuthenticationFailed(f"Invalid Google token: {str(e)}")
         except Exception as e:
-            logger.exception("Unexpected error during Google token validation")
             raise AuthenticationFailed(f"Token verification failed: {str(e)}")
     
     def get_or_create_user(self, user_info: Dict[str, Any]) -> Tuple[User, bool]:
@@ -136,7 +133,6 @@ class GoogleAuthProvider(AuthenticationProvider):
             role='user'
         )
         
-        logger.info(f"Created new user via Google OAuth: {email}")
         return user
     
     def _update_user_if_needed(self, user: User, user_info: Dict[str, Any]) -> None:
@@ -159,4 +155,3 @@ class GoogleAuthProvider(AuthenticationProvider):
             
         if update_fields:
             user.save(update_fields=update_fields)
-            logger.info(f"Updated user info for {user.email}: {', '.join(update_fields)}")

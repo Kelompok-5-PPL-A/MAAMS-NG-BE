@@ -67,11 +67,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install coverage
-      - name: Data Seeding
-        run: |
-          python manage.py seed question --number=20
-          python manage.py loaddata question/fixtures/data.json
-      - name: Run tests and generate coverage
+      - name: Set up database and seed test data
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -79,7 +75,13 @@ jobs:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
-          coverage run manage.py test --keepdb
+          python manage.py migrate
+          python manage.py seed_causes_server
+          mkdir -p cause/fixtures
+          python manage.py dumpdata cause question --indent 2 > cause/fixtures/server_data.json
+      - name: Run tests and generate coverage
+        run: |
+          coverage run manage.py test
           coverage report
           coverage html
           coverage xml
@@ -97,6 +99,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           verbose: true
+      - name: Upload fixtures
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixtures
+          path: cause/fixtures/
   
   sonarcloud-analysis:
     name: SonarCloud Analysis
@@ -123,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, sonarcloud-analysis]
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/development' || github.ref == 'refs/heads/ci-cd')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -149,6 +156,9 @@ jobs:
             SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
   
   publish-production:
     name: Publish Production Docker Image
@@ -180,13 +190,16 @@ jobs:
             HOST_FE=${{ secrets.PROD_HOST_FE }}
             SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
   
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: publish-staging
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/development' || github.ref == 'refs/heads/ci-cd')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/ci-cd')
     environment:
       name: staging
       url: https://maams-ng-staging.vercel.app
@@ -210,6 +223,9 @@ jobs:
             -e DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }} \
             -e SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }} \
             -e DEBUG=True \
+            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
+            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
+            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:staging"
   
   deploy-production:
@@ -240,4 +256,7 @@ jobs:
             -e DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }} \
             -e SECRET_KEY=${{ secrets.PROD_SECRET_KEY }} \
             -e DEBUG=False \
+            -e ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }} \
+            -e ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }} \
+            -e MOESIF_APPLICATION_ID=${{ secrets.MOESIF_APPLICATION_ID }} \
             ${{ secrets.REGISTRY_USER }}/${{ secrets.IMAGE_NAME }}:production"
