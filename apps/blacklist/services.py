@@ -79,8 +79,8 @@ class BlacklistService:
                 "blacklist_id": blacklist.id
             }
             
-        except ValidationError as e:
-            raise
+        # except ValidationError as e:
+        #     raise
             
         except Exception as e:
             raise ValidationError(f"Failed to add student to blacklist: {str(e)}")

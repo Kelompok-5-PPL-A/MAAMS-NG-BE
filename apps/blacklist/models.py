@@ -60,14 +60,14 @@ class Blacklist(models.Model):
             result = super().save(*args, **kwargs)
             return result
         except ValidationError as e:
-            raise
+            raise ValidationError("Validation error occurred: " + str(e))
     
     def delete(self, *args, **kwargs):
         try:
             result = super().delete(*args, **kwargs)
             return result
         except Exception as e:
-            raise
+            raise Exception("Error occurred while deleting: " + str(e))
     
     @property
     def is_active(self):
