@@ -10,10 +10,19 @@ commit_parser = "angular"
 version_source = "commit"
 major_on_zero = false
 
-[tool.semantic_release.branches]
-main = { "match": "main", "prerelease": false }
-staging = { "match": "staging", "prerelease": true, "prerelease_token": "beta" }
-development = { "match": "development", "prerelease": true, "prerelease_token": "alpha" }
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.branches.staging]
+match = "staging"
+prerelease = true
+prerelease_token = "beta"
+
+[tool.semantic_release.branches.development]
+match = "development"
+prerelease = true
+prerelease_token = "alpha"
 
 [tool.semantic_release.commit_parser_options]
 allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "style", "refactor", "test"]
