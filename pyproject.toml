@@ -3,13 +3,16 @@ version_variable = "setup.py:version"
 branch = "main"
 upload_to_pypi = false
 upload_to_release = false
-build_command = ""
+build_command = "false"
+upload_to_repository = false
 commit_subject = "chore(release): {version} [skip ci]"
 commit_message = "chore(release): {version} [skip ci]\n\n{changelog}"
 commit_parser = "angular"
 version_source = "commit"
 major_on_zero = false
 tag_format = "v{version}"
+tag_signing = true
+no_git_tag = false
 
 [tool.semantic_release.branches.main]
 match = "main"

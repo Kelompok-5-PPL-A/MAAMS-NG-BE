@@ -222,6 +222,20 @@ jobs:
           git tag v0.0.0
           git push origin v0.0.0
       
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+      
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+      
       - name: Python Semantic Release
         id: semantic
         env:
@@ -232,6 +246,16 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+      - name: Ensure Tag is Pushed
+        if: steps.semantic.outputs.version != '0.0.0'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=$(grep -Po '(?<=version=")[^"]*' setup.py)
+          TAG="v$VERSION"
+          echo "Ensuring tag $TAG is pushed to repository"
+          git push origin "$TAG" --force
 
   build-staging:
     name: Build and Package for Staging
