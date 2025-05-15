@@ -15,6 +15,7 @@ from authentication.models import CustomUser
 from django.db.models import Q
 from datetime import timedelta
 from django.utils import timezone
+from silk.profiling.profiler import silk_profile
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
@@ -83,6 +84,7 @@ class QuestionService():
             
         return response
     
+    @silk_profile(name='test search')
     def get_matched(self, q_filter: str, user: CustomUser, time_range: str, keyword: str):
         """
         Returns a list of matched Question model instances for the logged-in user
@@ -117,6 +119,7 @@ class QuestionService():
 
         return questions  
     
+    @silk_profile(name='My View')
     def get_all(self, user: CustomUser, time_range: str):
         """
         Returns a list of  all questions corresponding to a specified user.
