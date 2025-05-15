@@ -2,7 +2,7 @@
 version_variable = "setup.py:version"
 branch = "main"
 upload_to_pypi = false
-upload_to_release = true
+upload_to_release = false
 build_command = ""
 commit_subject = "chore(release): {version} [skip ci]"
 commit_message = "chore(release): {version} [skip ci]\n\n{changelog}"
