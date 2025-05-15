@@ -38,4 +38,7 @@ urlpatterns = [
     # App URLs
     path('cause/', include('cause.urls')),
     path('question/', include('question.urls')),
+
+    # Silk URLs
+    path('silk/', include('silk.urls', namespace='silk')),
 ]
