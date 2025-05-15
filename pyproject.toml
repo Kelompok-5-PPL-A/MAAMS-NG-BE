@@ -1,0 +1,27 @@
+[tool.semantic_release]
+version_variable = "setup.py:version"
+branch = "main"
+upload_to_pypi = false
+upload_to_release = true
+build_command = false
+commit_subject = "chore(release): {version} [skip ci]"
+commit_message = "chore(release): {version} [skip ci]\n\n{changelog}"
+commit_parser = "angular"
+version_source = "commit"
+changelog_file = "CHANGELOG.md"
+major_on_zero = false
+branches = ["main", "staging", "development"]
+
+[tool.semantic_release.prerelease_tag_versions]
+staging = "beta"
+development = "alpha"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "style", "refactor", "test"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.changelog]
+template_dir = false
+changelog_file = "CHANGELOG.md"
+exclude_commit_patterns = [] 
