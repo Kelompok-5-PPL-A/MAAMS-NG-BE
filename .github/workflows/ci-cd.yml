@@ -93,7 +93,7 @@ jobs:
           sleep 5
           python manage.py makemigrations blacklist
           python manage.py migrate
-          python manage.py seed blacklist authentication cause question tag --minimal
+          python manage.py seed blacklist authentication cause question tag --number 1
 
       - name: Run tests with coverage
         env:
