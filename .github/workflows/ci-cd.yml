@@ -211,6 +211,17 @@ jobs:
             echo "has_version_tags=true" >> $GITHUB_OUTPUT
           fi
       
+      - name: Create initial version tag if needed
+        if: steps.check_tags.outputs.has_version_tags == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          echo "Creating initial version tag v0.1.0"
+          git tag v0.1.0
+          git push origin v0.1.0
+      
       - name: Configure Git
         run: |
           git config --local user.email "action@github.com"
