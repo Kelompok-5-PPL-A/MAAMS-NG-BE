@@ -82,7 +82,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install coverage pytest pytest-cov
+          pip install coverage
 
       - name: Run migrations and seed minimal data
         env:
@@ -91,9 +91,8 @@ jobs:
           DEBUG: "True"
         run: |
           sleep 5
-          python manage.py makemigrations blacklist
           python manage.py migrate
-          python manage.py seed blacklist authentication cause question tag --number 1
+          python manage.py seed authentication cause question tag --number 5
 
       - name: Run tests with coverage
         env:
@@ -101,8 +100,9 @@ jobs:
           SECRET_KEY: ${{ secrets.TEST_SECRET_KEY }}
           DEBUG: "True"
         run: |
-          coverage run -m pytest
+          coverage run manage.py test
           coverage report
+          coverage html
           coverage xml
 
       - name: Upload coverage report

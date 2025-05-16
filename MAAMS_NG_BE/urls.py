@@ -33,7 +33,6 @@ urlpatterns = [
     
     # API Endpoints
     path('api/v1/auth/', include('authentication.urls')),
-    path('api/v1/blacklist/', include('apps.blacklist.urls')),
     
     # App URLs
     path('cause/', include('cause.urls')),

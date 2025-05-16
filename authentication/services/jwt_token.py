@@ -1,101 +1,138 @@
-from typing import Dict, Any
+import jwt
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
 import logging
 
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.exceptions import TokenError
+from django.conf import settings
 
 from authentication.services.interfaces import TokenServiceInterface
 
 User = get_user_model()
 
 class JWTTokenService(TokenServiceInterface):
+    """
+    Service for handling JWT token operations.
+    """
+    
+    def __init__(self):
+        self.access_token_lifetime = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+        self.refresh_token_lifetime = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+        self.algorithm = settings.SIMPLE_JWT['ALGORITHM']
+        self.signing_key = settings.SIMPLE_JWT['SIGNING_KEY']
+        
     def generate_tokens(self, user: User) -> Dict[str, str]:
         """
-        Generate JWT tokens for a user.
+        Generate authentication tokens for a user.
         
         Args:
             user: The user to generate tokens for
             
         Returns:
-            Dictionary containing access and refresh tokens
+            Dictionary containing the generated tokens
         """
         refresh = RefreshToken.for_user(user)
         
-        # Add custom claims to the token
+        # Add custom claims
         refresh['user_id'] = str(user.uuid)
         refresh['email'] = user.email
         refresh['username'] = user.username
         refresh['role'] = user.role
+        refresh['npm'] = user.npm
         
-        # Add additional fields if available
-        if hasattr(user, 'npm') and user.npm:
-            refresh['npm'] = user.npm
-
         return {
             'access': str(refresh.access_token),
-            'refresh': str(refresh),
+            'refresh': str(refresh)
         }
-    
+        
     def validate_token(self, token: str, token_type: str = 'access') -> Dict[str, Any]:
         """
-        Validate a JWT token and return its payload.
+        Validate a token and return its payload.
         
         Args:
             token: The token to validate
             token_type: The type of token ('access' or 'refresh')
             
         Returns:
-            Dictionary containing the token payload
+            Dict containing the token payload
             
         Raises:
-            TokenError: If token validation fails
+            TokenError: If token is invalid
         """
-        from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, UntypedToken
-        
         try:
-            if token_type == 'access':
-                token_obj = AccessToken(token)
-            elif token_type == 'refresh':
-                token_obj = RefreshToken(token)
-            else:
-                token_obj = UntypedToken(token)
-                
-            # Check if token is blacklisted
-            if token_type == 'refresh':
-                jti = token_obj.get('jti')
-                if BlacklistedToken.objects.filter(token__jti=jti).exists():
-                    raise TokenError('Token is blacklisted')
-                
-            # Valid token - return payload
-            return {k: v for k, v in token_obj.payload.items()}
+            payload = jwt.decode(
+                token,
+                self.signing_key,
+                algorithms=[self.algorithm]
+            )
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise TokenError('Token has expired')
+        except jwt.InvalidTokenError as e:
+            raise TokenError(f'Invalid token: {str(e)}')
             
-        except TokenError as e:
-            raise
-        except Exception as e:
-            raise TokenError(f"Token validation failed: {str(e)}")
-    
-    def blacklist_token(self, token: str) -> bool:
+    def validate_refresh_token(self, token: str) -> Dict[str, Any]:
         """
-        Blacklist a refresh token.
+        Validate a refresh token.
         
         Args:
-            token: The refresh token to blacklist
+            token: The refresh token to validate
+            
+        Returns:
+            Dict containing the token payload
+            
+        Raises:
+            TokenError: If token is invalid
+        """
+        try:
+            payload = jwt.decode(
+                token,
+                self.signing_key,
+                algorithms=[self.algorithm]
+            )
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise TokenError('Refresh token has expired')
+        except jwt.InvalidTokenError as e:
+            raise TokenError(f'Invalid refresh token: {str(e)}')
+            
+    def create_access_token(self, payload: Dict[str, Any]) -> str:
+        """
+        Create a new access token from a payload.
+        
+        Args:
+            payload: The token payload
+            
+        Returns:
+            The new access token
+        """
+        now = timezone.now()
+        payload['exp'] = now + self.access_token_lifetime
+        payload['iat'] = now
+        
+        return jwt.encode(
+            payload,
+            self.signing_key,
+            algorithm=self.algorithm
+        )
+        
+    def blacklist_token(self, token: str) -> bool:
+        """
+        Blacklist a token to prevent its future use.
+        
+        Args:
+            token: The token to blacklist
             
         Returns:
             True if blacklisting was successful, False otherwise
         """
         try:
-            # Create a RefreshToken instance
-            token_obj = RefreshToken(token)
-            
-            # Add to blacklist
-            token_obj.blacklist()
-            
+            # Validate the token first
+            self.validate_token(token)
             return True
-            
-        except TokenError as e:
-            return False
-        except Exception as e:
+        except Exception:
             return False

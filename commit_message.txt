@@ -1,6 +1,0 @@
-fix(ci): correct seed command arguments
-
-- Replace --minimal flag with --number 1
-- Fix seeding command in CI/CD pipeline
-
-This change resolves the seed command argument error in the CI/CD workflow. 
