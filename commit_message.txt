@@ -1,0 +1,37 @@
+ci(deploy): implement manual rollback and optimize deployment workflow
+
+- Add manual rollback workflow for controlled version rollbacks
+- Configure GCS bucket lifecycle for backup management
+- Update database configuration to use DATABASE_URL
+- Optimize Docker build with dummy DATABASE_URL for collectstatic
+- Implement database backup and restore scripts with DATABASE_URL support
+- Add secure secret key generation script
+- Replace hardcoded test secret key with GitHub secret
+- Implement environment-specific data seeding
+- Add OWASP ZAP security scanning
+- Improve workflow dispatch options for manual control
+
+This change provides a more robust deployment strategy with:
+- Manual rollback capability for specific versions
+- Automated rollback for failed deployments
+- Improved database backup management
+- Better environment variable handling
+- Enhanced deployment safety measures
+- Secure test environment configuration
+- Automated security scanning
+- Environment-specific data seeding
+
+BREAKING CHANGES:
+- Database configuration now requires DATABASE_URL environment variable
+- Test environment requires TEST_SECRET_KEY GitHub secret
+- Manual rollback workflow replaces automatic rollback
+- Environment-specific data seeding requires new seed commands
+- OWASP ZAP scanning requires .zap/rules.tsv configuration
+
+Implementation History:
+1. Initial deployment workflow with automatic rollback
+2. Added database backup and restore functionality
+3. Implemented manual rollback workflow
+4. Added secure secret management
+5. Integrated OWASP ZAP security scanning
+6. Added environment-specific data seeding 

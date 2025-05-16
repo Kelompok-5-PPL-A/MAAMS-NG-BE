@@ -1,8 +1,11 @@
-FROM python:3.10-slim as builder
+# Build stage
+FROM python:3.10-slim AS builder
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV PIP_NO_CACHE_DIR 1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100
 
 WORKDIR /app
 
@@ -11,14 +14,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     libpq-dev \
     pkg-config \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-FROM python:3.10-slim
+# Final stage
+FROM python:3.10-slim AS runner
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -36,28 +38,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     default-mysql-client \
     libpq5 \
-    && apt-get clean \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# Copy wheels from builder
 COPY --from=builder /app/wheels /wheels
 RUN pip install --no-cache /wheels/*
 
+# Copy application code
 COPY . /app/
 
-RUN mkdir -p /app/staticfiles /app/mediafiles /app/logs && \
+RUN mkdir -p /app/staticfiles /app/mediafiles /app/logs /app/backups && \
     chown -R appuser:appuser /app && \
     chmod -R 755 /app
 
+# Copy and set up entrypoint and database scripts
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && \
-    chown appuser:appuser /entrypoint.sh
+COPY scripts/db_backup.sh /app/scripts/db_backup.sh
+COPY scripts/db_restore.sh /app/scripts/db_restore.sh
+RUN chmod +x /entrypoint.sh /app/scripts/db_backup.sh /app/scripts/db_restore.sh && \
+    chown appuser:appuser /entrypoint.sh /app/scripts/db_backup.sh /app/scripts/db_restore.sh
 
 USER appuser
 
+# Use a dummy DATABASE_URL for collectstatic
 RUN DJANGO_SETTINGS_MODULE=MAAMS_NG_BE.settings \
-    DATABASE_URL=sqlite:///db.sqlite3 \
+    DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy \
     SECRET_KEY=dummy \
     python manage.py collectstatic --noinput || true
 

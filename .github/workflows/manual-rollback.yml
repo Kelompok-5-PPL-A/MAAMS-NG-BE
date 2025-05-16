@@ -1,0 +1,134 @@
+name: Manual Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Version to rollback to (e.g., v1.0.0)'
+        required: true
+        type: string
+      rollback_database:
+        description: 'Rollback database to the specified version'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+
+jobs:
+  rollback:
+    name: Manual Rollback
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Version Exists
+        id: verify_version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          if ! gcloud run services describe maams-ng-$ENVIRONMENT \
+            --platform managed \
+            --region $REGION \
+            --format='value(metadata.annotations."run.googleapis.com/revision-tags")' | grep -q "$VERSION"; then
+            echo "Error: Version $VERSION not found in $ENVIRONMENT environment"
+            exit 1
+          fi
+          
+          if [ "${{ github.event.inputs.rollback_database }}" = "true" ]; then
+            BACKUP_FILE=$(gsutil ls "gs://${GCS_BUCKET}/database-backups/backup_${VERSION}_*.sql" | sort -r | head -n 1)
+            if [ -z "$BACKUP_FILE" ]; then
+              echo "Error: No database backup found for version $VERSION"
+              exit 1
+            fi
+          fi
+
+      - name: Rollback Database
+        if: github.event.inputs.rollback_database == 'true'
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          VERSION="${{ github.event.inputs.version }}"
+          
+          gsutil cp "gs://${GCS_BUCKET}/scripts/db_restore.sh" /tmp/db_restore.sh
+          chmod +x /tmp/db_restore.sh
+          
+          /tmp/db_restore.sh "$VERSION"
+          
+          if ! python manage.py check; then
+            echo "Database rollback verification failed"
+            exit 1
+          fi
+
+      - name: Rollback Application
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          VERSION="${{ github.event.inputs.version }}"
+          
+          echo "Rolling back to version: $VERSION"
+          
+          gcloud run services update-traffic maams-ng-$ENVIRONMENT \
+            --platform managed \
+            --region $REGION \
+            --to-revision=$VERSION=100
+
+      - name: Verify Rollback
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          sleep 30
+          
+          SERVICE_STATUS=$(gcloud run services describe maams-ng-$ENVIRONMENT \
+            --platform managed \
+            --region $REGION \
+            --format='value(status.conditions[0].status)')
+          
+          if [ "$SERVICE_STATUS" != "True" ]; then
+            echo "Rollback failed: Service is not healthy"
+            exit 1
+          fi
+          
+          ERROR_COUNT=$(gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=maams-ng-$ENVIRONMENT AND severity>=ERROR" \
+            --limit 5 \
+            --format='value(textPayload)' | wc -l)
+          
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "Rollback warning: Found errors in recent logs"
+            exit 1
+          fi
+          
+          echo "Rollback completed successfully" 

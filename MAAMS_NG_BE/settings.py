@@ -15,6 +15,7 @@ import sentry_sdk
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from datetime import timedelta
+import dj_database_url
 
 env_file = find_dotenv(
      filename=".env",
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
@@ -105,11 +107,17 @@ WSGI_APPLICATION = 'MAAMS_NG_BE.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/postgres'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
+
+# Database versioning configuration
+DB_VERSION_TABLE = 'django_migrations'
+DB_VERSION_APP = 'MAAMS_NG_BE'
+DB_VERSION_NAME = 'version'
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
