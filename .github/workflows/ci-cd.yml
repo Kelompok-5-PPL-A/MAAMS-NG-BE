@@ -47,9 +47,10 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -90,8 +91,9 @@ jobs:
           DEBUG: "True"
         run: |
           sleep 5
+          python manage.py makemigrations blacklist
           python manage.py migrate
-          python manage.py seed --minimal
+          python manage.py seed blacklist authentication cause question tag --minimal
 
       - name: Run tests with coverage
         env:
