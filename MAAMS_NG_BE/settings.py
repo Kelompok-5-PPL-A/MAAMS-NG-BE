@@ -16,6 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from datetime import timedelta
 import dj_database_url
+import sys
 
 env_file = find_dotenv(
      filename=".env",
@@ -106,11 +107,19 @@ WSGI_APPLICATION = 'MAAMS_NG_BE.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
+
+# Test database settings
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
 
 # Database versioning configuration
 DB_VERSION_TABLE = 'django_migrations'

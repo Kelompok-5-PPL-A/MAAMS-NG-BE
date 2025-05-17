@@ -512,7 +512,6 @@ class TestSSOUIAuthProvider(unittest.TestCase):
                 npm="2206081534",
                 first_name="Test",
                 last_name="User",
-                date_joined=ANY
             )
                 
     def test_update_user_info_no_updates(self):

@@ -63,10 +63,9 @@ RUN chmod +x /entrypoint.sh /app/scripts/db_backup.sh /app/scripts/db_restore.sh
 
 USER appuser
 
-# Use a dummy DATABASE_URL for collectstatic
 RUN DJANGO_SETTINGS_MODULE=MAAMS_NG_BE.settings \
-    DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy \
-    SECRET_KEY=dummy \
+    DATABASE_URL=${DATABASE_URL} \
+    SECRET_KEY=${SECRET_KEY} \
     python manage.py collectstatic --noinput || true
 
 EXPOSE $PORT

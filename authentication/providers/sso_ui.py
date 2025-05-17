@@ -114,8 +114,7 @@ class SSOUIAuthProvider(AuthenticationProvider):
                 email=f"{username}@ui.ac.id",
                 npm=npm,
                 first_name=first_name,
-                last_name=last_name,
-                date_joined=timezone.now()
+                last_name=last_name
             )
             return user, True
             
