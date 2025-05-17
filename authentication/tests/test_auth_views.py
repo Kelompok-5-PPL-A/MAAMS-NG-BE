@@ -11,7 +11,6 @@ from django.http import HttpResponseRedirect
 from rest_framework.test import APITestCase, APIClient, force_authenticate
 from rest_framework import status
 from rest_framework.request import Request
-from rest_framework.exceptions import AuthenticationFailed
 
 from authentication.views import (
     GoogleLoginView, SSOLoginView, SSOLogoutView,
@@ -27,7 +26,11 @@ class TestGoogleLoginView(APITestCase):
         self.client = APIClient()
         self.url = reverse('authentication:google_login')
         
-        # Create a real user for testing
+        # Set up mocks
+        self.patcher = patch('authentication.views.auth_service')
+        self.mock_auth_service = self.patcher.start()
+        
+        # Create a real user for serialization
         self.user = User.objects.create_user(
             email='test@example.com',
             username='testuser',
@@ -35,31 +38,17 @@ class TestGoogleLoginView(APITestCase):
             last_name='User'
         )
         
-        # Mock id_token.verify_oauth2_token
-        self.patcher1 = patch('authentication.views.id_token.verify_oauth2_token')
-        self.mock_verify_oauth2_token = self.patcher1.start()
-        # Configure the mock to return user info
-        self.mock_user_info = {
-            'sub': 'google123',
-            'email': 'test@example.com',
-            'given_name': 'Test',
-            'family_name': 'User'
-        }
-        self.mock_verify_oauth2_token.return_value = self.mock_user_info
-        
-        # Mock token_service.generate_tokens
-        self.patcher2 = patch('authentication.views.token_service.generate_tokens')
-        self.mock_generate_tokens = self.patcher2.start()
-        # Configure the mock to return tokens
+        # Mock auth_service.authenticate_with_provider
         self.mock_tokens = {'access': 'access_token', 'refresh': 'refresh_token'}
-        self.mock_generate_tokens.return_value = self.mock_tokens
+        self.mock_auth_service.authenticate_with_provider.return_value = (
+            self.mock_tokens, self.user, False
+        )
         
     def tearDown(self):
-        self.patcher1.stop()
-        self.patcher2.stop()
+        self.patcher.stop()
         
     def test_post_success(self):
-        """Test successful Google login with existing user"""
+        """Test successful Google login"""
         # Make the request
         response = self.client.post(
             self.url, 
@@ -73,39 +62,29 @@ class TestGoogleLoginView(APITestCase):
         self.assertEqual(response.data['refresh_token'], 'refresh_token')
         self.assertFalse(response.data['is_new_user'])
         
-        # Verify mocks were called
-        self.mock_verify_oauth2_token.assert_called_once()
-        self.mock_generate_tokens.assert_called_once()
+        # Verify auth_service was called
+        self.mock_auth_service.authenticate_with_provider.assert_called_once_with(
+            'google', 'valid_token'
+        )
         
     def test_post_new_user(self):
-        """Test Google login with a new user"""
-        # Change the email to force a new user creation
-        self.mock_user_info['email'] = 'newuser@example.com'
+        """Test Google login for a new user"""
+        # Set up mock to return a new user
+        self.mock_auth_service.authenticate_with_provider.return_value = (
+            self.mock_tokens, self.user, True
+        )
         
-        # Mock User.objects.get to simulate user not found
-        with patch('authentication.views.User.objects.get') as mock_get_user:
-            mock_get_user.side_effect = User.DoesNotExist
-            
-            # Mock User.objects.create_user to return a new user
-            with patch.object(GoogleLoginView, '_create_new_user') as mock_create_user:
-                new_user = User.objects.create_user(
-                    email='newuser@example.com',
-                    username='newuser',
-                    google_id='google123'
-                )
-                mock_create_user.return_value = new_user
-                
-                # Make the request
-                response = self.client.post(
-                    self.url, 
-                    {'id_token': 'valid_token'}, 
-                    format='json'
-                )
-                
-                # Check response
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(response.data['is_new_user'])
-                self.assertIn('Successfully registered', response.data['detail'])
+        # Make the request
+        response = self.client.post(
+            self.url, 
+            {'id_token': 'valid_token'}, 
+            format='json'
+        )
+        
+        # Check response
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_new_user'])
+        self.assertIn('Successfully registered', response.data['detail'])
         
     def test_post_missing_token(self):
         """Test Google login with missing ID token"""
@@ -116,10 +95,28 @@ class TestGoogleLoginView(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('id_token', response.data)
         
-    def test_post_invalid_token(self):
-        """Test Google login with invalid token"""
-        # Make verify_oauth2_token raise ValueError
-        self.mock_verify_oauth2_token.side_effect = ValueError("Invalid token")
+    def test_post_parse_error(self):
+        """Test Google login with ParseError"""
+        # Set up mock to raise ParseError
+        from rest_framework.exceptions import ParseError
+        self.mock_auth_service.authenticate_with_provider.side_effect = ParseError('Parse error')
+        
+        # Make the request
+        response = self.client.post(
+            self.url, 
+            {'id_token': 'invalid_token'}, 
+            format='json'
+        )
+        
+        # Check response
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+        
+    def test_post_auth_failed(self):
+        """Test Google login with AuthenticationFailed"""
+        # Set up mock to raise AuthenticationFailed
+        from rest_framework.exceptions import AuthenticationFailed
+        self.mock_auth_service.authenticate_with_provider.side_effect = AuthenticationFailed('Auth failed')
         
         # Make the request
         response = self.client.post(
@@ -134,18 +131,18 @@ class TestGoogleLoginView(APITestCase):
         
     def test_post_unexpected_error(self):
         """Test Google login with unexpected error"""
-        # Make verify_oauth2_token raise Exception
-        self.mock_verify_oauth2_token.side_effect = Exception("Unexpected error")
+        # Set up mock to raise Exception
+        self.mock_auth_service.authenticate_with_provider.side_effect = Exception('Unexpected error')
         
         # Make the request
         response = self.client.post(
             self.url, 
-            {'id_token': 'problem_token'}, 
+            {'id_token': 'invalid_token'}, 
             format='json'
         )
         
-        # Check response - in our implementation, all exceptions are converted to AuthenticationFailed
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        # Check response
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn('detail', response.data)
 
 class TestSSOLoginView(APITestCase):
@@ -153,51 +150,29 @@ class TestSSOLoginView(APITestCase):
         self.client = APIClient()
         self.url = reverse('authentication:sso_login')
         
-        # Create a real user for testing
+        # Set up mocks
+        self.patcher = patch('authentication.views.auth_service')
+        self.mock_auth_service = self.patcher.start()
+        
+        # Create a real user for serialization
         self.user = User.objects.create_user(
-            email='testuser@ui.ac.id',
+            email='test@ui.ac.id',
             username='testuser',
-            npm='2206081534',
             first_name='Test',
             last_name='User'
         )
         
-        # Mock validate_ticket function
-        self.patcher1 = patch('authentication.views.validate_ticket')
-        self.mock_validate_ticket = self.patcher1.start()
-        # Configure the mock to return user info
-        self.mock_validation_response = {
-            'authentication_success': {
-                'user': 'testuser',
-                'attributes': {
-                    'npm': '2206081534',
-                    'nama': 'Test User'
-                }
-            }
-        }
-        self.mock_validate_ticket.return_value = self.mock_validation_response
-        
-        # Mock token_service.generate_tokens
-        self.patcher2 = patch('authentication.views.token_service.generate_tokens')
-        self.mock_generate_tokens = self.patcher2.start()
-        # Configure the mock to return tokens
+        # Mock auth_service.authenticate_with_provider
         self.mock_tokens = {'access': 'access_token', 'refresh': 'refresh_token'}
-        self.mock_generate_tokens.return_value = self.mock_tokens
-        
-        # Mock User.objects.filter to return the user
-        self.patcher3 = patch('authentication.views.User.objects.filter')
-        self.mock_filter = self.patcher3.start()
-        mock_queryset = MagicMock()
-        mock_queryset.first.return_value = self.user
-        self.mock_filter.return_value = mock_queryset
+        self.mock_auth_service.authenticate_with_provider.return_value = (
+            self.mock_tokens, self.user, False
+        )
         
     def tearDown(self):
-        self.patcher1.stop()
-        self.patcher2.stop()
-        self.patcher3.stop()
+        self.patcher.stop()
         
     def test_get_success(self):
-        """Test successful SSO login with existing user"""
+        """Test successful SSO login"""
         # Make the request
         response = self.client.get(f"{self.url}?ticket=valid_ticket")
         
@@ -207,9 +182,25 @@ class TestSSOLoginView(APITestCase):
         self.assertEqual(response.data['refresh_token'], 'refresh_token')
         self.assertFalse(response.data['is_new_user'])
         
-        # Verify mocks were called
-        self.mock_validate_ticket.assert_called_once()
-        self.mock_generate_tokens.assert_called_once()
+        # Verify auth_service was called
+        self.mock_auth_service.authenticate_with_provider.assert_called_once_with(
+            'sso', 'valid_ticket'
+        )
+        
+    def test_get_new_user(self):
+        """Test SSO login for a new user"""
+        # Set up mock to return a new user
+        self.mock_auth_service.authenticate_with_provider.return_value = (
+            self.mock_tokens, self.user, True
+        )
+        
+        # Make the request
+        response = self.client.get(f"{self.url}?ticket=valid_ticket")
+        
+        # Check response
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_new_user'])
+        self.assertIn('Successfully registered', response.data['detail'])
         
     def test_get_missing_ticket(self):
         """Test SSO login with missing ticket"""
@@ -220,11 +211,11 @@ class TestSSOLoginView(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', response.data)
         
-    def test_get_validate_ticket_error(self):
-        """Test SSO login with ticket validation error"""
-        # Make validate_ticket raise ValidateTicketError
-        from sso_ui.ticket import ValidateTicketError
-        self.mock_validate_ticket.side_effect = ValidateTicketError("Invalid ticket")
+    def test_get_auth_failed(self):
+        """Test SSO login with AuthenticationFailed"""
+        # Set up mock to raise AuthenticationFailed
+        from rest_framework.exceptions import AuthenticationFailed
+        self.mock_auth_service.authenticate_with_provider.side_effect = AuthenticationFailed('Auth failed')
         
         # Make the request
         response = self.client.get(f"{self.url}?ticket=invalid_ticket")
@@ -233,17 +224,42 @@ class TestSSOLoginView(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn('error', response.data)
         
-    def test_get_unexpected_error(self):
-        """Test SSO login with unexpected error"""
-        # Make validate_ticket raise Exception
-        self.mock_validate_ticket.side_effect = Exception("Unexpected error")
+    def test_get_auth_failed_blacklist(self):
+        """Test SSO login with blacklisted user"""
+        # Set up mock to raise AuthenticationFailed with blacklist_info
+        from rest_framework.exceptions import AuthenticationFailed
+        error_detail = {
+            'error': 'User is blacklisted',
+            'blacklist_info': {
+                'npm': '2206081534',
+                'reason': 'Test reason',
+                'blacklisted_at': '2022-01-01',
+                'expires_at': '2022-12-31'
+            }
+        }
+        mock_exception = AuthenticationFailed(error_detail)
+        mock_exception.detail = error_detail  # Add detail attribute
+        self.mock_auth_service.authenticate_with_provider.side_effect = mock_exception
         
         # Make the request
-        response = self.client.get(f"{self.url}?ticket=problem_ticket")
+        response = self.client.get(f"{self.url}?ticket=blacklisted_ticket")
         
-        # Check response - in our implementation, all exceptions are converted to AuthenticationFailed
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        # Check response
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('blacklist_info', response.data)
+        
+    def test_get_unexpected_error(self):
+        """Test SSO login with unexpected error"""
+        # Set up mock to raise Exception
+        self.mock_auth_service.authenticate_with_provider.side_effect = Exception('Unexpected error')
+        
+        # Make the request
+        response = self.client.get(f"{self.url}?ticket=invalid_ticket")
+        
+        # Check response
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn('error', response.data)
+
 
 class TestSSOLogoutView(TestCase):
     def setUp(self):
@@ -341,6 +357,7 @@ class TestTokenRefreshView(APITestCase):
     def test_post_auth_failed(self):
         """Test token refresh with AuthenticationFailed"""
         # Set up mock to raise AuthenticationFailed
+        from rest_framework.exceptions import AuthenticationFailed
         self.mock_auth_service.refresh_token.side_effect = AuthenticationFailed('Invalid token')
         
         # Make the request
