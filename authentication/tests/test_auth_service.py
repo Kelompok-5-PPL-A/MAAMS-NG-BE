@@ -285,3 +285,80 @@ class TestJWTTokenService(unittest.TestCase):
         
         # Verify results
         self.assertFalse(success)
+        
+    @patch('authentication.services.jwt_token.jwt.decode')
+    def test_validate_refresh_token_expired(self, mock_jwt_decode):
+        """Test validating an expired refresh token"""
+        # Set up mock jwt.decode to raise jwt.ExpiredSignatureError
+        import jwt as pyjwt
+        mock_jwt_decode.side_effect = pyjwt.ExpiredSignatureError()
+        
+        # Test token validation
+        with self.assertRaises(TokenError) as context:
+            self.service.validate_refresh_token('expired_token')
+        
+        # Verify error message
+        self.assertEqual(str(context.exception), 'Refresh token has expired')
+        
+    @patch('authentication.services.jwt_token.jwt.decode')
+    def test_validate_refresh_token_invalid(self, mock_jwt_decode):
+        """Test validating an invalid refresh token"""
+        # Set up mock jwt.decode to raise jwt.InvalidTokenError
+        import jwt as pyjwt
+        mock_jwt_decode.side_effect = pyjwt.InvalidTokenError("Invalid token")
+        
+        # Test token validation
+        with self.assertRaises(TokenError) as context:
+            self.service.validate_refresh_token('invalid_token')
+        
+        # Verify error message
+        self.assertEqual(str(context.exception), 'Invalid refresh token: Invalid token')
+        
+    @patch('authentication.services.jwt_token.jwt.encode')
+    @patch('authentication.services.jwt_token.timezone')
+    def test_create_access_token(self, mock_timezone, mock_jwt_encode):
+        """Test creating a new access token"""
+        # Set up mocks
+        mock_now = MagicMock()
+        mock_timezone.now.return_value = mock_now
+        mock_jwt_encode.return_value = 'new_access_token'
+        
+        # Test token creation
+        payload = {'user_id': '12345'}
+        token = self.service.create_access_token(payload)
+        
+        # Verify results
+        self.assertEqual(token, 'new_access_token')
+        
+        # Verify timezone.now() was called
+        mock_timezone.now.assert_called_once()
+        
+        # Verify jwt.encode was called with correct parameters
+        mock_jwt_encode.assert_called_once()
+        args, kwargs = mock_jwt_encode.call_args
+        
+        # Check payload was updated with exp and iat
+        self.assertEqual(args[0]['user_id'], '12345')
+        self.assertEqual(args[0]['exp'], mock_now + self.service.access_token_lifetime)
+        self.assertEqual(args[0]['iat'], mock_now)
+        
+        # Check other parameters
+        self.assertEqual(args[1], self.service.signing_key)
+        self.assertEqual(kwargs['algorithm'], self.service.algorithm)
+        
+    @patch('authentication.services.jwt_token.jwt.decode')
+    def test_blacklist_token_success(self, mock_jwt_decode):
+        """Test successful token blacklisting"""
+        # Set up mock jwt.decode
+        mock_jwt_decode.return_value = {'sub': 'subject', 'exp': 1000000000}
+        
+        # Test blacklisting
+        success = self.service.blacklist_token('valid_token')
+        
+        # Verify results
+        self.assertTrue(success)
+        mock_jwt_decode.assert_called_once_with(
+            'valid_token',
+            self.service.signing_key,
+            algorithms=[self.service.algorithm]
+        )

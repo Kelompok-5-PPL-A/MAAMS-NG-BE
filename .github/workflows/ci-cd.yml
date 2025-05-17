@@ -143,8 +143,10 @@ jobs:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
+          export DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+ 
           python manage.py migrate
-          python manage.py seed_causes_server
+          python manage.py seed cause question --number 10
           mkdir -p cause/fixtures
           python manage.py dumpdata cause question --indent 2 > cause/fixtures/server_data.json
       - name: Upload fixtures
