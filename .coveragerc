@@ -3,7 +3,7 @@
 omit =
     */migrations/*,    
     manage.py,       
-    setup.py,
+    MAAMS_NG_BE/setup.py,
     MAAMS_NG_BE/utils.py,
     sso_ui/config.py,
     */apps.py,          

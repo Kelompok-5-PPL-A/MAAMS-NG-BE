@@ -1,9 +1,9 @@
 [tool.semantic_release]
-version_variable = "setup.py:version"
+version_variable = "MAAMS_NG_BE/setup.py:version"
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
-build_command = "python setup.py sdist bdist_wheel"
+build_command = "python MAAMS_NG_BE/setup.py sdist bdist_wheel"
 initial_version = "0.1.0"
 upload_to_repository = true
 commit_subject = "chore(release): {version} [skip ci]"

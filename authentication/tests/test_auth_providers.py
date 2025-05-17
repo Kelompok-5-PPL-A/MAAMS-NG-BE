@@ -624,3 +624,29 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         # Test the validation
         with self.assertRaises(AuthenticationFailed):
             self.provider.validate_credential('ticket')
+
+    def test_get_or_create_user_missing_info(self):
+        """Test getting user with missing required information"""
+        # Test with missing username
+        user_info = {
+            "attributes": {
+                "npm": "2206081534",
+                "nama": "Test User"
+            }
+        }
+        
+        with self.assertRaises(AuthenticationFailed) as context:
+            self.provider.get_or_create_user(user_info)
+        self.assertEqual(str(context.exception), "Missing required user information")
+        
+        # Test with missing NPM
+        user_info = {
+            "user": "username",
+            "attributes": {
+                "nama": "Test User"
+            }
+        }
+        
+        with self.assertRaises(AuthenticationFailed) as context:
+            self.provider.get_or_create_user(user_info)
+        self.assertEqual(str(context.exception), "Missing required user information")
