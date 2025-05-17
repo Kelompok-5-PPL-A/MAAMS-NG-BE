@@ -211,32 +211,6 @@ class TestSSOLoginView(APITestCase):
         self.mock_validate_ticket.assert_called_once()
         self.mock_generate_tokens.assert_called_once()
         
-    # def test_get_new_user(self):
-    #     """Test SSO login with a new user"""
-    #     # Set up the filter to not find a user (simulating a new user)
-    #     mock_empty_queryset = MagicMock()
-    #     mock_empty_queryset.first.return_value = None
-    #     self.mock_filter.return_value = mock_empty_queryset
-        
-    #     # Mock User.objects.create_user to return a new user
-    #     with patch('django.contrib.auth.models.UserManager.create_user') as mock_create_user:
-    #         new_user = User(
-    #             email='newuser@ui.ac.id',
-    #             username='newuser',
-    #             npm='2206081535',
-    #             first_name='New',
-    #             last_name='User'
-    #         )
-    #         mock_create_user.return_value = new_user
-            
-    #         # Make the request
-    #         response = self.client.get(f"{self.url}?ticket=valid_ticket")
-            
-    #         # Check response
-    #         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #         self.assertTrue(response.data['is_new_user'])
-    #         self.assertIn('Successfully registered', response.data['detail'])
-        
     def test_get_missing_ticket(self):
         """Test SSO login with missing ticket"""
         # Make the request without a ticket
