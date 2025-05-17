@@ -100,7 +100,7 @@ jobs:
           SECRET_KEY: ${{ secrets.TEST_SECRET_KEY }}
           DEBUG: "True"
         run: |
-          coverage run manage.py test
+          coverage run manage.py test --keepdb --noinput
           coverage report
           coverage html
           coverage xml
