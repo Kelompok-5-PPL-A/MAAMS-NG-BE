@@ -16,6 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from datetime import timedelta
 import dj_database_url
+import sys
 
 env_file = find_dotenv(
      filename=".env",
@@ -114,11 +115,11 @@ DATABASES = {
 }
 
 # Test database settings
-# if 'test' in sys.argv:
-#     DATABASES['default'] = {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': ':memory:',
-#     }
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
 
 # Database versioning configuration
 DB_VERSION_TABLE = 'django_migrations'
@@ -152,7 +153,7 @@ TIME_ZONE = 'Asia/Jakarta'
 
 USE_I18N = True
 
-USE_TZ = False
+USE_TZ = True
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
