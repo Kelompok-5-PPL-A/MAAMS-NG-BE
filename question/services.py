@@ -132,13 +132,14 @@ class QuestionService():
         questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
         return questions
     
+    @silk_profile(name='test field values')
     def get_field_values(self, user: CustomUser) -> FieldValuesDataClass:
         """
         Returns all unique field values attached to available questions for search bar dropdown functionality.
         """
         is_admin = user.is_superuser and user.is_staff
 
-        questions = Question.objects.all()
+        questions = Question.objects.all().select_related('user').prefetch_related('tags')
 
         values = {
             "judul": set(),
