@@ -79,7 +79,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # 'moesifdjango.middleware.moesif_middleware',
-    # 'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
+    'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -277,26 +277,26 @@ sentry_sdk.init(
 # ARIZE_SPACE_ID = os.getenv('ARIZE_SPACE_ID')
 # ARIZE_API_KEY = os.getenv('ARIZE_API_KEY')
 
-# # Rate Limiter Configuration
-# RATE_LIMIT = {
-#     'DEFAULT': {
-#         'RATE': 6,  # Number of requests allowed
-#         'PER': 60,  # Time period in seconds
-#     },
-#     # Define custom rate limits for specific paths
-#     'CUSTOM_RATES': {
-#         # Example: Stricter rate limiting for validation API
-#         '/cause/validate/': {
-#             'RATE': 6,
-#             'PER': 60,
-#         },
-#     },
-#     # Paths that should be excluded from rate limiting
-#     'EXEMPT_PATHS': [],
-#     # If True, all paths are rate-limited unless explicitly exempt
-#     # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
-#     'RATE_LIMIT_ALL_PATHS': False,
-# }
+# Rate Limiter Configuration
+RATE_LIMIT = {
+    'DEFAULT': {
+        'RATE': 6,  # Number of requests allowed
+        'PER': 60,  # Time period in seconds
+    },
+    # Define custom rate limits for specific paths
+    'CUSTOM_RATES': {
+        # Example: Stricter rate limiting for validation API
+        '/cause/validate/': {
+            'RATE': 6,
+            'PER': 60,
+        },
+    },
+    # Paths that should be excluded from rate limiting
+    'EXEMPT_PATHS': [],
+    # If True, all paths are rate-limited unless explicitly exempt
+    # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
+    'RATE_LIMIT_ALL_PATHS': False,
+}
 
 # # Logging configuration
 # LOGGING = {

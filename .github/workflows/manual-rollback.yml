@@ -4,44 +4,55 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to rollback'
+        description: 'Target environment'
         required: true
-        default: 'staging'
         type: choice
         options:
           - staging
           - production
-      version:
-        description: 'Version to rollback to (e.g., v1.0.0)'
+      revision_name:
+        description: 'Revision name to rollback to'
         required: true
         type: string
-      rollback_database:
-        description: 'Rollback database to the specified version'
-        required: true
-        type: boolean
-        default: true
-
-env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION }}
-  GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+      migration_name:
+        description: 'Migration name to rollback to (optional)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   rollback:
-    name: Manual Rollback
+    name: Rollback Application and Database
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
-
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-
+      
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Rollback Application
+        run: |
+          SERVICE_NAME="maams-ng-${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}"
+          
+          # Verify revision exists
+          if ! gcloud run revisions describe ${{ github.event.inputs.revision_name }} \
+            --platform managed \
+            --region ${{ secrets.GCP_REGION }} \
+            --format='get(name)' 2>/dev/null; then
+            echo "Error: Revision ${{ github.event.inputs.revision_name }} not found"
+            exit 1
+          fi
+          
+          gcloud run services update-traffic $SERVICE_NAME \
+            --platform managed \
+            --region ${{ secrets.GCP_REGION }} \
+            --to-revision=${{ github.event.inputs.revision_name }}
 
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -56,79 +67,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Version Exists
-        id: verify_version
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          
-          if ! gcloud run services describe maams-ng-$ENVIRONMENT \
-            --platform managed \
-            --region $REGION \
-            --format='value(metadata.annotations."run.googleapis.com/revision-tags")' | grep -q "$VERSION"; then
-            echo "Error: Version $VERSION not found in $ENVIRONMENT environment"
-            exit 1
-          fi
-          
-          if [ "${{ github.event.inputs.rollback_database }}" = "true" ]; then
-            BACKUP_FILE=$(gsutil ls "gs://${GCS_BUCKET}/database-backups/backup_${VERSION}_*.sql" | sort -r | head -n 1)
-            if [ -z "$BACKUP_FILE" ]; then
-              echo "Error: No database backup found for version $VERSION"
-              exit 1
-            fi
-          fi
-
       - name: Rollback Database
-        if: github.event.inputs.rollback_database == 'true'
+        if: ${{ github.event.inputs.migration_name != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
         run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          VERSION="${{ github.event.inputs.version }}"
-          
-          gsutil cp "gs://${GCS_BUCKET}/scripts/db_restore.sh" /tmp/db_restore.sh
-          chmod +x /tmp/db_restore.sh
-          
-          /tmp/db_restore.sh "$VERSION"
-          
-          if ! python manage.py check; then
-            echo "Database rollback verification failed"
-            exit 1
+          if [ -z "$MIGRATION_NAME" ]; then
+            echo "No migration name provided, skipping database rollback"
+          else
+            python manage.py migrate $MIGRATION_NAME
           fi
 
-      - name: Rollback Application
+      - name: Store Rollback Metadata
         run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          VERSION="${{ github.event.inputs.version }}"
+          METADATA='{
+            "timestamp": "'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'",
+            "rolled_back_by": "'${{ github.actor }}'",
+            "environment": "'${{ github.event.inputs.environment }}'",
+            "revision_name": "'${{ github.event.inputs.revision_name }}'",
+            "migration_name": "'${{ github.event.inputs.migration_name }}'"
+          }'
           
-          echo "Rolling back to version: $VERSION"
-          
-          gcloud run services update-traffic maams-ng-$ENVIRONMENT \
-            --platform managed \
-            --region $REGION \
-            --to-revision=$VERSION=100
-
-      - name: Verify Rollback
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          
-          sleep 30
-          
-          SERVICE_STATUS=$(gcloud run services describe maams-ng-$ENVIRONMENT \
-            --platform managed \
-            --region $REGION \
-            --format='value(status.conditions[0].status)')
-          
-          if [ "$SERVICE_STATUS" != "True" ]; then
-            echo "Rollback failed: Service is not healthy"
-            exit 1
-          fi
-          
-          ERROR_COUNT=$(gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=maams-ng-$ENVIRONMENT AND severity>=ERROR" \
-            --limit 5 \
-            --format='value(textPayload)' | wc -l)
-          
-          if [ "$ERROR_COUNT" -gt 0 ]; then
-            echo "Rollback warning: Found errors in recent logs"
-            exit 1
-          fi
-          
-          echo "Rollback completed successfully" 
+          echo "$METADATA" > rollback-metadata.json
+      
+      - name: Upload Rollback Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-metadata-${{ github.event.inputs.environment }}-$(date +%Y%m%d-%H%M%S)
+          path: rollback-metadata.json
+          retention-days: 30 
