@@ -239,6 +239,7 @@ jobs:
         run: |
           ENV_SUFFIX="${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}"
           SERVICE_NAME="maams-ng-$ENV_SUFFIX"
+          IMAGE_TAG="$(cat image_tag.txt)"
           
           if ! gcloud run services describe $SERVICE_NAME \
             --platform managed \
@@ -249,7 +250,7 @@ jobs:
               --platform managed \
               --region $REGION \
               --allow-unauthenticated \
-              --image=gcr.io/cloudrun/hello
+              --image="$IMAGE_TAG"
           fi
           
           REVISION_NAME=$(gcloud run deploy $SERVICE_NAME \
