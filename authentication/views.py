@@ -22,7 +22,6 @@ from authentication.services.auth import AuthenticationService
 from authentication.services.jwt_token import JWTTokenService
 from sso_ui.config import SSOJWTConfig
 
-# Create service instances
 token_service = JWTTokenService()
 auth_service = AuthenticationService(token_service)
 
@@ -104,7 +103,7 @@ class SSOLoginView(APIView):
             }, status=status.HTTP_200_OK)
             
         except AuthenticationFailed as e:
-            if hasattr(e, 'detail') and isinstance(e.detail, dict) and 'blacklist_info' in e.detail:
+            if hasattr(e, 'detail') and isinstance(e.detail, dict):
                 return Response(e.detail, status=status.HTTP_403_FORBIDDEN)
             return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
             

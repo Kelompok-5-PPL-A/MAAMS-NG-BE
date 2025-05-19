@@ -2,205 +2,150 @@ from typing import Dict, Any, Tuple
 import logging
 
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
 
 from authentication.providers.base import AuthenticationProvider
 from sso_ui.config import SSOJWTConfig
 from sso_ui.ticket import validate_ticket, ValidateTicketError
-from apps.blacklist.models import Blacklist
 
 User = get_user_model()
 
 class SSOUIAuthProvider(AuthenticationProvider):
     """
-    Authentication provider for SSO UI.
-    Handles verification of SSO UI tickets and user creation/retrieval.
+    Authentication provider for SSO UI CAS.
+    
+    Handles authentication through the SSO UI CAS service.
     """
     
     def __init__(self):
         self.config = SSOJWTConfig()
-    
-    def authenticate(self, credential: str) -> Tuple[User, bool]:
+        
+    def validate_credential(self, credential: str) -> dict:
         """
-        Authenticate a user with an SSO UI ticket.
+        Validate an SSO UI CAS ticket.
         
         Args:
-            credential: SSO UI ticket
+            credential: The SSO UI CAS ticket to validate
             
         Returns:
-            Tuple with the authenticated user and whether they're new
-            
-        Raises:
-            AuthenticationFailed: If authentication fails
-            AuthenticationFailed with blacklist info: If user is blacklisted
-        """
-        user_info = self.validate_credential(credential)
-        
-        # Check for blacklist before proceeding
-        npm = user_info.get('attributes', {}).get('npm')
-        if npm:
-            blacklist_entry = Blacklist.get_active_blacklist(npm)
-            if blacklist_entry:
-                raise AuthenticationFailed({
-                    "error": "User is blacklisted",
-                    "blacklist_info": {
-                        "npm": npm,
-                        "reason": blacklist_entry.keterangan,
-                        "blacklisted_at": blacklist_entry.startDate.isoformat(),
-                        "expires_at": blacklist_entry.endDate.isoformat() if blacklist_entry.endDate else None
-                    }
-                })
-        
-        return self.get_or_create_user(user_info)
-    
-    def validate_credential(self, credential: str) -> Dict[str, Any]:
-        """
-        Validate SSO UI ticket and return user information.
-        
-        Args:
-            credential: SSO UI ticket
-            
-        Returns:
-            Dict containing user information from SSO UI
+            dict: User information from the ticket
             
         Raises:
             AuthenticationFailed: If ticket validation fails
         """
         if not credential:
-            raise AuthenticationFailed("SSO UI ticket is required")
+            raise AuthenticationFailed("Missing ticket")
             
         try:
-            # Validate ticket with SSO UI
-            service_response = validate_ticket(self.config, credential)
+            # Validate the ticket with SSO UI
+            response = validate_ticket(self.config, credential)
             
-            auth_success = service_response.get("authentication_success")
-            if not auth_success:
-                raise AuthenticationFailed("Invalid SSO response")
+            # Extract user info
+            user_info = response.get("authentication_success")
+            if not user_info:
+                raise AuthenticationFailed("Invalid ticket response")
                 
-            username = auth_success.get("user")
-            if not username:
-                raise AuthenticationFailed("Username not provided by SSO")
-                
-            return auth_success
+            return user_info
             
         except ValidateTicketError as e:
-            raise AuthenticationFailed(f"SSO ticket validation failed: {str(e)}")
+            raise AuthenticationFailed(str(e))
         except Exception as e:
-            raise AuthenticationFailed(f"Ticket verification failed: {str(e)}")
-    
-    def get_or_create_user(self, user_info: Dict[str, Any]) -> Tuple[User, bool]:
+            raise AuthenticationFailed(f"Unexpected error: {str(e)}")
+            
+    def authenticate(self, credential: str) -> tuple:
         """
-        Get or create a user based on SSO UI information.
+        Authenticate a user with an SSO UI CAS ticket.
+        
+        Args:
+            credential: The SSO UI CAS ticket
+            
+        Returns:
+            tuple: (User, bool) - The authenticated user and whether they are new
+            
+        Raises:
+            AuthenticationFailed: If authentication fails
+        """
+        # Validate the ticket
+        user_info = self.validate_credential(credential)
+        
+        # Get or create the user
+        user, is_new = self.get_or_create_user(user_info)
+        
+        return user, is_new
+        
+    def get_or_create_user(self, user_info: dict) -> tuple:
+        """
+        Get an existing user or create a new one based on SSO UI info.
         
         Args:
             user_info: User information from SSO UI
             
         Returns:
-            Tuple containing the user and whether they were created
+            tuple: (User, bool) - The user and whether they are new
         """
         username = user_info.get("user")
         attributes = user_info.get("attributes", {})
-        
         npm = attributes.get("npm")
         nama = attributes.get("nama", "")
         
-        # Parse name into first/last name
-        if nama and " " in nama:
-            first_name, last_name = nama.split(" ", 1)
-        else:
-            first_name, last_name = nama, ""
+        if not username or not npm:
+            raise AuthenticationFailed("Missing required user information")
             
-        email = f"{username}@ui.ac.id"
+        # Try to find existing user by NPM
+        user = User.objects.filter(npm=npm).first()
         
-        # Try to find user by NPM or username
-        user = None
-        created = False
-        
-        if npm:
-            user = User.objects.filter(npm=npm).first()
-            
         if not user:
+            # Try to find by username
             user = User.objects.filter(username=username).first()
             
         if not user:
+            # Try to find by email
+            email = f"{username}@ui.ac.id"
             user = User.objects.filter(email=email).first()
             
-        if user:
-            self._update_user_info(user, username, email, npm, first_name, last_name)    # Update existing user
-        else:
-            user = self._create_new_user(username, email, npm, first_name, last_name)    # Create new user
-            created = True
+        if not user:
+            # Create new user
+            first_name, *last_name_parts = nama.split()
+            last_name = " ".join(last_name_parts) if last_name_parts else ""
             
-        return user, created
-        
-    def _create_new_user(self, username, email, npm, first_name, last_name) -> User:
-        """
-        Create a new user from SSO UI information.
-        
-        Args:
-            username: SSO UI username
-            email: User's UI email
-            npm: Student ID number
-            first_name: User's first name
-            last_name: User's last name
+            user = User.objects.create_user(
+                username=username,
+                email=f"{username}@ui.ac.id",
+                npm=npm,
+                first_name=first_name,
+                last_name=last_name
+            )
+            return user, True
             
-        Returns:
-            The newly created user
-        """
-
-        # Determine angkatan (student year) from NPM
-        angkatan = npm[:2] if npm and len(npm) >= 2 else None
+        # Update user info
+        self._update_user_info(user, username, f"{username}@ui.ac.id", npm, nama)
+        return user, False
         
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            npm=npm,
-            first_name=first_name,
-            last_name=last_name,
-            angkatan=angkatan,
-            role='user'
-        )
-
-        return user
-        
-    def _update_user_info(self, user, username, email, npm, first_name, last_name) -> None:
+    def _update_user_info(self, user: User, username: str, email: str, npm: str, nama: str) -> None:
         """
-        Update existing user with SSO UI information.
+        Update user information from SSO UI.
         
         Args:
             user: The user to update
             username: SSO UI username
-            email: User's UI email
+            email: User's email
             npm: Student ID number
-            first_name: User's first name
-            last_name: User's last name
+            nama: Full name
         """
-        update_fields = []
-        
-        # Only update email if it follows the UI format and user's email is empty
-        if not user.email and email.endswith('@ui.ac.id'):
+        # Only update email if it's from UI domain
+        if email.endswith("@ui.ac.id"):
             user.email = email
-            update_fields.append('email')
             
-        # Update NPM if not set
-        if npm and not user.npm:
-            user.npm = npm
-            update_fields.append('npm')
-            
-            # Update angkatan if NPM is being set
-            angkatan = npm[:2] if len(npm) >= 2 else None
-            if angkatan and not user.angkatan:
-                user.angkatan = angkatan
-                update_fields.append('angkatan')
-            
-        # Update names if they're empty
-        if not user.first_name and first_name:
+        # Update other fields
+        user.username = username
+        user.npm = npm
+        
+        # Update name if provided
+        if nama:
+            first_name, *last_name_parts = nama.split()
+            last_name = " ".join(last_name_parts) if last_name_parts else ""
             user.first_name = first_name
-            update_fields.append('first_name')
-            
-        if not user.last_name and last_name:
             user.last_name = last_name
-            update_fields.append('last_name')
             
-        if update_fields:
-            user.save(update_fields=update_fields)
+        user.save()

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import AuthenticationFailed, ParseError
@@ -218,7 +218,7 @@ class TestGoogleAuthProvider(unittest.TestCase):
             
     def test_get_or_create_user_new_user(self):
         """Test creating a new user"""
-        # Mock the User.objects manager to raise DoesNotExist
+        # Mock the User.objects manager
         with patch('authentication.providers.google.User.objects') as mock_objects:
             mock_objects.get.side_effect = User.DoesNotExist
             
@@ -384,34 +384,6 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         mock_validate.assert_called_once_with('ticket')
         mock_get_or_create.assert_called_once_with(mock_user_info)
         
-    @patch.object(SSOUIAuthProvider, 'validate_credential')
-    def test_authenticate_blacklisted(self, mock_validate):
-        """Test authentication with blacklisted user"""
-        # Mock the validation
-        mock_user_info = {
-            "user": "username",
-            "attributes": {"npm": "2206081534"}
-        }
-        mock_validate.return_value = mock_user_info
-        
-        # Mock the blacklist check
-        mock_blacklist = MagicMock()
-        mock_blacklist.keterangan = "Test reason"
-        mock_blacklist.startDate.isoformat.return_value = "2022-01-01"
-        mock_blacklist.endDate.isoformat.return_value = "2022-12-31"
-        
-        with patch('authentication.providers.sso_ui.Blacklist.get_active_blacklist') as mock_get_blacklist:
-            mock_get_blacklist.return_value = mock_blacklist
-            
-            # Test authentication
-            with self.assertRaises(AuthenticationFailed) as context:
-                self.provider.authenticate('ticket')
-                
-            # Verify error contains blacklist info
-            error_detail = context.exception.detail
-            self.assertIsInstance(error_detail, dict)
-            self.assertIn('blacklist_info', error_detail)
-            
     def test_get_or_create_user_by_npm(self):
         """Test getting existing user by NPM"""
         # Create a mock user
@@ -512,10 +484,12 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         """Test creating a new user"""
         # Mock the User.objects manager
         with patch('authentication.providers.sso_ui.User.objects') as mock_objects:
+            # Mock all the lookups returning None
             mock_objects.filter.return_value.first.return_value = None
             
             # Create a mock new user
             mock_new_user = MagicMock(spec=User)
+            mock_objects.create_user.return_value = mock_new_user
             
             # Test user creation
             user_info = {
@@ -526,59 +500,44 @@ class TestSSOUIAuthProvider(unittest.TestCase):
                 }
             }
             
-            with patch.object(self.provider, '_create_new_user') as mock_create:
-                mock_create.return_value = mock_new_user
-                user, is_new = self.provider.get_or_create_user(user_info)
-                
-                # Verify results
-                self.assertEqual(user, mock_new_user)
-                self.assertTrue(is_new)
-                mock_create.assert_called_once_with(
-                    "username", "username@ui.ac.id", "2206081534", "Test", "User"
-                )
-                
-    def test_create_new_user(self):
-        """Test creating a new user from SSO info"""
-        # Mock User.objects.create_user
-        mock_new_user = MagicMock(spec=User)
-        
-        with patch('authentication.providers.sso_ui.User.objects') as mock_objects:
-            mock_objects.create_user.return_value = mock_new_user
-            
-            # Test user creation
-            user = self.provider._create_new_user(
-                "username", "username@ui.ac.id", "2206081534", "Test", "User"
-            )
+            # Use the actual implementation
+            user, is_new = self.provider.get_or_create_user(user_info)
             
             # Verify results
             self.assertEqual(user, mock_new_user)
+            self.assertTrue(is_new)
             mock_objects.create_user.assert_called_once_with(
                 username="username",
                 email="username@ui.ac.id",
                 npm="2206081534",
                 first_name="Test",
                 last_name="User",
-                angkatan="22",
-                role='user'
             )
-            
+                
     def test_update_user_info_no_updates(self):
         """Test updating user info when fields are already set"""
         # Create a user with all fields set
         mock_user = MagicMock(spec=User)
-        mock_user.email = "existing@ui.ac.id"
+        mock_user.email = "username@ui.ac.id"
         mock_user.npm = "2206081534"
-        mock_user.angkatan = "22"
+        mock_user.username = "username"
         mock_user.first_name = "Existing"
         mock_user.last_name = "User"
         
         # Test the update
         self.provider._update_user_info(
-            mock_user, "username", "username@ui.ac.id", "2206081534", "Test", "User"
+            mock_user, "username", "username@ui.ac.id", "2206081534", "Existing User"
         )
         
-        # Verify no updates were made
-        mock_user.save.assert_not_called()
+        # Verify fields were not changed
+        self.assertEqual(mock_user.email, "username@ui.ac.id")
+        self.assertEqual(mock_user.npm, "2206081534")
+        self.assertEqual(mock_user.username, "username")
+        self.assertEqual(mock_user.first_name, "Existing")
+        self.assertEqual(mock_user.last_name, "User")
+        
+        # Save is always called in the current implementation
+        mock_user.save.assert_called_once()
         
     def test_update_user_info_with_updates(self):
         """Test updating user info when fields are empty"""
@@ -586,48 +545,58 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         mock_user = MagicMock(spec=User)
         mock_user.email = ""
         mock_user.npm = ""
-        mock_user.angkatan = ""
         mock_user.first_name = ""
         mock_user.last_name = ""
         
         # Test the update
         self.provider._update_user_info(
-            mock_user, "username", "username@ui.ac.id", "2206081534", "Test", "User"
+            mock_user, "username", "username@ui.ac.id", "2206081534", "Test User"
         )
         
         # Verify updates were made
         self.assertEqual(mock_user.email, "username@ui.ac.id")
         self.assertEqual(mock_user.npm, "2206081534")
-        self.assertEqual(mock_user.angkatan, "22")
+        self.assertEqual(mock_user.username, "username")
         self.assertEqual(mock_user.first_name, "Test")
         self.assertEqual(mock_user.last_name, "User")
         mock_user.save.assert_called_once()
         
     def test_update_user_info_non_ui_email(self):
         """Test update doesn't change email if it's not from UI domain"""
-        # Create a user with empty email
+        # Create a user with UI email
         mock_user = MagicMock(spec=User)
-        mock_user.email = ""
+        mock_user.email = "original@ui.ac.id"
         
         # Test the update with non-UI email
         self.provider._update_user_info(
-            mock_user, "username", "username@gmail.com", "", "", ""
+            mock_user, "username", "username@gmail.com", "2206081534", "Test User"
         )
         
-        # Verify email wasn't updated
-        self.assertEqual(mock_user.email, "")
-        mock_user.save.assert_not_called()
+        # Verify email wasn't updated to non-UI domain
+        self.assertEqual(mock_user.email, "original@ui.ac.id")
+        mock_user.save.assert_called_once()
+    
+    def test_update_user_info_with_single_name(self):
+        """Test updating user info with a single name"""
+        # Create a user
+        mock_user = MagicMock(spec=User)
+        
+        # Test the update with a single name (no space)
+        self.provider._update_user_info(
+            mock_user, "username", "username@ui.ac.id", "2206081534", "SingleName"
+        )
+        
+        # Verify first_name and last_name are set correctly
+        self.assertEqual(mock_user.first_name, "SingleName")
+        self.assertEqual(mock_user.last_name, "")
+        mock_user.save.assert_called_once()
             
     @patch('authentication.providers.sso_ui.validate_ticket')
     def test_validate_credential_missing_username(self, mock_validate_ticket):
         """Test validation with missing username"""
-        # Mock the SSO ticket validation
+        # Mock the SSO ticket validation with missing user info
         mock_response = {
-            "authentication_success": {
-                "attributes": {
-                    "npm": "2206081534"
-                }
-            }
+            "authentication_success": {}
         }
         mock_validate_ticket.return_value = mock_response
         
@@ -655,18 +624,29 @@ class TestSSOUIAuthProvider(unittest.TestCase):
         # Test the validation
         with self.assertRaises(AuthenticationFailed):
             self.provider.validate_credential('ticket')
+
+    def test_get_or_create_user_missing_info(self):
+        """Test getting user with missing required information"""
+        # Test with missing username
+        user_info = {
+            "attributes": {
+                "npm": "2206081534",
+                "nama": "Test User"
+            }
+        }
         
-    def test_update_user_info_non_ui_email(self):
-        """Test update doesn't change email if it's not from UI domain"""
-        # Create a user with empty email
-        mock_user = MagicMock(spec=User)
-        mock_user.email = ""
+        with self.assertRaises(AuthenticationFailed) as context:
+            self.provider.get_or_create_user(user_info)
+        self.assertEqual(str(context.exception), "Missing required user information")
         
-        # Test the update with non-UI email
-        self.provider._update_user_info(
-            mock_user, "username", "username@gmail.com", "", "", ""
-        )
+        # Test with missing NPM
+        user_info = {
+            "user": "username",
+            "attributes": {
+                "nama": "Test User"
+            }
+        }
         
-        # Verify email wasn't updated
-        self.assertEqual(mock_user.email, "")
-        mock_user.save.assert_not_called()
+        with self.assertRaises(AuthenticationFailed) as context:
+            self.provider.get_or_create_user(user_info)
+        self.assertEqual(str(context.exception), "Missing required user information")

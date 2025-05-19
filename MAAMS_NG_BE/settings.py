@@ -15,6 +15,8 @@ import sentry_sdk
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from datetime import timedelta
+import dj_database_url
+import sys
 
 env_file = find_dotenv(
      filename=".env",
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
@@ -58,7 +61,6 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
-    'apps.blacklist',
     'authentication',
     'cause',
     'question',
@@ -77,7 +79,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # 'moesifdjango.middleware.moesif_middleware',
-    # 'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
+    'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -105,11 +107,24 @@ WSGI_APPLICATION = 'MAAMS_NG_BE.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
+
+# Test database settings
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
+
+# Database versioning configuration
+DB_VERSION_TABLE = 'django_migrations'
+DB_VERSION_APP = 'MAAMS_NG_BE'
+DB_VERSION_NAME = 'version'
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -132,9 +147,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'id-id'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Jakarta'
 
 USE_I18N = True
 
@@ -262,26 +277,26 @@ sentry_sdk.init(
 # ARIZE_SPACE_ID = os.getenv('ARIZE_SPACE_ID')
 # ARIZE_API_KEY = os.getenv('ARIZE_API_KEY')
 
-# # Rate Limiter Configuration
-# RATE_LIMIT = {
-#     'DEFAULT': {
-#         'RATE': 6,  # Number of requests allowed
-#         'PER': 60,  # Time period in seconds
-#     },
-#     # Define custom rate limits for specific paths
-#     'CUSTOM_RATES': {
-#         # Example: Stricter rate limiting for validation API
-#         '/cause/validate/': {
-#             'RATE': 6,
-#             'PER': 60,
-#         },
-#     },
-#     # Paths that should be excluded from rate limiting
-#     'EXEMPT_PATHS': [],
-#     # If True, all paths are rate-limited unless explicitly exempt
-#     # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
-#     'RATE_LIMIT_ALL_PATHS': False,
-# }
+# Rate Limiter Configuration
+RATE_LIMIT = {
+    'DEFAULT': {
+        'RATE': 6,  # Number of requests allowed
+        'PER': 60,  # Time period in seconds
+    },
+    # Define custom rate limits for specific paths
+    'CUSTOM_RATES': {
+        # Example: Stricter rate limiting for validation API
+        '/cause/validate/': {
+            'RATE': 6,
+            'PER': 60,
+        },
+    },
+    # Paths that should be excluded from rate limiting
+    'EXEMPT_PATHS': [],
+    # If True, all paths are rate-limited unless explicitly exempt
+    # If False, only paths explicitly defined in CUSTOM_RATES are rate-limited
+    'RATE_LIMIT_ALL_PATHS': False,
+}
 
 # # Logging configuration
 # LOGGING = {
