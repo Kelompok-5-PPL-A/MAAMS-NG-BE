@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="maams-ng-be",
-    version="0.1.0",
+    name="MAAMS-NG-BE",
+    version="0.2.0",
     description="MAAMS-NG Backend",
     author="MAAMS Team",
     packages=find_packages(),
@@ -12,4 +12,7 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8",
+    install_requires=[
+        # dependencies will be installed from requirements.txt
+    ],
 ) 

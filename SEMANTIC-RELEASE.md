@@ -1,31 +1,51 @@
-# Python Semantic Release Guidelines
+# Semantic Versioning with Commitizen
 
-This project uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) for automated version management and package publishing. Python-semantic-release automatically determines the next version number, generates release notes, and publishes the package based on your commit messages.
+This project uses [Commitizen](https://commitizen-tools.github.io/commitizen/) for automated version management and package publishing. Commitizen helps enforce conventional commit messages and automatically determines the next version number based on your commit history.
 
-## Commit Message Format
+## Installation
 
-Python-semantic-release uses the [Angular Commit Message Conventions](https://github.com/angular/angular/blob/master/CONTRIBUTING.md#-commit-message-format) to determine the version bump and generate release notes.
+```bash
+pip install commitizen
+```
 
-### Commit Message Structure
+## Using Commitizen
+
+### Making Commits
+
+Instead of using `git commit`, use the Commitizen CLI:
+
+```bash
+cz commit
+```
+
+This will guide you through creating a conventional commit message by asking:
+1. Type of change
+2. Scope of the change
+3. Short description
+4. Longer description (optional)
+5. Breaking changes (optional)
+6. Issue references (optional)
+
+### Commit Message Format
+
+Commitizen uses the [Conventional Commits](https://www.conventionalcommits.org/) specification. Each commit message should be structured as follows:
 
 ```
-<type>(<scope>): <short summary>
-<BLANK LINE>
+<type>(<scope>): <subject>
+
 <body>
-<BLANK LINE>
+
 <footer>
 ```
 
-The `<type>` and `<summary>` fields are mandatory, the `(<scope>)` field is optional.
-
-### Type
+### Types
 
 Must be one of the following:
 
 * **feat**: A new feature (triggers a minor version bump)
 * **fix**: A bug fix (triggers a patch version bump)
 * **docs**: Documentation only changes
-* **style**: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+* **style**: Changes that do not affect the meaning of the code
 * **refactor**: A code change that neither fixes a bug nor adds a feature
 * **perf**: A code change that improves performance
 * **test**: Adding missing tests or correcting existing tests
@@ -41,14 +61,13 @@ The scope should be the name of the module affected (as perceived by the person 
 ### Subject
 
 The subject contains a succinct description of the change:
-
 * Use the imperative, present tense: "change" not "changed" nor "changes"
 * Don't capitalize the first letter
 * No dot (.) at the end
 
 ### Body
 
-Just as in the subject, use the imperative, present tense: "change" not "changed" nor "changes". The body should include the motivation for the change and contrast this with previous behavior.
+Just as in the subject, use the imperative, present tense. The body should include the motivation for the change and contrast this with previous behavior.
 
 ### Breaking Changes
 
@@ -74,17 +93,23 @@ test: add unit tests for auth service
 BREAKING CHANGE: drop support for Python 3.7
 ```
 
-## Release Types
+## Version Bumping
 
-Python-semantic-release will determine the release type based on the commits:
+Commitizen automatically determines the next version based on commit types:
 
 * **patch**: Bug fixes and other minor changes (fix, refactor, perf, docs, style, etc.)
 * **minor**: New features (feat)
 * **major**: Breaking changes (when the commit message contains "BREAKING CHANGE:")
 
+To manually bump the version:
+
+```bash
+cz bump
+```
+
 ## CI/CD Integration
 
-Our CI/CD pipeline automatically runs python-semantic-release on the main branch after tests pass. The release process:
+Our CI/CD pipeline automatically runs Commitizen on the main branch after tests pass. The release process:
 
 1. Analyzes commits since the last release
 2. Determines the next version number
@@ -96,17 +121,39 @@ Our CI/CD pipeline automatically runs python-semantic-release on the main branch
 
 ## Configuration
 
-Python-semantic-release is configured in the `pyproject.toml` file with the following key settings:
+Commitizen is configured in the `pyproject.toml` file with the following key settings:
 
 ```toml
-[tool.semantic_release]
-version_variable = "setup.py:version"
-branch = "main"
-upload_to_pypi = false
-upload_to_release = true
-build_command = false
-commit_parser = "angular"
-version_source = "commit"
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_files = [
+    "setup.py:version",
+    "MAAMS_NG_BE/__init__.py:__version__"
+]
+bump_message = "bump: version $current_version → $new_version [skip ci]"
+update_changelog_on_bump = true
+changelog_incremental = true
+changelog_start_rev = "v0.1.0"
 ```
 
-The version is tracked in the `setup.py` file. 
+The version is tracked in both `setup.py` and `MAAMS_NG_BE/__init__.py` files.
+
+## Best Practices
+
+1. Always use `cz commit` instead of `git commit`
+2. Keep commit messages clear and descriptive
+3. Use appropriate commit types
+4. Include scope when changes affect specific modules
+5. Document breaking changes clearly
+6. Reference issues when applicable
+
+## Troubleshooting
+
+If you encounter issues with Commitizen:
+
+1. Ensure you have the latest version: `pip install --upgrade commitizen`
+2. Check your commit message format
+3. Verify your configuration in `pyproject.toml`
+4. Check the CI/CD logs for any version bumping issues 
