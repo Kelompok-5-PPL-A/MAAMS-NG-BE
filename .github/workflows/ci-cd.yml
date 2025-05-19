@@ -227,7 +227,7 @@ jobs:
         run: |
           VERSION="${{needs.semantic-release.outputs.version}}"
           if [ -z "$VERSION" ]; then
-            VERSION="$(git describe --tags --abbrev=0)-$(git rev-parse --short HEAD)"
+            VERSION="$(git rev-parse --short HEAD)"
           fi
           echo "Version: $VERSION"
           
