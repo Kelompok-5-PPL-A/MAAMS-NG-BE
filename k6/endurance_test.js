@@ -3,12 +3,16 @@ import { sleep, check } from 'k6';
 
 export let options = {
   stages: [
-    { duration: '1m', target: 10 },
-    { duration: '3m', target: 50 },
-    { duration: '10m', target: 100 },
-    { duration: '1m', target: 50 },
-    { duration: '30s', target: 0 },
+    { duration: '5m', target: 5 },    // warming up
+    { duration: '10m', target: 10 },  // start stable load
+    { duration: '20m', target: 15 },  // endurance peak
+    { duration: '5m', target: 5 },    // cooldown
+    { duration: '2m', target: 0 },    // ramp down
   ],
+  thresholds: {
+    http_req_duration: ['p(95)<1000'], // 95% response time harus < 1 detik
+    http_req_failed: ['rate<0.01'],    // error rate < 1%
+  },
 };
 
 const BASE_URL = 'http://127.0.0.1:8000';
@@ -25,6 +29,7 @@ function randomString(length) {
 export default function () {
   const randomTitle = `Test ${randomString(5)}`;
   
+  // Step 1: Submit pertanyaan
   let submitRes = http.post(`${BASE_URL}/question/submit/`, JSON.stringify({
     mode: "PRIBADI",
     question: "Load testing simulation question",
@@ -37,28 +42,26 @@ export default function () {
     } 
   });
 
-  console.log(`Question submission response: ${submitRes.status} - ${submitRes.body}`);
-
   check(submitRes, {
-    "Submit Analysis - Status is 201": (r) => r.status === 201,
+    "Submit Question - status 201": (r) => r.status === 201,
   });
+
+  sleep(1); // jeda seolah user berpikir
 
   if (submitRes.status === 201) {
     try {
       let questionId = submitRes.json('id');
-      console.log(`Created question with ID: ${questionId}`);
-      
-      sleep(1);
 
+      // Step 2: GET pertanyaan detail
       let getRes = http.get(`${BASE_URL}/question/${questionId}/`);
-      console.log(`Get question response: ${getRes.status} - ${getRes.body}`);
-      
+
       check(getRes, {
-        "Get Analysis - Status is 200": (r) => r.status === 200,
+        "Get Question - status 200": (r) => r.status === 200,
       });
 
       sleep(1);
 
+      // Step 3: Submit cause
       const causePayload = {
         question_id: questionId,
         cause: "Sample cause for testing",
@@ -66,7 +69,6 @@ export default function () {
         column: 1,
         mode: "PRIBADI"
       };
-      console.log(`Submitting cause with payload: ${JSON.stringify(causePayload)}`);
 
       let causeRes = http.post(`${BASE_URL}/cause/`, JSON.stringify(causePayload), { 
         headers: { 
@@ -75,15 +77,15 @@ export default function () {
         } 
       });
 
-      console.log(`Cause submission response: ${causeRes.status} - ${causeRes.body}`);
-
       check(causeRes, {
-        "Submit Cause - Status is 201": (r) => r.status === 201,
+        "Submit Cause - status 201": (r) => r.status === 201,
       });
+
     } catch (e) {
-      console.log(`Error processing question: ${e.message}`);
+      // tangani jika parsing JSON gagal
+      console.log(`Error: ${e.message}`);
     }
   }
 
-  sleep(1);
+  sleep(1); // delay sebelum VU ulangi siklusnya
 }
