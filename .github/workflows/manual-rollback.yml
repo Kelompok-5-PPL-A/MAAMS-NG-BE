@@ -38,7 +38,6 @@ jobs:
         run: |
           SERVICE_NAME="maams-ng-${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}"
           
-          # Verify revision exists
           if ! gcloud run revisions describe ${{ github.event.inputs.revision_name }} \
             --platform managed \
             --region ${{ secrets.GCP_REGION }} \

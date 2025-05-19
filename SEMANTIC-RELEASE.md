@@ -100,7 +100,7 @@ Python-semantic-release is configured in the `pyproject.toml` file with the foll
 
 ```toml
 [tool.semantic_release]
-version_variable = "MAAMS_NG_BE/setup.py:version"
+version_variable = "setup.py:version"
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
@@ -109,4 +109,4 @@ commit_parser = "angular"
 version_source = "commit"
 ```
 
-The version is tracked in the `MAAMS_NG_BE/setup.py` file. 
+The version is tracked in the `setup.py` file. 

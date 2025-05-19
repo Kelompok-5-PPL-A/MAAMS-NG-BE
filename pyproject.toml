@@ -1,19 +1,20 @@
 [tool.semantic_release]
-version_variable = "MAAMS_NG_BE/setup.py:version"
+version_variable = "setup.py:version"
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
-build_command = "python MAAMS_NG_BE/setup.py sdist bdist_wheel"
+build_command = "pip install --upgrade pip setuptools wheel && python setup.py sdist bdist_wheel"
 initial_version = "0.1.0"
 upload_to_repository = true
 commit_subject = "chore(release): {version} [skip ci]"
 commit_message = "chore(release): {version} [skip ci]\n\n{changelog}"
-commit_parser = "angular"
+commit_parser = "conventional"
 version_source = "commit"
 major_on_zero = false
 tag_format = "v{version}"
 tag_signing = false
 no_git_tag = false
+token = "GITHUB_TOKEN"
 
 [tool.semantic_release.branches.main]
 match = "main"
@@ -35,6 +36,37 @@ minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
 
 [tool.semantic_release.changelog]
-template_dir = ""
-changelog_file = "CHANGELOG.md"
-exclude_commit_patterns = [] 
+sections = ["feature", "fix", "documentation", "refactor", "performance", "test", "build", "ci", "chore"]
+exclude_commit_patterns = ["^chore\\(release\\):.*"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_files = [
+    "setup.py:version",
+    "MAAMS_NG_BE/__init__.py:__version__"
+]
+bump_message = "bump: version $current_version → $new_version [skip ci]"
+update_changelog_on_bump = true
+changelog_incremental = true
+changelog_start_rev = "v0.1.0"
+changelog_sections = [
+    "feature",
+    "fix",
+    "documentation",
+    "refactor",
+    "performance",
+    "test",
+    "build",
+    "ci",
+    "chore"
+]
+
+[tool.commitizen.customize]
+message_template = "{type}({scope}): {subject}"
+example = "feat(api): add new endpoint for user authentication"
+schema = "<type>(<scope>): <subject>"
+bump_pattern = "^(BREAKING CHANGE|feat|fix|refactor|perf)"
+bump_map = { "BREAKING CHANGE" = "MAJOR", "feat" = "MINOR", "fix" = "PATCH", "refactor" = "PATCH", "perf" = "PATCH" }
+commit_parser = "^(?P<type>feat|fix|refactor|perf|docs|style|test|build|ci|chore|revert)(?:\\((?P<scope>[^()\\r\\n]*)\\))?(?P<breaking>!)?: (?P<message>.*)" 
