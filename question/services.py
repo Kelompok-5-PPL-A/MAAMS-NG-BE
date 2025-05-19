@@ -113,8 +113,8 @@ class QuestionService():
         questions = (
             Question.objects
             .filter(user_filter & clause & time)
-            .select_related("user")           # FK to CustomUser
-            .prefetch_related("tags")         # M2M to Tag
+            .select_related("user")          
+            .prefetch_related("tags")        
             .order_by('-created_at')
             .distinct()
         )
@@ -129,10 +129,17 @@ class QuestionService():
         today_datetime = timezone.now()  + timedelta(hours=7)
         last_week_datetime = today_datetime - timedelta(days=7)
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
-        questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
+        questions = (
+        Question.objects
+        .filter(user=user)
+        .filter(time)
+        .select_related("user")               
+        .prefetch_related("tags")             
+        .order_by("-created_at")
+        .distinct()
+        )
         return questions
     
-    @silk_profile(name='test field values')
     def get_field_values(self, user: CustomUser) -> FieldValuesDataClass:
         """
         Returns all unique field values attached to available questions for search bar dropdown functionality.
