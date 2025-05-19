@@ -8,7 +8,7 @@ initial_version = "0.1.0"
 upload_to_repository = true
 commit_subject = "chore(release): {version} [skip ci]"
 commit_message = "chore(release): {version} [skip ci]\n\n{changelog}"
-commit_parser = "angular"
+commit_parser = "conventional"
 version_source = "commit"
 major_on_zero = false
 tag_format = "v{version}"
@@ -35,6 +35,4 @@ minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
 
 [tool.semantic_release.changelog]
-template_dir = ""
-changelog_file = "CHANGELOG.md"
-exclude_commit_patterns = [] 
+changelog_file = "CHANGELOG.md" 
