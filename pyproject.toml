@@ -14,6 +14,7 @@ major_on_zero = false
 tag_format = "v{version}"
 tag_signing = false
 no_git_tag = false
+token = "GITHUB_TOKEN"
 
 [tool.semantic_release.branches.main]
 match = "main"
@@ -34,5 +35,5 @@ allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "style", 
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
 
-[tool.semantic_release.changelog]
+[tool.semantic_release.changelog.default_templates]
 changelog_file = "CHANGELOG.md" 
