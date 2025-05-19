@@ -35,7 +35,7 @@ class CausesService:
                     }
                 ],
                 model="deepseek-r1-distill-llama-70b",
-                temperature=0.7,
+                temperature=0.6,
                 max_completion_tokens=8192,
                 top_p=0.95,
                 stream=False,

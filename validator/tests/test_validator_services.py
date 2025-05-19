@@ -96,8 +96,8 @@ class CausesServiceTest(TransactionTestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.6,
             max_completion_tokens=8192,
             top_p=0.95,
             stream=False,
