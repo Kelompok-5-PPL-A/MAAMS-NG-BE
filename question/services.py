@@ -113,13 +113,15 @@ class QuestionService():
         questions = (
             Question.objects
             .filter(user_filter & clause & time)
+            .select_related("user")           # FK to CustomUser
+            .prefetch_related("tags")         # M2M to Tag
             .order_by('-created_at')
             .distinct()
         )
 
         return questions  
     
-    @silk_profile(name='My View')
+    @silk_profile(name='test history')
     def get_all(self, user: CustomUser, time_range: str):
         """
         Returns a list of  all questions corresponding to a specified user.
