@@ -112,8 +112,13 @@ DATABASES = {
         'PASSWORD': os.getenv("DB_PASSWORD"),
         'HOST': os.getenv("DB_HOST"),
         'PORT': os.getenv("DB_PORT"),
+    },
+    'silk': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / "silk.sqlite3",
     }
 }
+DATABASE_ROUTERS = ['MAAMS_NG_BE.db_routers.SilkRouter']
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
