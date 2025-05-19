@@ -41,7 +41,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install commitizen
   
   test:
     name: Test
@@ -69,7 +68,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install coverage
-          pip install commitizen
       - name: Run tests
         env:
           DJANGO_SETTINGS_MODULE: MAAMS_NG_BE.settings
@@ -122,6 +120,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -139,8 +138,17 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
+      - name: Check for version bump
+        id: check
+        run: |
+          if cz check --rev-range HEAD~1..HEAD; then
+            echo "version_needs_bump=true" >> $GITHUB_OUTPUT
+          else
+            echo "version_needs_bump=false" >> $GITHUB_OUTPUT
+          fi
       - name: Run Commitizen
         id: release
+        if: steps.check.outputs.version_needs_bump == 'true'
         run: |
           cz bump --yes
           echo "version=$(cz version --project)" >> $GITHUB_OUTPUT
