@@ -35,5 +35,38 @@ allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "style", 
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
 
-[tool.semantic_release.changelog.default_templates]
-changelog_file = "CHANGELOG.md" 
+[tool.semantic_release.changelog]
+sections = ["feature", "fix", "documentation", "refactor", "performance", "test", "build", "ci", "chore"]
+exclude_commit_patterns = ["^chore\\(release\\):.*"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_files = [
+    "setup.py:version",
+    "MAAMS_NG_BE/__init__.py:__version__"
+]
+bump_message = "bump: version $current_version → $new_version [skip ci]"
+update_changelog_on_bump = true
+changelog_incremental = true
+changelog_start_rev = "v0.1.0"
+changelog_sections = [
+    "feature",
+    "fix",
+    "documentation",
+    "refactor",
+    "performance",
+    "test",
+    "build",
+    "ci",
+    "chore"
+]
+
+[tool.commitizen.customize]
+message_template = "{type}({scope}): {subject}"
+example = "feat(api): add new endpoint for user authentication"
+schema = "<type>(<scope>): <subject>"
+bump_pattern = "^(BREAKING CHANGE|feat|fix|refactor|perf)"
+bump_map = { "BREAKING CHANGE" = "MAJOR", "feat" = "MINOR", "fix" = "PATCH", "refactor" = "PATCH", "perf" = "PATCH" }
+commit_parser = "^(?P<type>feat|fix|refactor|perf|docs|style|test|build|ci|chore|revert)(?:\\((?P<scope>[^()\\r\\n]*)\\))?(?P<breaking>!)?: (?P<message>.*)" 
