@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MAAMS-NG-BE",
-    version="0.1.0",
+    version="0.2.0",
     description="MAAMS-NG Backend",
     author="MAAMS Team",
     packages=find_packages(),
