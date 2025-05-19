@@ -253,8 +253,26 @@ jobs:
             --concurrency 250 \
             --timeout 300 \
             --port 8000 \
-            --set-env-vars "VERSION=$VERSION" \
-            --set-env-vars "ENVIRONMENT=${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}" \
+            --set-env-vars "DB_NAME=${{ secrets.DB_NAME }}" \
+            --set-env-vars "DB_USER=${{ secrets.DB_USER }}" \
+            --set-env-vars "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+            --set-env-vars "DB_PORT=${{ secrets.DB_PORT }}" \
+            --set-env-vars "DB_HOST=${{ secrets.DB_HOST }}" \
+            --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-env-vars "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" \
+            --set-env-vars "SECRET_KEY=${{ secrets.SECRET_KEY }}" \
+            --set-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+            --set-env-vars "HUGGINGFACE_URL=${{ secrets.HUGGINGFACE_URL }}" \
+            --set-env-vars "HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }}" \
+            --set-env-vars "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
+            --set-env-vars "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            --set-env-vars "CAS_URL=${{ secrets.CAS_URL }}" \
+            --set-env-vars "SERVICE_URL=${{ secrets.SERVICE_URL }}" \
+            --set-env-vars "ORIGIN_URL=${{ secrets.ORIGIN_URL }}" \
+            --set-env-vars "ACCESS_TOKEN_EXP_TIME=${{ secrets.ACCESS_TOKEN_EXP_TIME }}" \
+            --set-env-vars "REFRESH_TOKEN_EXP_TIME=${{ secrets.REFRESH_TOKEN_EXP_TIME }}" \
+            --set-env-vars "ACCESS_TOKEN_SECRET_KEY=${{ secrets.ACCESS_TOKEN_SECRET_KEY }}" \
+            --set-env-vars "REFRESH_TOKEN_SECRET_KEY=${{ secrets.REFRESH_TOKEN_SECRET_KEY }}" \
             --format='value(status.latestCreatedRevisionName)')
           
           echo "revision_name=$REVISION_NAME" >> $GITHUB_OUTPUT
