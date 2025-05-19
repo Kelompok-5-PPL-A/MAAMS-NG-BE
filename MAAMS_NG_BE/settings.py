@@ -64,7 +64,6 @@ INSTALLED_APPS = [
     'question',
     'tag',
     'validator',
-    'silk'
 ]
 
 MIDDLEWARE = [
@@ -79,7 +78,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # 'moesifdjango.middleware.moesif_middleware',
     # 'validator.middleware.rate_limit_middleware.RateLimitMiddleware',
-    'silk.middleware.SilkyMiddleware'
 ]
 
 ROOT_URLCONF = 'MAAMS_NG_BE.urls'
@@ -169,11 +167,12 @@ CORS_EXPOSE_HEADERS = [
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-SILKY_AUTHENTICATION = False  # Restrict access to authenticated users
-SILKY_AUTHORISATION = False   # Restrict access to staff/superusers
-SILKY_META = True            # Capture and store meta data
-SILKY_PYTHON_PROFILER = True # Enable Python function call profiler
-SILKY_PYTHON_PROFILER_BINARY = True # Save .prof files for download
+if DEBUG:
+    INSTALLED_APPS += ['silk']
+    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
+    SILKY_META = True            # Capture and store meta data
+    SILKY_PYTHON_PROFILER = True # Enable Python function call profiler
+    SILKY_PYTHON_PROFILER_BINARY = True # Save .prof files for download
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
