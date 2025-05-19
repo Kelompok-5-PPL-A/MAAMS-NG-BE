@@ -43,20 +43,9 @@ class QuestionResponse(BaseQuestion):
     title = serializers.CharField(max_length=40)
     question = serializers.CharField(max_length=255)
     created_at = serializers.DateTimeField()
-    tags = serializers.SerializerMethodField()
-    user = serializers.SerializerMethodField()
-    username = serializers.SerializerMethodField()
-
-    def get_tags(self, obj):
-        if hasattr(obj.tags, 'all'):
-            return [tag.name for tag in obj.tags.all()]
-        return obj.tags
-    
-    def get_user(self, obj):
-        return obj.user.uuid if obj.user else None
-        
-    def get_username(self, obj):
-        return obj.user.username if obj.user else None
+    tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field="name")
+    user = serializers.SlugRelatedField(read_only=True, slug_field="uuid")
+    username = serializers.CharField(source='user.username', read_only=True)
     
 class PaginatedQuestionResponse(serializers.Serializer):
     class Meta:
