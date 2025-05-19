@@ -153,14 +153,6 @@ To view metrics:
 3. Select the service
 4. Click on "Monitoring"
 
-### Security
-- Private network isolation through VPC
-- Container sandboxing
-- Automatic TLS encryption
-- IAM authentication
-- Secret management
-- Network policies
-
 ### Best Practices
 1. Multi-stage builds to minimize image size
 2. Layer optimization in Dockerfile

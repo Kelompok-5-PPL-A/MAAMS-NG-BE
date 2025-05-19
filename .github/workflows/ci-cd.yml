@@ -241,18 +241,6 @@ jobs:
           SERVICE_NAME="maams-ng-$ENV_SUFFIX"
           IMAGE_TAG="$(cat image_tag.txt)"
           
-          if ! gcloud run services describe $SERVICE_NAME \
-            --platform managed \
-            --region $REGION \
-            --format='get(name)' 2>/dev/null; then
-            
-            gcloud run services create $SERVICE_NAME \
-              --platform managed \
-              --region $REGION \
-              --allow-unauthenticated \
-              --image="$IMAGE_TAG"
-          fi
-          
           REVISION_NAME=$(gcloud run deploy $SERVICE_NAME \
             --image "$IMAGE_TAG" \
             --platform managed \
