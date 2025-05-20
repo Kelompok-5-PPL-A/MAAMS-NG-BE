@@ -17,3 +17,4 @@ urlpatterns = [
     path('ubah/judul/<uuid:pk>/', QuestionPatch.as_view({'patch': 'patch_title'}), name="patch_title_question"),
     path('ubah/tags/<uuid:pk>/', QuestionPatch.as_view({'patch': 'patch_tags'}), name="patch_tags_question"),
 ]
+
