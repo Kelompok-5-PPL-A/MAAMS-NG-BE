@@ -286,7 +286,7 @@ RATE_LIMIT = {
     'CUSTOM_RATES': {
         # Example: Stricter rate limiting for validation API
         '/cause/validate/': {
-            'RATE': 6,
+            'RATE': 3,
             'PER': 60,
         },
     },
