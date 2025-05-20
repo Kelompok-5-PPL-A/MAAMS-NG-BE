@@ -13,7 +13,7 @@ commit_parser = "angular"
 commit_author = "github-actions <github-actions@github.com>"
 
 # GitHub release settings
-github_repository = "your-org/MAAMS_NG_BE"  # Replace with your actual repo
+github_repository = "https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE"
 github_release = true
 github_release_title = "Release {version}"
 
