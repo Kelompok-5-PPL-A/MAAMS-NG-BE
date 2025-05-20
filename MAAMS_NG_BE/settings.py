@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_yasg',
     'django.contrib.sites',
-    'django_seed',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -64,6 +63,7 @@ INSTALLED_APPS = [
     'question',
     'tag',
     'validator',
+    'django_seed'
 ]
 
 MIDDLEWARE = [
