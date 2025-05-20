@@ -7,8 +7,8 @@ from validator.constants import ErrorMsg, FeedbackMsg
 from validator.enums import ValidationType
 from question.models import Question
 from cause.models import Causes
-from validator.exceptions import AIServiceErrorException, RateLimitExceededException
-# from arize.otel import register
+from validator.exceptions import AIServiceErrorException
+from arize.otel import register
 from openinference.instrumentation.groq import GroqInstrumentor
 
 # tracer_provider = register(

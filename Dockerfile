@@ -32,9 +32,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=MAAMS_NG_BE.settings \
     PORT=8000
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && apt-get update && apt-get install -y --no-install-recommends \
     curl \
     default-mysql-client \
     libpq5 \

@@ -161,6 +161,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
