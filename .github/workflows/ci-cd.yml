@@ -203,8 +203,10 @@ jobs:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
+          python manage.py makemigrations
           python manage.py migrate
           python manage.py loaddata ${{ steps.branch.outputs.fixture_file }}  
+          echo "Data seeded from ${{ steps.branch.outputs.fixture_file }}"
 
   zap-scan:
     name: Scan the Web Application
