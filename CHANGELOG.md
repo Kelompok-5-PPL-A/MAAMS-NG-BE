@@ -2,6 +2,25 @@
 
 
 
+## v0.2.0 (2025-05-20)
+
+### Chore
+
+* chore(ci): revert semantic release version ([`0845633`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/0845633831093747432de6edb45671a31bb8e58e))
+
+### Documentation
+
+* docs(semantic-release): update documentation for new semantic release implementation ([`594f5fe`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/594f5fe9d91717f761f968346afd393615390fba))
+
+### Unknown
+
+* Merge pull request #86 from Kelompok-5-PPL-A/staging
+
+Staging ([`ece5e57`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/ece5e57d9bf67624ee3b133bd81db283629d4c95))
+
+* Merge branch &#39;staging&#39; of github.com-personal:Kelompok-5-PPL-A/MAAMS-NG-BE into staging ([`5fb7f0b`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/5fb7f0b1decd631f95f076791dab4c8331f6fff2))
+
+
 ## v0.1.0-beta.1 (2025-05-20)
 
 ### Chore
@@ -149,6 +168,14 @@ Implementation History:
 ### Unknown
 
 * Merge branch &#39;staging&#39; of github.com-personal:Kelompok-5-PPL-A/MAAMS-NG-BE into staging ([`4aba8fb`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/4aba8fb00391f47199a17234ef6b49ab7dac0670))
+
+* Merge pull request #85 from Kelompok-5-PPL-A/staging
+
+Staging ([`0f62d5a`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/0f62d5a99f292a87a4c61119f7f2b4da4e2195f4))
+
+* Merge pull request #84 from Kelompok-5-PPL-A/staging
+
+Implement Semantic Versioning with Commitizen (v{major}.{minor}.{patch}) ([`9518961`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/951896157c1c39349211bf4fae1b0103cbfaede8))
 
 * Merge pull request #83 from Kelompok-5-PPL-A/staging
 
