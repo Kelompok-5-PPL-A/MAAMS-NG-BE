@@ -2,6 +2,13 @@
 
 
 
+## v0.2.1 (2025-05-20)
+
+### Refactor
+
+* refactor: change django timezone to datetime ([`2cb3a79`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/2cb3a79793723653ce3bed1416c9e6809dbd16d1))
+
+
 ## v0.2.0 (2025-05-20)
 
 ### Chore
