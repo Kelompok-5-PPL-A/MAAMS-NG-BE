@@ -15,6 +15,7 @@ from authentication.models import CustomUser
 from django.db.models import Q
 from datetime import timedelta
 from django.utils import timezone
+from silk.profiling.profiler import silk_profile
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
@@ -83,6 +84,7 @@ class QuestionService():
             
         return response
     
+    @silk_profile(name='test search')
     def get_matched(self, q_filter: str, user: CustomUser, time_range: str, keyword: str):
         """
         Returns a list of matched Question model instances for the logged-in user
@@ -111,12 +113,15 @@ class QuestionService():
         questions = (
             Question.objects
             .filter(user_filter & clause & time)
+            .select_related("user")          
+            .prefetch_related("tags")        
             .order_by('-created_at')
             .distinct()
         )
 
         return questions  
     
+    @silk_profile(name='test history')
     def get_all(self, user: CustomUser, time_range: str):
         """
         Returns a list of  all questions corresponding to a specified user.
@@ -124,7 +129,15 @@ class QuestionService():
         today_datetime = timezone.now()  + timedelta(hours=7)
         last_week_datetime = today_datetime - timedelta(days=7)
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
-        questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
+        questions = (
+        Question.objects
+        .filter(user=user)
+        .filter(time)
+        .select_related("user")               
+        .prefetch_related("tags")             
+        .order_by("-created_at")
+        .distinct()
+        )
         return questions
     
     def get_field_values(self, user: CustomUser) -> FieldValuesDataClass:
@@ -133,7 +146,7 @@ class QuestionService():
         """
         is_admin = user.role == 'admin'
 
-        questions = Question.objects.all()
+        questions = Question.objects.all().select_related('user').prefetch_related('tags')
 
         values = {
             "judul": set(),

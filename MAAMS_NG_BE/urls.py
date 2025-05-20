@@ -21,6 +21,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView
 )
+from django.conf import settings
 
 urlpatterns = [
     # Admin
@@ -39,3 +40,5 @@ urlpatterns = [
     path('cause/', include('cause.urls')),
     path('question/', include('question.urls')),
 ]
+if settings.DEBUG:
+    urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]

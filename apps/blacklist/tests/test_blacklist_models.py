@@ -196,3 +196,141 @@ class TestBlacklistModel(TestCase):
         result = Blacklist.get_active_blacklist('9999999999')
         
         self.assertIsNone(result)
+
+class BlacklistModelSaveTest(TestCase):
+    def setUp(self):
+        self.today = timezone.now().date()
+        self.valid_data = {
+            'npm': '1234567890',
+            'startDate': self.today,
+            'endDate': self.today + timedelta(days=10),
+            'keterangan': 'Test blacklist'
+        }
+
+    def test_save_valid_blacklist(self):
+        # Test that saving a valid blacklist succeeds
+        blacklist = Blacklist(**self.valid_data)
+        result = blacklist.save()
+        
+        # Verify the blacklist was saved to the database
+        saved_blacklist = Blacklist.objects.get(pk=blacklist.id)
+        self.assertEqual(saved_blacklist.npm, self.valid_data['npm'])
+        self.assertEqual(saved_blacklist.keterangan, self.valid_data['keterangan'])
+    
+    def test_save_invalid_dates(self):
+        # Test that saving with end date before start date raises ValidationError
+        invalid_data = self.valid_data.copy()
+        invalid_data['startDate'] = self.today
+        invalid_data['endDate'] = self.today - timedelta(days=1)
+        
+        blacklist = Blacklist(**invalid_data)
+        with self.assertRaises(ValidationError) as context:
+            blacklist.save()
+        
+        self.assertIn("End date cannot be before start date", str(context.exception))
+    
+    def test_save_extreme_date_range(self):
+        """Test saving with an extremely long blacklist period"""
+        extreme_data = self.valid_data.copy()
+        extreme_data['startDate'] = self.today
+        extreme_data['endDate'] = self.today + timedelta(days=3650)  # ~10 years
+        
+        blacklist = Blacklist(**extreme_data)
+        result = blacklist.save()
+        
+        # Verify the blacklist was saved with the extreme date range
+        saved_blacklist = Blacklist.objects.get(pk=blacklist.id)
+        self.assertEqual(saved_blacklist.endDate, extreme_data['endDate'])
+    
+    def test_save_with_overlapping_records(self):
+        """Test saving when there's already an overlapping record"""
+        # Create first blacklist entry
+        Blacklist.objects.create(**self.valid_data)
+        
+        # Try to create another with a slight overlap
+        overlapping_data = {
+            'npm': self.valid_data['npm'],
+            'startDate': self.valid_data['endDate'] - timedelta(days=1),
+            'endDate': self.valid_data['endDate'] + timedelta(days=10),
+            'keterangan': 'Overlapping blacklist'
+        }
+        
+        with self.assertRaises(ValidationError) as context:
+            Blacklist(**overlapping_data).save()
+        
+        self.assertIn("This student already has a blacklist record for an overlapping period", 
+                     str(context.exception))
+
+class BlacklistModelDeleteTest(TestCase):
+    def setUp(self):
+        self.today = timezone.now().date()
+        self.valid_data = {
+            'npm': '1234567890',
+            'startDate': self.today,
+            'endDate': self.today + timedelta(days=10),
+            'keterangan': 'Test blacklist'
+        }
+
+    def test_delete_successful(self):
+        """Test that deleting a blacklist record is successful"""
+        # Create a blacklist record
+        blacklist = Blacklist.objects.create(**self.valid_data)
+        
+        # Verify it exists
+        self.assertTrue(Blacklist.objects.filter(pk=blacklist.id).exists())
+        
+        # Delete the record
+        result = blacklist.delete()
+        
+        # Verify it was deleted
+        self.assertFalse(Blacklist.objects.filter(pk=blacklist.id).exists())
+        
+        # Check the result tuple format
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], 1)  # 1 object deleted
+    
+    def test_delete_exception_handling(self):
+        """Test the exception handling in the delete method"""
+        blacklist = Blacklist.objects.create(**self.valid_data)
+        
+        # Mock the super().delete() method to raise an exception
+        with patch('django.db.models.Model.delete') as mock_delete:
+            mock_delete.side_effect = Exception("Database error")
+            
+            # The delete method should re-raise the exception
+            with self.assertRaises(Exception) as context:
+                blacklist.delete()
+                self.assertEqual(str(context.exception), "Error occurred while deleting: Database error")
+    
+    def test_delete_already_deleted(self):
+        """Test handling when attempting to delete an already deleted record"""
+        # Create and then delete a blacklist record
+        blacklist = Blacklist.objects.create(**self.valid_data)
+        blacklist.delete()
+        
+        # Attempt to delete again
+        with self.assertRaises(Blacklist.DoesNotExist):
+            # We need to refresh from DB to simulate real scenario
+            blacklist.refresh_from_db()
+            blacklist.delete()
+    
+    def test_delete_multiple_records(self):
+        """Test deleting multiple blacklist records at once via queryset"""
+        # Create multiple records
+        blacklist1 = Blacklist.objects.create(**self.valid_data)
+        
+        second_data = self.valid_data.copy()
+        second_data['npm'] = '9876543210'
+        blacklist2 = Blacklist.objects.create(**second_data)
+        
+        # Delete via queryset
+        result = Blacklist.objects.all().delete()
+        
+        # Verify all records were deleted
+        self.assertEqual(Blacklist.objects.count(), 0)
+        
+        # Check result format (should be a tuple with count and details)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], 2)  
