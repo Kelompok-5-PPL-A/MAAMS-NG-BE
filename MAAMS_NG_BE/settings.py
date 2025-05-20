@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_yasg',
     'django.contrib.sites',
-    'django_seed',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -64,6 +63,7 @@ INSTALLED_APPS = [
     'question',
     'tag',
     'validator',
+    'django_seed'
 ]
 
 MIDDLEWARE = [
@@ -106,10 +106,19 @@ WSGI_APPLICATION = 'MAAMS_NG_BE.wsgi.application'
 
 DATABASES = {
     'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv("DB_NAME"),
+        'USER': os.getenv("DB_USER"),
+        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'HOST': os.getenv("DB_HOST"),
+        'PORT': os.getenv("DB_PORT"),
+    },
+    'silk': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / "silk.sqlite3",
     }
 }
+DATABASE_ROUTERS = ['MAAMS_NG_BE.db_routers.SilkRouter']
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -138,7 +147,7 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
@@ -161,6 +170,14 @@ CORS_EXPOSE_HEADERS = [
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+if DEBUG:
+    INSTALLED_APPS += ['silk']
+    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
+    SILKY_META = True            # Capture and store meta data
+    SILKY_PYTHON_PROFILER = True # Enable Python function call profiler
+    SILKY_PYTHON_PROFILER_BINARY = True # Save .prof files for download
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

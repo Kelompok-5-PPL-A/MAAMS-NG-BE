@@ -374,3 +374,46 @@ class TestBlacklistViews(APITestCase):
         
         # Check response
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_post_end_date_not_in_future(self):
+        """Test that validation fails when end date is not in the future"""
+        self.today = timezone.now().date()
+        self.tomorrow = self.today + timedelta(days=1)
+        self.yesterday = self.today - timedelta(days=1)
+        
+        # Authenticate as admin first
+        self.client.force_authenticate(user=self.admin_user)
+        
+        # Test with today's date (should fail)
+        data = {
+            'npm': '1234567890',
+            'reason': 'Test blacklisting reason',
+            'end_date': self.today.isoformat()
+        }
+        
+        # Use the specific URL from your dictionary
+        response = self.client.post(self.urls['blacklist_add'], data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('non_field_errors', response.data)
+        self.assertEqual(response.data['non_field_errors'][0], "End date must be in the future")
+        
+        # Test with yesterday's date (should fail)
+        data['end_date'] = self.yesterday.isoformat()
+        
+        response = self.client.post(self.urls['blacklist_add'], data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('non_field_errors', response.data)
+        self.assertEqual(response.data['non_field_errors'][0], "End date must be in the future")
+        
+        # For completeness, test with tomorrow's date (should pass validation)
+        data['end_date'] = self.tomorrow.isoformat()
+        
+        # Mock the service to avoid actual database operations
+        with patch('apps.blacklist.services.BlacklistService.add_to_blacklist') as mock_add:
+            mock_add.return_value = {"success": True}
+            response = self.client.post(self.urls['blacklist_add'], data, format='json')
+            
+            # Should pass validation but we're checking the view logic works correctly
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)

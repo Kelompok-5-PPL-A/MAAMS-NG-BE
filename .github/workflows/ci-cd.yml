@@ -143,6 +143,7 @@ jobs:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
+          python manage.py makemigrations
           python manage.py migrate
           python manage.py seed_causes_server
           mkdir -p cause/fixtures
@@ -152,6 +153,60 @@ jobs:
         with:
           name: fixtures
           path: cause/fixtures/
+  data-seeding-tag:
+    name: Automatic Data Seeding for Tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Determine branch and select fixture file
+        id: branch
+        run: |
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          echo "Branch: $BRANCH_NAME"
+
+          if [[ "$BRANCH_NAME" == "main" ]]; then
+            FIXTURE="tag/fixtures/prod_data.json"
+          elif [[ "$BRANCH_NAME" == "staging" ]]; then
+            FIXTURE="tag/fixtures/staging_data.json"
+          else
+            FIXTURE="tag/fixtures/dev_data.json"
+          fi
+
+          echo "fixture_file=$FIXTURE" >> $GITHUB_OUTPUT
+
+      - name: Set up database and seed data
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          python manage.py makemigrations
+          python manage.py migrate
+          python manage.py loaddata ${{ steps.branch.outputs.fixture_file }}  
+          echo "Data seeded from ${{ steps.branch.outputs.fixture_file }}"
 
   zap-scan:
     name: Scan the Web Application

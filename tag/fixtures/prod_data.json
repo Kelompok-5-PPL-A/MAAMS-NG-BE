@@ -1,0 +1,44 @@
+[
+    {
+    "model": "tag.tag",
+    "pk": "66666666-6666-6666-6666-666666666666",
+    "fields": {
+      "name": "backend"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "77777777-7777-7777-7777-777777777777",
+    "fields": {
+      "name": "frontend"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "88888888-8888-8888-8888-888888888888",
+    "fields": {
+      "name": "api"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "99999999-9999-9999-9999-999999999999",
+    "fields": {
+      "name": "cloud"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "fields": {
+      "name": "docker"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "fields": {
+      "name": "k8s"
+    }
+  }
+]

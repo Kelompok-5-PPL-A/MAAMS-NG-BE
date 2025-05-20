@@ -66,15 +66,15 @@ class BlacklistHistorySerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     days_remaining = serializers.IntegerField()
 
-class BlacklistSerializer(serializers.ModelSerializer):
-    is_active = serializers.BooleanField(read_only=True)
-    days_remaining = serializers.IntegerField(read_only=True)
+# class BlacklistSerializer(serializers.ModelSerializer):
+#     is_active = serializers.BooleanField(read_only=True)
+#     days_remaining = serializers.IntegerField(read_only=True)
     
-    class Meta:
-        model = Blacklist
-        fields = ['id', 'npm', 'startDate', 'endDate', 'keterangan', 'is_active', 'days_remaining']
+#     class Meta:
+#         model = Blacklist
+#         fields = ['id', 'npm', 'startDate', 'endDate', 'keterangan', 'is_active', 'days_remaining']
     
-    def validate(self, data):
-        if data.get('endDate') and data.get('startDate') and data['endDate'] < data['startDate']:
-            raise serializers.ValidationError("End date cannot be before start date")
-        return data
+#     def validate(self, data):
+#         if data.get('endDate') and data.get('startDate') and data['endDate'] < data['startDate']:
+#             raise serializers.ValidationError("End date cannot be before start date")
+#         return data

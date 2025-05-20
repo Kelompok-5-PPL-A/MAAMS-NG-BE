@@ -4,6 +4,7 @@
 *.pyc
 __pycache__
 db.sqlite3
+silk.sqlite3
 media
 
 # Backup files
@@ -19,6 +20,12 @@ media
 
 # AWS User-specific
 .idea/**/aws.xml
+
+# Django static files
+/staticfiles/
+
+# Silk profile
+*.prof
 
 # Generated files
 .idea/**/contentModel.xml

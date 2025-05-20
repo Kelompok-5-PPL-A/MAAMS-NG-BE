@@ -5,7 +5,7 @@ from validator.dataclasses.field_values import FieldValuesDataClass
 from validator.enums import HistoryType
 from .models import Question
 from tag.models import Tag
-from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException, ValueNotUpdatedException
+from validator.exceptions import InvalidTimeRangeRequestException, UniqueTagException, ForbiddenRequestException, InvalidFiltersException
 from validator.constants import ErrorMsg
 from validator.enums import FilterType
 from django.core.exceptions import ObjectDoesNotExist
@@ -15,6 +15,8 @@ from authentication.models import CustomUser
 from django.db.models import Q
 from datetime import timedelta
 from django.utils import timezone
+from silk.profiling.profiler import silk_profile
+from sentry_sdk import add_breadcrumb, set_tag, start_span
 
 class QuestionService():
     def create(self, title: str, question: str, mode: str, tags: List[str], user: Optional[CustomUser] = None): 
@@ -46,7 +48,7 @@ class QuestionService():
         try:
             recent_question = Question.objects.filter(user=user).order_by('-created_at').first()
             if not recent_question:
-                return None
+                raise Question.DoesNotExist("No recent questions found for this user.")
             return recent_question
         except Exception:
             raise Question.DoesNotExist("No recent questions found.")
@@ -83,12 +85,13 @@ class QuestionService():
             
         return response
     
+    @silk_profile(name='test search')
     def get_matched(self, q_filter: str, user: CustomUser, time_range: str, keyword: str):
         """
         Returns a list of matched Question model instances for the logged-in user
         with the specified filters.
         """
-        is_admin = user.role == 'admin'
+        is_admin = user.is_staff and user.is_superuser
 
         if not q_filter:
             q_filter = 'semua'
@@ -107,58 +110,100 @@ class QuestionService():
         clause = self._resolve_filter_type(q_filter, keyword, is_admin)
         time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
 
+        with start_span(op="question.get_matched", description="Fetch questions by filter and keyword"):
+            add_breadcrumb(
+                category="question.search",
+                message=f"Fetching questions with filter: {q_filter}, keyword: {keyword}, time_range: {time_range}",
+                level="info"
+            )
+            set_tag("user.id", str(user.uuid))
+            set_tag("filter", q_filter)
+            set_tag("keyword", keyword)
+            set_tag("time_range", time_range)
         # Final query
-        questions = (
-            Question.objects
-            .filter(user_filter & clause & time)
-            .order_by('-created_at')
-            .distinct()
-        )
+            questions = (
+                Question.objects
+                .filter(user_filter & clause & time)
+                .select_related("user")          
+                .prefetch_related("tags")        
+                .order_by('-created_at')
+                .distinct()
+            )
 
         return questions  
     
+    @silk_profile(name='test history')
     def get_all(self, user: CustomUser, time_range: str):
         """
-        Returns a list of  all questions corresponding to a specified user.
+        Returns a list of all questions corresponding to a specified user,
+        filtered by the given time range.
         """
-        today_datetime = timezone.now()  + timedelta(hours=7)
+
+        today_datetime = timezone.now() + timedelta(hours=7)
         last_week_datetime = today_datetime - timedelta(days=7)
-        time = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
-        questions = Question.objects.filter(user=user).filter(time).order_by('-created_at').distinct()
+
+        with start_span(op="question.get_all", description="Fetch questions by user and time range"):
+            add_breadcrumb(
+                category="question.history",
+                message=f"Fetching history for user: {user.username}, time_range: {time_range}",
+                level="info"
+            )
+            set_tag("user.id", str(user.uuid))
+            set_tag("time_range", time_range)
+
+            time_filter = self._resolve_time_range(time_range.lower(), today_datetime, last_week_datetime)
+
+            questions = (
+                Question.objects
+                .filter(user=user)
+                .filter(time_filter)  
+                .select_related("user")              
+                .prefetch_related("tags")             
+                .order_by("-created_at")
+                .distinct()
+            )
+
         return questions
     
     def get_field_values(self, user: CustomUser) -> FieldValuesDataClass:
         """
         Returns all unique field values attached to available questions for search bar dropdown functionality.
         """
-        is_admin = user.role == 'admin'
+        is_admin = user.is_superuser and user.is_staff
+        with start_span(op="question.get_field_values", description="Fetch field values for search bar"):
+            add_breadcrumb(
+                category="question.field_values",
+                message=f"Fetching field values for user: {user.username}",
+                level="info"
+            )
+            set_tag("user.id", str(user.uuid))
 
-        questions = Question.objects.all()
+            questions = Question.objects.all().select_related('user').prefetch_related('tags')
 
-        values = {
-            "judul": set(),
-            "topik": set()
-        }
+            values = {
+                "judul": set(),
+                "topik": set()
+            }
 
-        # extract usernames if user is admin to allow filtering by pengguna
-        if is_admin: values['pengguna'] = set()
-        
-        for question in questions:
-            if is_admin and question.user is not None:
-                values['pengguna'].add(question.user.username)
-            values['judul'].add(question.title)
-            # extract list of tags from question
-            tags = [tag.name for tag in question.tags.all()]
-            values['topik'].update(tags)
+            # extract usernames if user is admin to allow filtering by pengguna
+            if is_admin: values['pengguna'] = set()
+            
+            for question in questions:
+                if is_admin and question.user is not None:
+                    values['pengguna'].add(question.user.username)
+                values['judul'].add(question.title)
+                # extract list of tags from question
+                tags = [tag.name for tag in question.tags.all()]
+                values['topik'].update(tags)
 
-        response = FieldValuesDataClass(
-            pengguna=[],
-            judul=list(values['judul']), 
-            topik=list(values['topik'])
-        )
+            response = FieldValuesDataClass(
+                pengguna=[],
+                judul=list(values['judul']), 
+                topik=list(values['topik'])
+            )
 
-        if is_admin:
-            response.pengguna=list(values['pengguna'])    
+            if is_admin:
+                response.pengguna=list(values['pengguna'])    
 
         return response 
     
@@ -167,7 +212,7 @@ class QuestionService():
         Return a list of pengawasan questions by keyword and filter type for privileged users.
         """
         # hanya boleh diakses oleh admin (staff dan superuser)
-        is_admin = user.role == 'admin'
+        is_admin = user.is_superuser and user.is_staff
         if not is_admin:
             raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_GET)
         
@@ -237,41 +282,3 @@ class QuestionService():
                 raise InvalidTimeRangeRequestException(ErrorMsg.INVALID_TIME_RANGE)
         
         return time
-    
-    def update_question(self, pk: uuid, user: Optional[CustomUser] = None, **fields):
-        try:
-            question_object = Question.objects.get(pk=pk)
-        except Question.DoesNotExist:
-            raise NotFoundRequestException(ErrorMsg.NOT_FOUND)
-            
-        if user is not None:
-            if user.uuid != question_object.user.uuid:
-                raise ForbiddenRequestException(ErrorMsg.FORBIDDEN_UPDATE)
-        else:
-            user = None
-        
-        updated = False
-        
-        if 'tags' in fields:
-            new_tags = fields.pop('tags')
-            
-            tags_object = self._validate_tags(new_tags)
-            
-            current_tags = set(question_object.tags.all())
-            new_tags_set = set(tags_object)
-            
-            if current_tags != new_tags_set:
-                question_object.tags.set(new_tags_set)
-                updated = True
-            
-        for field, new_value in fields.items():
-            if field != 'tags' and getattr(question_object, field) != new_value:
-                setattr(question_object, field, new_value)
-                updated = True
-                
-        question_object.save()
-                
-        if not updated:
-            raise ValueNotUpdatedException(ErrorMsg.VALUE_NOT_UPDATED)
-
-        return question_object
