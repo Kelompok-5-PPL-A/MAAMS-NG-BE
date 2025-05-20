@@ -1,34 +1,28 @@
-# Semantic Versioning with Commitizen
+# Semantic Versioning with Python Semantic Release
 
-This project uses [Commitizen](https://commitizen-tools.github.io/commitizen/) for automated version management and package publishing. Commitizen helps enforce conventional commit messages and automatically determines the next version number based on your commit history.
+This project uses [Python Semantic Release](https://python-semantic-release.readthedocs.io/) for automated version management and package publishing. It helps enforce conventional commit messages and automatically determines the next version number based on your commit history.
 
 ## Installation
 
 ```bash
-pip install commitizen
+pip install python-semantic-release
 ```
 
-## Using Commitizen
+## Using Semantic Release
 
 ### Making Commits
 
-Instead of using `git commit`, use the Commitizen CLI:
+Follow the conventional commit format:
 
 ```bash
-cz commit
+git commit -m "type(scope): subject"
 ```
 
-This will guide you through creating a conventional commit message by asking:
-1. Type of change
-2. Scope of the change
-3. Short description
-4. Longer description (optional)
-5. Breaking changes (optional)
-6. Issue references (optional)
+This format helps semantic release determine the next version number.
 
 ### Commit Message Format
 
-Commitizen uses the [Conventional Commits](https://www.conventionalcommits.org/) specification. Each commit message should be structured as follows:
+Each commit message should be structured as follows:
 
 ```
 <type>(<scope>): <subject>
@@ -44,15 +38,15 @@ Must be one of the following:
 
 * **feat**: A new feature (triggers a minor version bump)
 * **fix**: A bug fix (triggers a patch version bump)
-* **docs**: Documentation only changes
-* **style**: Changes that do not affect the meaning of the code
-* **refactor**: A code change that neither fixes a bug nor adds a feature
-* **perf**: A code change that improves performance
-* **test**: Adding missing tests or correcting existing tests
-* **build**: Changes that affect the build system or external dependencies
-* **ci**: Changes to our CI configuration files and scripts
-* **chore**: Other changes that don't modify src or test files
-* **revert**: Reverts a previous commit
+* **perf**: A code change that improves performance (triggers a patch version bump)
+* **refactor**: A code change that neither fixes a bug nor adds a feature (triggers a patch version bump)
+* **docs**: Documentation only changes (no version bump)
+* **style**: Changes that do not affect the meaning of the code (no version bump)
+* **test**: Adding missing tests or correcting existing tests (no version bump)
+* **build**: Changes that affect the build system or external dependencies (no version bump)
+* **ci**: Changes to our CI configuration files and scripts (no version bump)
+* **chore**: Other changes that don't modify src or test files (no version bump)
+* **revert**: Reverts a previous commit (no version bump)
 
 ### Scope
 
@@ -76,84 +70,165 @@ Breaking changes should start with the word `BREAKING CHANGE:` with a space or t
 ## Examples
 
 ```
-feat(api): add ability to retrieve user profile
+feat(auth): implement Google OAuth authentication
 
-fix(auth): resolve issue with token refresh
+- Add Google OAuth provider configuration
+- Create OAuth callback endpoint
+- Implement token generation and validation
 
-docs: update README with new API endpoints
+fix(api): resolve token refresh issue
 
-style: format code according to linting rules
+- Fix token refresh logic in authentication service
+- Add proper error handling for expired tokens
+- Update token validation middleware
 
-refactor(database): optimize query performance
+feat(api)!: restructure authentication endpoints
 
-perf: improve image loading time
+BREAKING CHANGE: Authentication endpoints have been restructured:
+- /auth/login is now /api/v1/auth/login
+- /auth/refresh is now /api/v1/auth/refresh
+- All endpoints now require API version in path
 
-test: add unit tests for auth service
+perf(database): optimize query performance
 
-BREAKING CHANGE: drop support for Python 3.7
+- Add database indexes for frequently queried fields
+- Implement query caching for user profiles
+- Optimize JOIN operations in cause queries
+
+refactor(services): improve code organization
+
+- Move business logic to dedicated service classes
+- Implement dependency injection pattern
+- Extract common utilities to shared module
+
+docs(api): update API documentation
+
+- Add OpenAPI specifications for new endpoints
+- Update README with setup instructions
+- Add examples for common API calls
+
+ci: update deployment workflow
+
+- Add staging environment configuration
+- Implement automated rollback on failure
+- Add deployment health checks
+
+chore: update project dependencies
+
+- Update Django to 4.2.7
+- Upgrade djangorestframework to 3.14.0
+- Update development dependencies
 ```
 
 ## Version Bumping
 
-Commitizen automatically determines the next version based on commit types:
+Semantic Release automatically determines the next version based on commit types:
 
-* **patch**: Bug fixes and other minor changes (fix, refactor, perf, docs, style, etc.)
+* **patch**: Bug fixes and other minor changes (fix, refactor, perf)
 * **minor**: New features (feat)
-* **major**: Breaking changes (when the commit message contains "BREAKING CHANGE:")
+* **major**: Breaking changes (when the commit message contains "BREAKING CHANGE:" or ends with "!")
 
 To manually bump the version:
 
 ```bash
-cz bump
+semantic-release version
 ```
 
 ## CI/CD Integration
 
-Our CI/CD pipeline automatically runs Commitizen on the main branch after tests pass. The release process:
+Our CI/CD pipeline automatically runs Semantic Release on the main and staging branches after tests pass. The release process:
 
 1. Analyzes commits since the last release
 2. Determines the next version number
 3. Generates release notes
 4. Creates a new Git tag
-5. Updates CHANGELOG.md
+5. Updates version in tracked files
 6. Creates a GitHub release
 7. Builds and deploys the application with the new version
 
 ## Configuration
 
-Commitizen is configured in the `pyproject.toml` file with the following key settings:
+Semantic Release is configured in the `pyproject.toml` file with the following key settings:
 
 ```toml
-[tool.commitizen]
-name = "cz_conventional_commits"
-version = "0.1.0"
-tag_format = "v$version"
-version_files = [
+[tool.semantic_release]
+version_variable = [
     "setup.py:version",
     "MAAMS_NG_BE/__init__.py:__version__"
 ]
-bump_message = "bump: version $current_version → $new_version [skip ci]"
-update_changelog_on_bump = true
-changelog_incremental = true
-changelog_start_rev = "v0.1.0"
+branch = "main"
+upload_to_repository = true
+upload_to_release = true
+build_command = "python setup.py sdist bdist_wheel"
+
+major_on_zero = false
+commit_parser = "angular"
+commit_author = "github-actions <github-actions@github.com"
+
+# GitHub release settings
+github_repository = "your-org/MAAMS_NG_BE"
+github_release = true
+github_release_title = "Release {version}"
+
+# Changelog configuration
+changelog_file = "CHANGELOG.md"
+changelog_scope = false
+changelog_sections = [
+    "breaking", 
+    "feature", 
+    "fix", 
+    "performance", 
+    "documentation", 
+    "refactor"
+]
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "feat",
+    "fix",
+    "perf",
+    "refactor",
+    "style",
+    "test"
+]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf", "refactor"]
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.branches.staging]
+match = "staging"
+prerelease = true
+prerelease_token = "beta"
 ```
 
 The version is tracked in both `setup.py` and `MAAMS_NG_BE/__init__.py` files.
 
 ## Best Practices
 
-1. Always use `cz commit` instead of `git commit`
+1. Always follow the conventional commit format
 2. Keep commit messages clear and descriptive
 3. Use appropriate commit types
 4. Include scope when changes affect specific modules
 5. Document breaking changes clearly
 6. Reference issues when applicable
+7. Use bullet points in commit body for better readability
+8. Keep related changes in a single commit
+9. Test changes before committing
 
 ## Troubleshooting
 
-If you encounter issues with Commitizen:
+If you encounter issues with Semantic Release:
 
-1. Ensure you have the latest version: `pip install --upgrade commitizen`
+1. Ensure you have the latest version: `pip install --upgrade python-semantic-release`
 2. Check your commit message format
 3. Verify your configuration in `pyproject.toml`
-4. Check the CI/CD logs for any version bumping issues 
+4. Check the CI/CD logs for any version bumping issues
+5. Ensure your GitHub token has the necessary permissions
+6. Verify that the version variables in tracked files are correctly formatted 
