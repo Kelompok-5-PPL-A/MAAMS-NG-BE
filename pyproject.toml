@@ -1,0 +1,22 @@
+[tool.semantic_release]
+version_variable = [
+    "VERSION:__version__"
+]
+branch = "main"
+upload_to_pypi = false
+upload_to_release = true
+build_command = "pip install -e ."
+commit_version_number = true
+commit_author = "github-actions <actions@github.com>"
+changelog_sections = [
+    "feature",
+    "fix",
+    "perf",
+    "refactor",
+    "breaking",
+    "documentation",
+    "build",
+    "ci",
+    "test"
+]
+major_on_zero = false
