@@ -15,6 +15,8 @@ import sentry_sdk
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from datetime import timedelta
+import dj_database_url
+import sys
 
 env_file = find_dotenv(
      filename=".env",
