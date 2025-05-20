@@ -1,0 +1,98 @@
+name: Manual Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      revision_name:
+        description: 'Revision name to rollback to'
+        required: true
+        type: string
+      migration_name:
+        description: 'Migration name to rollback to (optional)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  rollback:
+    name: Rollback Application and Database
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Rollback Application
+        run: |
+          SERVICE_NAME="maams-ng-${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}"
+          
+          if ! gcloud run revisions describe ${{ github.event.inputs.revision_name }} \
+            --platform managed \
+            --region ${{ secrets.GCP_REGION }} \
+            --format='get(name)' 2>/dev/null; then
+            echo "Error: Revision ${{ github.event.inputs.revision_name }} not found"
+            exit 1
+          fi
+          
+          gcloud run services update-traffic $SERVICE_NAME \
+            --platform managed \
+            --region ${{ secrets.GCP_REGION }} \
+            --to-revision=${{ github.event.inputs.revision_name }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Rollback Database
+        if: ${{ github.event.inputs.migration_name != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
+        run: |
+          if [ -z "$MIGRATION_NAME" ]; then
+            echo "No migration name provided, skipping database rollback"
+          else
+            python manage.py migrate $MIGRATION_NAME
+          fi
+
+      - name: Store Rollback Metadata
+        run: |
+          METADATA='{
+            "timestamp": "'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'",
+            "rolled_back_by": "'${{ github.actor }}'",
+            "environment": "'${{ github.event.inputs.environment }}'",
+            "revision_name": "'${{ github.event.inputs.revision_name }}'",
+            "migration_name": "'${{ github.event.inputs.migration_name }}'"
+          }'
+          
+          echo "$METADATA" > rollback-metadata.json
+      
+      - name: Upload Rollback Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-metadata-${{ github.event.inputs.environment }}-$(date +%Y%m%d-%H%M%S)
+          path: rollback-metadata.json
+          retention-days: 30

@@ -1,22 +1,56 @@
 [tool.semantic_release]
 version_variable = [
-    "VERSION:__version__"
+    "setup.py:version",
+    "MAAMS_NG_BE/__init__.py:__version__"
 ]
 branch = "main"
-upload_to_pypi = false
+upload_to_repository = true
 upload_to_release = true
-build_command = "pip install -e ."
-commit_version_number = true
-commit_author = "github-actions <actions@github.com>"
+build_command = "python setup.py sdist bdist_wheel"
+
+major_on_zero = false
+commit_parser = "angular"
+commit_author = "github-actions <github-actions@github.com>"
+
+# GitHub release settings
+github_repository = "your-org/MAAMS_NG_BE"  # Replace with your actual repo
+github_release = true
+github_release_title = "Release {version}"
+
+# Changelog configuration
+changelog_file = "CHANGELOG.md"
+changelog_scope = false
 changelog_sections = [
-    "feature",
+    "breaking", 
+    "feature", 
+    "fix", 
+    "performance", 
+    "documentation", 
+    "refactor"
+]
+
+# Use the Python Semantic Release format
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "feat",
     "fix",
     "perf",
     "refactor",
-    "breaking",
-    "documentation",
-    "build",
-    "ci",
+    "style",
     "test"
 ]
-major_on_zero = false
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf", "refactor"]
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.branches.staging]
+match = "staging"
+prerelease = true
+prerelease_token = "beta"

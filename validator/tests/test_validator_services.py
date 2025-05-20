@@ -79,7 +79,7 @@ class CausesServiceTest(TransactionTestCase):
         
         # Verify
         self.assertEqual(result, 1)
-        mock_query.assert_called_once_with({
+        mock_query.assert_called_once_with(
             "messages": [
                 {
                     "role": "system",
@@ -90,12 +90,12 @@ class CausesServiceTest(TransactionTestCase):
                     "content": user_prompt
                 }
             ],
-            "model": "accounts/fireworks/models/qwen3-30b-a3b",
-            "max_tokens": 8692,
-            "temperature": 0.6,
-            "seed": 42,
-            "separate_reasoning": False,
-        })
+            model="deepseek-r1-distill-llama-70b",
+            temperature=0.6,
+            top_p=0.95,
+            stream=False,
+            seed=42
+        )
 
     @patch('validator.services.query')
     def test_api_call_normal_validation_false(self, mock_query):

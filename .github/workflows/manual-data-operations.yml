@@ -1,0 +1,185 @@
+name: Manual Data Operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Type of operation'
+        required: true
+        type: choice
+        options:
+          - migrate
+          - rollback_migration
+          - seed
+          - undo_seed
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      migration_name:
+        description: 'Migration file name (optional)'
+        required: false
+        default: ''
+      seeder_table:
+        description: 'Table to seed (optional, default all)'
+        required: false
+        type: choice
+        options:
+          - all
+          - cause
+          - question
+          - tag
+        default: 'all'
+
+jobs:
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+  migrate:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.operation == 'migrate' }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
+        run: |
+          if [ -z "$MIGRATION_NAME" ]; then
+            python manage.py migrate
+          else
+            python manage.py migrate $MIGRATION_NAME
+          fi
+
+  rollback_migration:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.operation == 'rollback_migration' }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Rollback Migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
+        run: |
+          if [ -z "$MIGRATION_NAME" ]; then
+            python manage.py migrate --fake $(python manage.py showmigrations | grep '\[X\]' | tail -n 1 | awk '{print $2}')
+          else
+            python manage.py migrate $MIGRATION_NAME
+          fi
+
+  seed:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.operation == 'seed' }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Seeding
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
+        run: |
+          case "$SEEDER_TABLE" in
+            all) python manage.py seed cause question tag --number 10 ;;
+            cause) python manage.py seed cause --number 10 ;;
+            question) python manage.py seed question --number 10 ;;
+            tag) python manage.py seed tag --number 10 ;;
+            *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
+          esac
+
+  undo_seed:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.operation == 'undo_seed' }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Undo Seeding
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
+        run: |
+          case "$SEEDER_TABLE" in
+            all) python manage.py flush --no-input ;;
+            cause) python manage.py shell -c "from cause.models import Cause; Cause.objects.all().delete()" ;;
+            question) python manage.py shell -c "from question.models import Question; Question.objects.all().delete()" ;;
+            tag) python manage.py shell -c "from tag.models import Tag; Tag.objects.all().delete()" ;;
+            *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
+          esac

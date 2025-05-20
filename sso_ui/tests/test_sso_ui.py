@@ -225,7 +225,7 @@ class TestSSOToken(TestCase):
         expected_payload = {
             'username': 'username',
             'attributes': {'npm': '2206081534'},
-            'exp': 9999999999  # Far future timestamp
+            'exp': 9999999999
         }
         mock_jwt.decode.return_value = expected_payload
         
