@@ -1,0 +1,44 @@
+[
+  {
+    "model": "tag.tag",
+    "pk": "11111111-1111-1111-1111-111111111111",
+    "fields": {
+      "name": "dev-ai"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "22222222-2222-2222-2222-222222222222",
+    "fields": {
+      "name": "dev-ml"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "33333333-3333-3333-3333-333333333333",
+    "fields": {
+      "name": "data-eng"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "44444444-4444-4444-4444-444444444444",
+    "fields": {
+      "name": "nlp"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "55555555-5555-5555-5555-555555555555",
+    "fields": {
+      "name": "vision"
+    }
+  },
+    { "model": 
+    "your_app.tag", 
+    "pk": "aaaabbbb-cccc-dddd-eeee-ffffffffffff", 
+    "fields": { 
+        "name": "infra" 
+        } 
+    }
+]

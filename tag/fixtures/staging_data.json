@@ -1,0 +1,65 @@
+[
+{
+    "model": "tag.tag",
+    "pk": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "fields": {
+      "name": "flask"
+    }
+},
+  {
+    "model": "tag.tag",
+    "pk": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "fields": {
+      "name": "django"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "fields": {
+      "name": "fastapi"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    "fields": {
+      "name": "testing"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "fields": {
+      "name": "ci-cd"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "bbbb2222-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "fields": {
+      "name": "devops"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "cccc3333-cccc-cccc-cccc-cccccccccccc",
+    "fields": {
+      "name": "linux"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "dddd4444-dddd-dddd-dddd-dddddddddddd",
+    "fields": {
+      "name": "bash"
+    }
+  },
+  {
+    "model": "tag.tag",
+    "pk": "eeee5555-eeee-eeee-eeee-eeeeeeeeeeee",
+    "fields": {
+      "name": "python"
+    }
+  }
+]
