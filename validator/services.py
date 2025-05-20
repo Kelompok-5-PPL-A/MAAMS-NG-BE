@@ -11,12 +11,12 @@ from validator.exceptions import AIServiceErrorException
 from arize.otel import register
 from openinference.instrumentation.groq import GroqInstrumentor
 
-tracer_provider = register(
-    space_id = settings.ARIZE_SPACE_ID,
-    api_key = settings.ARIZE_API_KEY,
-    project_name = "MAAMS NG"
-)
-GroqInstrumentor().instrument(tracer_provider=tracer_provider)
+# tracer_provider = register(
+#     space_id = settings.ARIZE_SPACE_ID,
+#     api_key = settings.ARIZE_API_KEY,
+#     project_name = "MAAMS NG"
+# )
+# GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 
 class CausesService:
     def api_call(self, system_message: str, user_prompt: str, validation_type: ValidationType, request=None) -> int:
