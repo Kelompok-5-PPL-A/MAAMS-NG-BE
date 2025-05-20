@@ -122,63 +122,32 @@ jobs:
       pull-requests: write
     if: |
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging') &&
-      !startsWith(github.event.head_commit.message, 'bump:')
+      !startsWith(github.event.head_commit.message, 'chore(release)')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install Commitizen and dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install commitizen tomli
-
-      - name: Configure Git
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-
-      - name: Check commit type
-        id: check_commit
-        run: |
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          if [[ "$COMMIT_MSG" =~ ^(docs|style|test|build|ci|chore|revert)(\(.*\))?:.*$ ]]; then
-            echo "is_no_version_bump=true" >> $GITHUB_OUTPUT
-            echo "Commit type doesn't trigger version bump: $COMMIT_MSG"
-          else
-            echo "is_no_version_bump=false" >> $GITHUB_OUTPUT
-            echo "Commit may trigger version bump: $COMMIT_MSG"
-          fi
-
-      - name: Bump version with Commitizen
-        id: bump
-        if: steps.check_commit.outputs.is_no_version_bump == 'false'
-        run: |
-          cz bump --yes --changelog --changelog-to-stdout > body.md
           
-          NEW_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['tool']['commitizen']['version'])")
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        if: steps.check_commit.outputs.is_no_version_bump == 'false' && steps.bump.outputs.new_version != ''
-        uses: softprops/action-gh-release@v1
+      - name: Python Semantic Release
+        id: release
+        uses: python-semantic-release/python-semantic-release@v8.5.1
         with:
-          name: Release v${{ steps.bump.outputs.new_version }}
-          tag_name: v${{ steps.bump.outputs.new_version }}
-          body_path: body.md
-          generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GH_TOKEN }}
+          git_committer_name: "GitHub Actions"
+          git_committer_email: "github-actions@github.com"
+      
+      - name: Store Version
+        if: steps.release.outputs.released == 'true'
+        id: store_version
+        run: |
+          echo "version=${{ steps.release.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "tag=v${{ steps.release.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "Released version: ${{ steps.release.outputs.version }}"
     outputs:
-      version: ${{ steps.bump.outputs.new_version }}
-      tag: ${{ steps.bump.outputs.new_version != '' && format('v{0}', steps.bump.outputs.new_version) || '' }}
+      version: ${{ steps.store_version.outputs.version }}
+      tag: ${{ steps.store_version.outputs.tag }}
 
   deploy:
     name: Deploy
