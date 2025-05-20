@@ -57,19 +57,14 @@ class CausesServiceTest(TransactionTestCase):
         
     def tearDown(self):
         """Clean up after each test method"""
-        # Using try-except to handle any cleanup issues
         Causes.objects.all().delete()
         Question.objects.all().delete()
 
-    @patch('validator.services.Groq')
-    def test_api_call_normal_validation_true(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_normal_validation_true(self, mock_query):
         """Test API call with normal validation returning true"""
         # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='true'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
+        mock_query.return_value = {"choices": [{"message": {"content": "true"}}]}
         
         system_message = "Test system message"
         user_prompt = "Is this cause valid? Answer only with True/False"
@@ -84,8 +79,8 @@ class CausesServiceTest(TransactionTestCase):
         
         # Verify
         self.assertEqual(result, 1)
-        mock_client.chat.completions.create.assert_called_once_with(
-            messages=[
+        mock_query.assert_called_once_with({
+            "messages": [
                 {
                     "role": "system",
                     "content": system_message,
@@ -95,23 +90,18 @@ class CausesServiceTest(TransactionTestCase):
                     "content": user_prompt
                 }
             ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            max_completion_tokens=8192,
-            top_p=0.95,
-            stream=False,
-            seed=42
-        )
+            "model": "accounts/fireworks/models/qwen3-30b-a3b",
+            "max_tokens": 8692,
+            "temperature": 0.6,
+            "seed": 42,
+            "separate_reasoning": False,
+        })
 
-    @patch('validator.services.Groq')
-    def test_api_call_normal_validation_false(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_normal_validation_false(self, mock_query):
         """Test API call with normal validation returning false"""
         # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='false'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
+        mock_query.return_value = {"choices": [{"message": {"content": "false"}}]}
         
         system_message = "Test system message"
         user_prompt = "Is this cause valid? Answer only with True/False"
@@ -127,15 +117,11 @@ class CausesServiceTest(TransactionTestCase):
         # Verify
         self.assertEqual(result, 0)
 
-    @patch('validator.services.Groq')
-    def test_api_call_root_validation_true(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_root_validation_true(self, mock_query):
         """Test API call with root validation returning true"""
         # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='true'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
+        mock_query.return_value = {"choices": [{"message": {"content": "true"}}]}
         
         system_message = "Test system message"
         user_prompt = "Is this cause a root cause? Answer only with True/False"
@@ -151,15 +137,11 @@ class CausesServiceTest(TransactionTestCase):
         # Verify
         self.assertEqual(result, 1)
 
-    @patch('validator.services.Groq')
-    def test_api_call_false_validation_type_1(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_false_validation_type_1(self, mock_query):
         """Test API call with false validation returning type 1"""
         # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='1'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
+        mock_query.return_value = {"choices": [{"message": {"content": "1"}}]}
         
         system_message = "Test system message"
         user_prompt = "Why is this cause false? Answer with: 1 if not a cause"
@@ -175,15 +157,11 @@ class CausesServiceTest(TransactionTestCase):
         # Verify
         self.assertEqual(result, 1)
 
-    @patch('validator.services.Groq')
-    def test_api_call_root_type_validation(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_root_type_validation(self, mock_query):
         """Test API call with root type validation"""
         # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='2'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
+        mock_query.return_value = {"choices": [{"message": {"content": "2"}}]}
         
         system_message = "Test system message"
         user_prompt = "Categorize this root cause: 1-Harta, 2-Tahta, 3-Cinta"
@@ -199,13 +177,11 @@ class CausesServiceTest(TransactionTestCase):
         # Verify
         self.assertEqual(result, 2)
 
-    @patch('validator.services.Groq')
-    def test_api_call_request_exception(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_request_exception(self, mock_query):
         """Test API call handling request exception"""
-        # Configure mock
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = RequestException("Network error")
-        mock_groq.return_value = mock_client
+        # Configure mock to raise exception
+        mock_query.side_effect = RequestException("Network error")
         
         system_message = "Test system message"
         user_prompt = "Is this cause valid? Answer only with True/False"
@@ -221,15 +197,11 @@ class CausesServiceTest(TransactionTestCase):
         
         self.assertEqual(str(context.exception), ErrorMsg.AI_SERVICE_ERROR)
 
-    @patch('validator.services.Groq')
-    def test_api_call_unexpected_response(self, mock_groq):
+    @patch('validator.services.query')
+    def test_api_call_unexpected_response(self, mock_query):
         """Test API call handling unexpected response"""
         # Configure mock
-        mock_client = Mock()
-        mock_chat_completion = Mock()
-        mock_chat_completion.choices = [Mock(message=Mock(content='unexpected'))]
-        mock_client.chat.completions.create.return_value = mock_chat_completion
-        mock_groq.return_value = mock_client
+        mock_query.return_value = {"choices": [{"message": {"content": "unexpected"}}]}
         
         system_message = "Test system message"
         user_prompt = "Is this cause valid? Answer only with True/False"
@@ -245,13 +217,12 @@ class CausesServiceTest(TransactionTestCase):
         # Verify
         self.assertEqual(result, 0)  # Default value for unexpected responses
 
-    @patch('validator.services.Groq')
-    def test_check_if_corruption_related_true(self, mock_groq):
+    @patch('validator.services.query')
+    def test_check_if_corruption_related_true(self, mock_query):
         """Test detection of corruption-related causes - positive case"""
         # Test various corruption terms
         corruption_cases = [
             "Terjadi korupsi dalam tender",
-            # Menggunakan term yang persis sama dengan yang ada di method check_if_corruption_related
             "korupsi", 
             "suap", 
             "sogok", 
@@ -273,8 +244,8 @@ class CausesServiceTest(TransactionTestCase):
             result = self.service.check_if_corruption_related(cause_text)
             self.assertTrue(result, f"Should detect corruption in: '{cause_text}'")
 
-    @patch('validator.services.Groq')
-    def test_check_if_corruption_related_false(self, mock_groq):
+    @patch('validator.services.query')
+    def test_check_if_corruption_related_false(self, mock_query):
         """Test detection of corruption-related causes - negative case"""
         # Test non-corruption cases
         non_corruption_cases = [
@@ -289,11 +260,11 @@ class CausesServiceTest(TransactionTestCase):
             result = self.service.check_if_corruption_related(cause_text)
             self.assertFalse(result, f"Should NOT detect corruption in: '{cause_text}'")
 
-    @patch.object(CausesService, 'api_call')
-    def test_retrieve_feedback_row_1_not_cause(self, mock_api_call):
+    @patch('validator.services.query')
+    def test_retrieve_feedback_row_1_not_cause(self, mock_query):
         """Test retrieving feedback for row 1 when it's not a cause"""
         # Configure mock
-        mock_api_call.return_value = 1  # Code for NOT_THE_CAUSE
+        mock_query.return_value = {"choices": [{"message": {"content": "1"}}]}
         
         # Test data
         cause = Causes.objects.create(
@@ -309,7 +280,52 @@ class CausesServiceTest(TransactionTestCase):
         
         # Verify
         self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_1_NOT_CAUSE.format(column='C'))
-        mock_api_call.assert_called_once()
+        mock_query.assert_called_once()
+
+    @patch('validator.services.query')
+    def test_retrieve_feedback_row_1_positive_neutral(self, mock_query):
+        """Test retrieving feedback for row 1 when it's positive/neutral"""
+        # Configure mock
+        mock_query.return_value = {"choices": [{"message": {"content": "2"}}]}
+        
+        # Test data
+        cause = Causes.objects.create(
+            question_id=self.question_id,
+            cause="Positive first cause",
+            row=1,
+            column=2,  # Column C
+            status=False
+        )
+        
+        # Execute
+        self.service.retrieve_feedback(cause, self.question, None, self.mock_request)
+        
+        # Verify
+        self.assertEqual(cause.feedback, FeedbackMsg.FALSE_ROW_N_POSITIVE_NEUTRAL.format(column='C', row=1))
+        mock_query.assert_called_once()
+    
+    @patch('validator.services.query')
+    def test_validate_single_cause_already_validated(self, mock_query):
+        """Test _validate_single_cause when the cause is already validated"""
+        # Create already validated cause
+        cause = Causes.objects.create(
+            question_id=self.question_id,
+            cause="Valid first cause",
+            row=1,
+            column=0,
+            status=True,
+            feedback=""
+        )
+        
+        # Execute
+        self.service._validate_single_cause(cause, self.question, None, self.mock_request)
+        
+        # Verify
+        cause.refresh_from_db()
+        self.assertTrue(cause.status)
+        self.assertEqual(cause.feedback, "")
+        mock_query.assert_not_called()
+
 
     @patch.object(CausesService, 'api_call')
     def test_retrieve_feedback_row_1_positive_neutral(self, mock_api_call):

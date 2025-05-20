@@ -6,14 +6,12 @@ on:
       - main
       - staging
       - development
-      - ci-cd
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
       - main
       - staging
       - development
-      - ci-cd
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -172,64 +170,72 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
           target: 'https://maams-ng.vercel.app/'
-          
-  versioning:
-    name: Version Tagging
+
+  semantic-release:
+    name: Semantic Release
     runs-on: ubuntu-latest
     needs: [test, sonarqube-analysis]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/development' || github.ref == 'refs/heads/ci-cd')
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      git_tag: ${{ steps.version.outputs.git_tag }}
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+      
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Generate Version
-        id: version
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Create VERSION file
         run: |
-          CURRENT_BRANCH=${GITHUB_REF##*/}
-          
-          COMMIT_COUNT=$(git rev-list --count HEAD)
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-          
-          if [[ $CURRENT_BRANCH == "main" ]]; then
-            VERSION="${LATEST_TAG}-${COMMIT_COUNT}-${COMMIT_HASH}"
-          else
-            VERSION="${LATEST_TAG}-${CURRENT_BRANCH}-${COMMIT_COUNT}-${COMMIT_HASH}"
+          if [ ! -f "VERSION" ]; then
+            echo "__version__ = '0.1.0'" > VERSION
+            echo "Created VERSION file with initial version 0.1.0"
           fi
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install python-semantic-release
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Python Semantic Release
+        id: semantic
+        uses: relekang/python-semantic-release@v7.34.6
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
           
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "git_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+      - name: Configure Git User
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
           
-          if [[ $CURRENT_BRANCH == "main" ]]; then
-            DATE_VERSION=$(date +'%Y.%m.%d')
-            COUNTER=1
-            FINAL_TAG="${DATE_VERSION}.${COUNTER}"
-            
-            while git rev-parse "${FINAL_TAG}" >/dev/null 2>&1; do
-              COUNTER=$((COUNTER + 1))
-              FINAL_TAG="${DATE_VERSION}.${COUNTER}"
-            done
-            
-            git tag "${FINAL_TAG}"
-            git push origin "${FINAL_TAG}"
-            
-            echo "new_tag=${FINAL_TAG}" >> $GITHUB_OUTPUT
-          fi
+      - name: Push Release Changes
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          git push --follow-tags
+          echo "New version is: ${{ steps.semantic.outputs.new_release_version }}"
 
   build-staging:
     name: Build and Package for Staging
     runs-on: ubuntu-latest
-    needs: versioning
+    needs: semantic-release
     environment: staging
     outputs:
       image_tag: ${{ steps.build.outputs.image_tag }}
+    if: |
+      needs.semantic-release.outputs.new_release_published == 'true' && 
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -245,7 +251,7 @@ jobs:
       - name: Build and Push Docker Image
         id: build
         run: |
-          VERSION="${{needs.versioning.outputs.version}}"
+          VERSION="${{needs.semantic-release.outputs.new_release_version}}"
           echo "Version: $VERSION"
           
           IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
@@ -264,11 +270,6 @@ jobs:
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "$IMAGE_TAG" > image_tag.txt
           echo "Debug - IMAGE_TAG set to: $IMAGE_TAG"
-
-          if [ -f "$GITHUB_OUTPUT" ]; then
-            echo "GITHUB_OUTPUT file exists and contains:"
-            cat $GITHUB_OUTPUT
-          fi
       
       - name: Upload Image Tag as Artifact
         uses: actions/upload-artifact@v4
@@ -280,12 +281,15 @@ jobs:
   deploy-staging-blue-green:
     name: Blue/Green Deployment to Staging
     runs-on: ubuntu-latest
-    needs: [build-staging, versioning]
+    needs: [build-staging, semantic-release]
     environment:
       name: staging
       url: https://maams-ng.netlify.app/
+    if: |
+      needs.semantic-release.outputs.new_release_published == 'true' && 
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
     env:
-      VERSION: ${{needs.versioning.outputs.version}}
+      VERSION: ${{needs.semantic-release.outputs.new_release_version}}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -304,12 +308,11 @@ jobs:
         id: get_image_tag
         run: |
           IMAGE_TAG="${{needs.build-staging.outputs.image_tag}}"
-          
           if [ -z "$IMAGE_TAG" ] && [ -f "image_tag.txt" ]; then
             IMAGE_TAG=$(cat image_tag.txt)
             echo "Using image tag from artifact: $IMAGE_TAG"
           fi
-
+  
           if [ -z "$IMAGE_TAG" ]; then
             echo "WARNING: Constructing image tag manually"
             IMAGE_TAG="gcr.io/$PROJECT_ID/maams-ng-staging:$VERSION"
@@ -394,22 +397,48 @@ jobs:
 
       - name: Switch Traffic to New Version
         run: |
-          if [ -n "${{steps.get_color.outputs.current}}" ]; then
-            gcloud run services update-traffic maams-ng-staging \
-              --platform managed \
-              --region $REGION \
-              --to-tags=${{steps.get_color.outputs.new}}=100,${{steps.get_color.outputs.current}}=0
-          else
-            gcloud run services update-traffic maams-ng-staging \
-              --platform managed \
-              --region $REGION \
-              --to-tags=${{steps.get_color.outputs.new}}=100
+          MAX_ATTEMPTS=3
+          ATTEMPT=1
+          SUCCESS=false
+      
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ] && [ "$SUCCESS" = false ]; do
+            echo "Attempt $ATTEMPT to update traffic..."
+            
+            if [ -n "${{steps.get_color.outputs.current}}" ]; then
+              if gcloud run services update-traffic maams-ng-staging \
+                --platform managed \
+                --region $REGION \
+                --to-tags=${{steps.get_color.outputs.new}}=100,${{steps.get_color.outputs.current}}=0; then
+                SUCCESS=true
+              fi
+            else
+              if gcloud run services update-traffic maams-ng-staging \
+                --platform managed \
+                --region $REGION \
+                --to-tags=${{steps.get_color.outputs.new}}=100; then
+                SUCCESS=true
+              fi
+            fi
+            
+            if [ "$SUCCESS" = false ]; then
+              echo "Attempt $ATTEMPT failed. Retrying in 5 seconds..."
+              sleep 5
+              ATTEMPT=$((ATTEMPT+1))
+            fi
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+            echo "Failed to update traffic after $MAX_ATTEMPTS attempts."
+            exit 1
           fi
 
   autoscaling-configuration:
     name: Configure Autoscaling
     runs-on: ubuntu-latest
     needs: [deploy-staging-blue-green]
+    if: |
+      needs.semantic-release.outputs.new_release_published == 'true' && 
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -442,18 +471,21 @@ jobs:
   rollback-preparation:
     name: Prepare Rollback Plan
     runs-on: ubuntu-latest
-    needs: [deploy-staging-blue-green, versioning]
+    needs: [deploy-staging-blue-green, semantic-release]
+    if: |
+      needs.semantic-release.outputs.new_release_published == 'true' && 
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
     steps:
       - name: Store Deployment Metadata
         run: |
           METADATA='{
-            "version": "${{needs.versioning.outputs.version}}",
+            "version": "${{needs.semantic-release.outputs.new_release_version}}",
             "timestamp": "'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'",
             "git_commit": "'${{ github.sha }}'",
             "deployed_by": "'${{ github.actor }}'",
             "deployment_color": "'${{ needs.deploy-staging-blue-green.steps.get_color.outputs.new }}'",
-            "rollback_version": "'${{ needs.versioning.outputs.git_tag }}'",
-            "rollback_command": "gcloud run services update-traffic maams-ng-staging --to-tags '${{ needs.deploy-staging-blue-green.steps.get_color.outputs.current }}'=100"
+            "previous_color": "'${{ needs.deploy-staging-blue-green.steps.get_color.outputs.current }}'",
+            "rollback_command": "gcloud run services update-traffic maams-ng-staging --to-tags=${{ needs.deploy-staging-blue-green.steps.get_color.outputs.current }}=100,platform managed,region $REGION"
           }'
           
           echo "$METADATA" > deployment-metadata.json
@@ -461,6 +493,6 @@ jobs:
       - name: Upload Rollback Plan
         uses: actions/upload-artifact@v4
         with:
-          name: rollback-plan-${{needs.versioning.outputs.version}}
+          name: rollback-plan-${{needs.semantic-release.outputs.new_release_version}}
           path: deployment-metadata.json
           retention-days: 30

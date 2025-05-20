@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
 from question.models import Question
 from question.services import QuestionService
-from question.serializers import FieldValuesResponse, QuestionRequest, QuestionResponse, PaginatedQuestionResponse
+from question.serializers import FieldValuesResponse, QuestionRequest, QuestionResponse, PaginatedQuestionResponse, BaseQuestion, QuestionTagRequest, QuestionTitleRequest
 from rest_framework.permissions import AllowAny
 from rest_framework.generics import DestroyAPIView
 from validator.exceptions import NotFoundRequestException
@@ -140,8 +140,8 @@ class QuestionGetRecent(APIView):
         try:
             recent_question = QuestionService.get_recent(self, user=request.user)
             
-            if not recent_question:
-                return Response({'detail': "No recent questions found for this user."}, status=status.HTTP_404_NOT_FOUND)
+            if recent_question is None:
+                return Response(status=status.HTTP_204_NO_CONTENT)
                 
             serializer = QuestionResponse(recent_question)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -274,3 +274,46 @@ class QuestionGetFieldValues(APIView):
         serializer = FieldValuesResponse(values)
         
         return Response(serializer.data)
+
+@permission_classes([AllowAny])
+class QuestionPatch(ViewSet):
+    service_class = QuestionService()
+    
+    @extend_schema(
+        description='Request and Response data for updating question mode',
+        request=BaseQuestion,
+        responses=QuestionResponse,
+    )
+    def patch_mode(self, request, pk):
+        request_serializer = BaseQuestion(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        question = self.service_class.update_question(user=request.user if request.user.is_authenticated else None, pk=pk, mode=request_serializer.validated_data.get('mode'))
+        response_serializer = QuestionResponse(question)
+        
+        return Response(response_serializer.data)
+    
+    @extend_schema(
+        description='Request and Response data for updating question title',
+        request=QuestionTitleRequest,
+        responses=QuestionResponse,
+    )
+    def patch_title(self, request, pk):
+        request_serializer = QuestionTitleRequest(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        question = self.service_class.update_question(user=request.user if request.user.is_authenticated else None, pk=pk, title=request_serializer.validated_data.get('title'))
+        response_serializer = QuestionResponse(question)
+        
+        return Response(response_serializer.data)
+    
+    @extend_schema(
+        description='Request and Response data for updating question tags',
+        request=QuestionTagRequest,
+        responses=QuestionResponse,
+    )
+    def patch_tags(self, request, pk):
+        request_serializer = QuestionTagRequest(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        question = self.service_class.update_question(user=request.user if request.user.is_authenticated else None, pk=pk, tags=request_serializer.validated_data.get('tags'))
+        response_serializer = QuestionResponse(question)
+        
+        return Response(response_serializer.data)
