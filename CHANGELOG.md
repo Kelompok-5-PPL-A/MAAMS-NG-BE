@@ -2,6 +2,17 @@
 
 
 
+## v0.2.2 (2025-05-20)
+
+### Performance
+
+* perf(seeding): add flexible seeding commands for all tables ([`55fbe8d`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/55fbe8dbde4ae223cec710319b5a5366ec4286f7))
+
+### Unknown
+
+* Merge branch &#39;main&#39; of github.com-personal:Kelompok-5-PPL-A/MAAMS-NG-BE into main ([`3fecbb3`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/3fecbb35d1957aa41db751b317d96af6f9752e22))
+
+
 ## v0.2.1 (2025-05-20)
 
 ### Refactor
