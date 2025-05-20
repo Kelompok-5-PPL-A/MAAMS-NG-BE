@@ -35,7 +35,7 @@
     }
   },
     { "model": 
-    "your_app.tag", 
+    "tag.tag", 
     "pk": "aaaabbbb-cccc-dddd-eeee-ffffffffffff", 
     "fields": { 
         "name": "infra" 

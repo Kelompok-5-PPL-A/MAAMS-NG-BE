@@ -145,6 +145,7 @@ jobs:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
+          python manage.py makemigrations
           python manage.py migrate
           python manage.py seed_causes_server
           mkdir -p cause/fixtures
