@@ -2,6 +2,7 @@
 name = "cz_conventional_commits"
 version = "0.1.0"
 tag_format = "v$version"
+version_scheme = "semver"
 version_files = [
     "setup.py:version",
     "MAAMS_NG_BE/__init__.py:__version__"
@@ -10,11 +11,13 @@ bump_message = "bump: version $current_version → $new_version [skip ci]"
 update_changelog_on_bump = true
 changelog_incremental = true
 changelog_sections = [
-    "feature",
+    "BREAKING CHANGE",
+    "feat",
     "fix",
-    "documentation",
     "refactor",
-    "performance",
+    "perf",
+    "docs",
+    "style",
     "test",
     "build",
     "ci",
@@ -26,14 +29,9 @@ message_template = "{type}({scope}): {subject}"
 example = "feat(api): add new endpoint for user authentication"
 schema = "<type>(<scope>): <subject>"
 
-# Only these commit types will trigger version bumps
-bump_pattern = "^(BREAKING CHANGE|feat|fix|refactor|perf)$"
+bump_pattern = "^(BREAKING CHANGE|feat|fix|refactor|perf)"
 bump_map = { "BREAKING CHANGE" = "MAJOR", "feat" = "MINOR", "fix" = "PATCH", "refactor" = "PATCH", "perf" = "PATCH" }
 
-# All possible commit types
 commit_parser = "^(?P<type>feat|fix|refactor|perf|docs|style|test|build|ci|chore|revert)(?:\\((?P<scope>[^()\\r\\n]*)\\))?(?P<breaking>!)?: (?P<message>.*)"
 
-# These types will be included in changelog but won't trigger version bumps
-changelog_pattern = "^(feat|fix|refactor|perf|docs|style|test|build|ci|chore|revert)$"
-no_bump_types = ["docs", "style", "test", "build", "ci", "chore", "revert"]
-changelog_only_types = ["docs", "style", "test", "build", "ci", "chore", "revert"] 
+change_type_order = ["BREAKING CHANGE", "feat", "fix", "refactor", "perf", "docs", "style", "test", "build", "ci", "chore", "revert"]
