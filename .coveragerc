@@ -13,7 +13,8 @@ omit =
     */settings.py,
     */site-packages/*,
     */dist-packages/*,
-    */tests/*
+    */tests/*,
+    */management/commands/*.py
 
 [report]
 # Show coverage statistics in terminal

@@ -1,16 +1,15 @@
 import jwt
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
 import logging
-
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Optional
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.conf import settings
 
 from authentication.services.interfaces import TokenServiceInterface
+from authentication.models import CustomUser
 
 User = get_user_model()
 
@@ -136,3 +135,70 @@ class JWTTokenService(TokenServiceInterface):
             return True
         except Exception:
             return False
+
+def create_token(user: CustomUser, token_type: str = "access_token") -> str:
+    """
+    Create a JWT token for the given user.
+    
+    Args:
+        user: The user to create the token for
+        token_type: The type of token to create (access_token or refresh_token)
+        
+    Returns:
+        The encoded JWT token
+    """
+    exp_time = (
+        settings.ACCESS_TOKEN_EXP_TIME
+        if token_type == "access_token"
+        else settings.REFRESH_TOKEN_EXP_TIME
+    )
+    
+    secret_key = (
+        settings.ACCESS_TOKEN_SECRET_KEY
+        if token_type == "access_token"
+        else settings.REFRESH_TOKEN_SECRET_KEY
+    )
+    
+    payload = {
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=exp_time),
+        "user_id": str(user.uuid),
+        "username": user.username,
+        "email": user.email,
+        "role": user.role
+    }
+    
+    token = jwt.encode(payload, secret_key, algorithm="HS256")
+    return token
+
+def decode_token(token: str, token_type: str = "access_token") -> Optional[Dict[str, Any]]:
+    """
+    Decode and validate a JWT token.
+    
+    Args:
+        token: The token to decode
+        token_type: The type of token (access_token or refresh_token)
+        
+    Returns:
+        The decoded token payload if valid, None otherwise
+    """
+    secret_key = (
+        settings.ACCESS_TOKEN_SECRET_KEY
+        if token_type == "access_token"
+        else settings.REFRESH_TOKEN_SECRET_KEY
+    )
+    
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        
+        # Check if token is expired
+        if "exp" in payload:
+            exp_time = payload["exp"]
+            if exp_time < datetime.now(timezone.utc).timestamp():
+                return None
+        
+        return payload
+    except jwt.exceptions.ExpiredSignatureError:
+        return None
+    except jwt.exceptions.InvalidTokenError:
+        return None

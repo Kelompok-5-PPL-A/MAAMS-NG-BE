@@ -2,7 +2,6 @@ from typing import Dict, Any, Tuple
 import logging
 
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
 
 from authentication.providers.base import AuthenticationProvider

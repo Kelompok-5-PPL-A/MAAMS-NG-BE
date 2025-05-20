@@ -100,6 +100,7 @@ class CausesServiceTest(TransactionTestCase):
             temperature=0.6,
             top_p=0.95,
             stream=False,
+            reasoning_format="hidden",
             seed=42
         )
 

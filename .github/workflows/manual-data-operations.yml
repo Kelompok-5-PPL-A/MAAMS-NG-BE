@@ -182,4 +182,4 @@ jobs:
             question) python manage.py shell -c "from question.models import Question; Question.objects.all().delete()" ;;
             tag) python manage.py shell -c "from tag.models import Tag; Tag.objects.all().delete()" ;;
             *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
-          esac
+          esac 

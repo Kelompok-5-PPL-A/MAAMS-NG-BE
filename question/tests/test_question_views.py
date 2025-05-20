@@ -7,11 +7,10 @@ from question.dataclasses.field_values import FieldValuesDataClass
 from question.models import Question
 from question.serializers import QuestionResponse
 from tag.models import Tag
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import uuid
 from authentication.models import CustomUser
 from types import SimpleNamespace
-from django.utils import timezone
 
 class TestQuestionPostView(TestCase):
     def setUp(self):
@@ -32,7 +31,7 @@ class TestQuestionPostView(TestCase):
         mock_question.title = self.valid_payload['title']
         mock_question.question = self.valid_payload['question']
         mock_question.mode = self.valid_payload['mode']
-        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.created_at = datetime.now(timezone.utc).isoformat() + 'Z'
         mock_question.tags.all.return_value = [
             Tag(name=tag) for tag in self.valid_payload['tags']
         ]
@@ -68,7 +67,7 @@ class TestQuestionPostView(TestCase):
         mock_question.title = self.valid_payload['title']
         mock_question.question = self.valid_payload['question']
         mock_question.mode = self.valid_payload['mode']
-        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.created_at = datetime.now(timezone.utc).isoformat() + 'Z'
         mock_question.tags.all.return_value = [
             Tag(name=tag) for tag in self.valid_payload['tags']
         ]
@@ -198,7 +197,7 @@ class TestQuestionPostView(TestCase):
         mock_question.title = payload['title']
         mock_question.question = payload['question']
         mock_question.mode = payload['mode']
-        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.created_at = datetime.now(timezone.utc).isoformat() + 'Z'
         mock_question.tags.all.return_value = [
             Tag(name=tag) for tag in payload['tags']
         ]
@@ -235,7 +234,7 @@ class TestQuestionPostView(TestCase):
         mock_question.title = payload['title']
         mock_question.question = payload['question']
         mock_question.mode = payload['mode']
-        mock_question.created_at = datetime.now().isoformat() + 'Z'
+        mock_question.created_at = datetime.now(timezone.utc).isoformat() + 'Z'
         mock_question.tags.all.return_value = [
             Tag(name=tag) for tag in payload['tags']
         ]
@@ -317,7 +316,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
             title="Old Question",
             question="Old Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=timezone.make_aware(datetime(2024, 1, 1)),
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -326,7 +325,7 @@ class TestQuestionGetRecentAnalysis(TestCase):
             title="Recent Question",
             question="Recent Question Content",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=timezone.make_aware(datetime(2025, 3, 1)),
+            created_at=datetime(2025, 3, 1, tzinfo=timezone.utc),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -464,7 +463,7 @@ class TestQuestionGetPrivileged(TestCase):
             title="Privileged Q1",
             question="Isi Q1",
             mode=Question.ModeChoices.PENGAWASAN,
-            created_at=timezone.now(),
+            created_at=datetime.now(timezone.utc),
             user=self.admin_user
         )
 
@@ -680,7 +679,7 @@ class TestQuestionServiceErrors(TestCase):
             title="Test Title",
             question="Test Question",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=timezone.now(),
+            created_at=datetime.now(timezone.utc),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -734,7 +733,7 @@ class TestQuestionGetAll(TestCase):
             title="Question 1",
             question="Content 1",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=timezone.now(),
+            created_at=datetime.now(timezone.utc),
             id=uuid.uuid4(),
             user=self.user
         )
@@ -742,7 +741,7 @@ class TestQuestionGetAll(TestCase):
             title="Question 2",
             question="Content 2",
             mode=Question.ModeChoices.PRIBADI,
-            created_at=timezone.now(),
+            created_at=datetime.now(timezone.utc),
             id=uuid.uuid4(),
             user=self.user
         )

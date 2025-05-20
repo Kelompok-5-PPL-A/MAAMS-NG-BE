@@ -10,9 +10,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from validator.exceptions import NotFoundRequestException
 from authentication.models import CustomUser
 from django.db.models import Q
-from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 from django.db.models.query import QuerySet
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class TestQuestionService(TestCase):
     def setUp(self):
@@ -36,6 +38,7 @@ class TestQuestionService(TestCase):
             question="Test Question",
             mode="Test Mode",
             user=self.user,
+            created_at=datetime.now(timezone.utc)
         )
         self.tag = Tag.objects.create(name="test_tag")
         self.question.tags.add(self.tag)
@@ -433,7 +436,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question1.created_at = timezone.now() - timedelta(days=8)  # Set to older than 7 days
+        question1.created_at = datetime.now(timezone.utc) - timedelta(days=8)  # Set to older than 7 days
         question1.save()
 
         question2 = Question.objects.create(
@@ -442,7 +445,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.created_at = datetime.now(timezone.utc) - timedelta(days=10)
         question2.save()
 
         # Act
@@ -466,7 +469,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question1.created_at = timezone.now() - timedelta(days=8)
+        question1.created_at = datetime.now(timezone.utc) - timedelta(days=8)
         question1.save()
 
         result = self.service.get_matched(
@@ -534,7 +537,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question1.created_at = timezone.now() - timedelta(days=8)
+        question1.created_at = datetime.now(timezone.utc) - timedelta(days=8)
         question1.save()
 
         question2 = Question.objects.create(
@@ -543,7 +546,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.created_at = datetime.now(timezone.utc) - timedelta(days=10)
         question2.save()
         result = self.service.get_all(user=self.user, time_range='last_week')
         self.assertEqual(list(result), [])
@@ -557,7 +560,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question1.created_at = timezone.now() - timedelta(days=8)  # Set to older than 7 days
+        question1.created_at = datetime.now(timezone.utc) - timedelta(days=8)  # Set to older than 7 days
         question1.save()
 
         question2 = Question.objects.create(
@@ -566,7 +569,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PRIBADI,
             user=self.user,
         )
-        question2.created_at = timezone.now() - timedelta(days=10)
+        question2.created_at = datetime.now(timezone.utc) - timedelta(days=10)
         question2.save()
 
         question3 = Question.objects.create(
@@ -575,7 +578,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PENGAWASAN,
             user=self.user,
         )
-        question3.created_at = timezone.now() - timedelta(days=8)
+        question3.created_at = datetime.now(timezone.utc) - timedelta(days=8)
         question3.save()
 
         question4 = Question.objects.create(
@@ -584,7 +587,7 @@ class TestQuestionService(TestCase):
             mode=Question.ModeChoices.PENGAWASAN,
             user=self.user,
         )
-        question4.created_at = timezone.now() - timedelta(days=8)
+        question4.created_at = datetime.now(timezone.utc) - timedelta(days=8)
         question4.save()
         
 

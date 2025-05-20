@@ -3,8 +3,7 @@ import uuid
 from authentication.models import CustomUser
 from tag.models import Tag
 from django.conf import settings
-from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 class Question(models.Model):
     class Meta:
@@ -31,5 +30,5 @@ class Question(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.created_at:
-            self.created_at = timezone.now() + timedelta(hours=7)
+            self.created_at = datetime.now(timezone.utc) + timedelta(hours=7)
         super().save(*args, **kwargs)

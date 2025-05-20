@@ -243,26 +243,24 @@ class TestSSOToken(TestCase):
         )
         
     @patch('sso_ui.token.jwt')
-    @patch('sso_ui.token.django_timezone')
-    def test_decode_token_expired(self, mock_django_timezone, mock_jwt):
+    def test_decode_token_expired(self, mock_jwt):
         """Test decoding an expired token"""
         # Mock jwt.decode
         expired_payload = {
             'username': 'username',
-            'exp': 1000000000  # Past timestamp
+            'attributes': {'npm': '2206081534'},
+            'exp': 1  # Expired timestamp
         }
         mock_jwt.decode.return_value = expired_payload
         
-        # Mock timezone.now() to return future timestamp
-        mock_now = MagicMock()
-        mock_now.timestamp.return_value = 2000000000  # Future timestamp
-        mock_django_timezone.now.return_value = mock_now
-        
         # Call decode_token
-        payload = decode_token(self.config, 'access_token', 'expired_token')
+        payload = decode_token(self.config, 'access_token', 'encoded_token')
         
-        # Verify the result
+        # Verify the result is None (expired)
         self.assertIsNone(payload)
+        
+        # Verify jwt.decode was called
+        mock_jwt.decode.assert_called_once()
         
     @patch('sso_ui.token.jwt.decode')
     def test_decode_token_expired_exception(self, mock_decode):
