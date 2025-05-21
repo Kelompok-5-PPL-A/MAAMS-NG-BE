@@ -2,6 +2,17 @@
 
 
 
+## v0.2.3 (2025-05-21)
+
+### Refactor
+
+* refactor: update functionality for SSO UI authentication ([`09ba3f9`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/09ba3f95d18f359fef78108c0f8c3b211cf48a54))
+
+### Unknown
+
+* Merge branch &#39;main&#39; of github.com-personal:Kelompok-5-PPL-A/MAAMS-NG-BE into main ([`14cb61b`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/14cb61bf350bd5bbdf72582f6c490626d2ce0517))
+
+
 ## v0.2.2 (2025-05-20)
 
 ### Performance
