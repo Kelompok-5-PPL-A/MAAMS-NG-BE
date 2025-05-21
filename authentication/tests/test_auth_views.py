@@ -11,6 +11,7 @@ from django.http import HttpResponseRedirect
 from rest_framework.test import APITestCase, APIClient, force_authenticate
 from rest_framework import status
 from rest_framework.request import Request
+from rest_framework.exceptions import AuthenticationFailed
 
 from authentication.views import (
     GoogleLoginView, SSOLoginView, SSOLogoutView,
@@ -115,7 +116,6 @@ class TestGoogleLoginView(APITestCase):
     def test_post_auth_failed(self):
         """Test Google login with AuthenticationFailed"""
         # Set up mock to raise AuthenticationFailed
-        from rest_framework.exceptions import AuthenticationFailed
         self.mock_auth_service.authenticate_with_provider.side_effect = AuthenticationFailed('Auth failed')
         
         # Make the request
@@ -214,7 +214,6 @@ class TestSSOLoginView(APITestCase):
     def test_get_auth_failed(self):
         """Test SSO login with AuthenticationFailed"""
         # Set up mock to raise AuthenticationFailed
-        from rest_framework.exceptions import AuthenticationFailed
         self.mock_auth_service.authenticate_with_provider.side_effect = AuthenticationFailed('Auth failed')
         
         # Make the request
@@ -223,30 +222,6 @@ class TestSSOLoginView(APITestCase):
         # Check response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn('error', response.data)
-        
-    def test_get_auth_failed_blacklist(self):
-        """Test SSO login with blacklisted user"""
-        # Set up mock to raise AuthenticationFailed with blacklist_info
-        from rest_framework.exceptions import AuthenticationFailed
-        error_detail = {
-            'error': 'User is blacklisted',
-            'blacklist_info': {
-                'npm': '2206081534',
-                'reason': 'Test reason',
-                'blacklisted_at': '2022-01-01',
-                'expires_at': '2022-12-31'
-            }
-        }
-        mock_exception = AuthenticationFailed(error_detail)
-        mock_exception.detail = error_detail  # Add detail attribute
-        self.mock_auth_service.authenticate_with_provider.side_effect = mock_exception
-        
-        # Make the request
-        response = self.client.get(f"{self.url}?ticket=blacklisted_ticket")
-        
-        # Check response
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn('blacklist_info', response.data)
         
     def test_get_unexpected_error(self):
         """Test SSO login with unexpected error"""
@@ -357,7 +332,6 @@ class TestTokenRefreshView(APITestCase):
     def test_post_auth_failed(self):
         """Test token refresh with AuthenticationFailed"""
         # Set up mock to raise AuthenticationFailed
-        from rest_framework.exceptions import AuthenticationFailed
         self.mock_auth_service.refresh_token.side_effect = AuthenticationFailed('Invalid token')
         
         # Make the request

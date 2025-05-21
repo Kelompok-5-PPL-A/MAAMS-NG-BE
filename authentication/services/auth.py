@@ -21,17 +21,24 @@ class AuthenticationService:
     def __init__(self, token_service: TokenServiceInterface):
         self.token_service = token_service
     
-    def authenticate_with_provider(self, provider_type: str, credential: str) -> tuple:
+    def authenticate_with_provider(
+        self, 
+        provider_type: str, 
+        credential: str
+    ) -> Tuple[Dict[str, str], User, bool]:
         """
-        Authenticate a user using the specified provider.
+        Authenticate a user with a specific provider.
         
         Args:
             provider_type: The type of authentication provider to use
-            credential: The authentication credential (e.g., ticket, token)
+            credential: The credential to authenticate with
             
         Returns:
-            tuple: (tokens, user, is_new_user)
-            
+            Tuple containing:
+                - Dictionary with tokens
+                - Authenticated user
+                - Boolean indicating if this is a new user
+                
         Raises:
             AuthenticationFailed: If authentication fails
         """
@@ -39,61 +46,31 @@ class AuthenticationService:
             # Get the appropriate provider
             provider = AuthProviderFactory.get_provider(provider_type)
             
-            # Authenticate the user
+            # Authenticate using the provider
             user, is_new_user = provider.authenticate(credential)
             
             # Generate tokens
             tokens = self.token_service.generate_tokens(user)
             
             return tokens, user, is_new_user
+            
         except AuthenticationFailed:
-            # Re-raise AuthenticationFailed exceptions
+            # Re-raise authentication failures
             raise
         except Exception as e:
-            # Convert other exceptions to AuthenticationFailed
             raise AuthenticationFailed(f"Authentication failed: {str(e)}")
-    
-    def refresh_token(self, refresh_token: str) -> dict:
-        """
-        Refresh an access token using a refresh token.
-        
-        Args:
-            refresh_token: The refresh token to use
-            
-        Returns:
-            dict: New access token
-            
-        Raises:
-            AuthenticationFailed: If token refresh fails
-        """
-        try:
-            # Validate the refresh token
-            payload = self.token_service.validate_refresh_token(refresh_token)
-            
-            # Create a new access token
-            access_token = self.token_service.create_access_token(payload)
-            
-            return {'access': access_token}
-            
-        except Exception as e:
-            raise AuthenticationFailed(f"Token refresh failed: {str(e)}")
     
     def logout(self, refresh_token: str) -> bool:
         """
-        Logout a user by invalidating their refresh token.
+        Logout a user by blacklisting their refresh token.
         
         Args:
-            refresh_token: The refresh token to invalidate
+            refresh_token: The refresh token to blacklist
             
         Returns:
-            bool: True if logout was successful
+            True if logout was successful, False otherwise
         """
-        try:
-            # Validate the refresh token
-            self.token_service.validate_refresh_token(refresh_token)
-            return True
-        except Exception:
-            return False
+        return self.token_service.blacklist_token(refresh_token)
     
     def validate_token(self, token: str, token_type: str = 'access') -> Dict[str, Any]:
         """
@@ -110,3 +87,32 @@ class AuthenticationService:
             Exception: If token validation fails
         """
         return self.token_service.validate_token(token, token_type)
+    
+    def refresh_token(self, refresh_token: str) -> Dict[str, str]:
+        """
+        Refresh an access token using a refresh token.
+        
+        Args:
+            refresh_token: The refresh token to use
+            
+        Returns:
+            Dictionary containing the new tokens
+            
+        Raises:
+            Exception: If token refresh fails
+        """
+        # Validate the refresh token
+        token_data = self.validate_token(refresh_token, 'refresh')
+        
+        # Get the user from the token
+        user_id = token_data.get('user_id')
+        if not user_id:
+            raise AuthenticationFailed("Invalid refresh token")
+            
+        try:
+            user = User.objects.get(uuid=user_id)
+        except User.DoesNotExist:
+            raise AuthenticationFailed("User not found")
+            
+        # Generate new tokens
+        return self.token_service.generate_tokens(user)

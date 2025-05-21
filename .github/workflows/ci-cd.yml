@@ -234,8 +234,6 @@ jobs:
             --set-env-vars "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" \
             --set-env-vars "SECRET_KEY=${{ secrets.SECRET_KEY }}" \
             --set-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
-            --set-env-vars "HUGGINGFACE_URL=${{ secrets.HUGGINGFACE_URL }}" \
-            --set-env-vars "HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }}" \
             --set-env-vars "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
             --set-env-vars "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
             --set-env-vars "CAS_URL=${{ secrets.CAS_URL }}" \

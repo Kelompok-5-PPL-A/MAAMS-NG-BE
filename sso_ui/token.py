@@ -1,5 +1,6 @@
 import jwt
 from datetime import datetime, timezone, timedelta
+from django.utils import timezone as django_timezone
 
 def create_token(config, token_type, service_response):
     user_attr = service_response.get("authentication_success")
@@ -41,7 +42,7 @@ def decode_token(config, token_type, token):
         # Check if token is expired
         if "exp" in payload:
             exp_time = payload["exp"]
-            if exp_time < datetime.now(timezone.utc).timestamp():
+            if exp_time < django_timezone.now().timestamp():
                 return None
         
         return payload

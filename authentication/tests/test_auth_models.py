@@ -11,7 +11,7 @@ User = get_user_model()
 class TestCustomUserManager(TestCase):
     def test_create_user(self):
         """Test creating a regular user"""
-        email = 'test1@example.com'
+        email = 'test@example.com'
         username = email.split('@')[0]
         user = User.objects.create_user(email=email)
         
@@ -25,7 +25,7 @@ class TestCustomUserManager(TestCase):
         
     def test_create_user_with_custom_fields(self):
         """Test creating a user with custom fields"""
-        email = 'test2@example.com'
+        email = 'test@example.com'
         username = email.split('@')[0]
         user = User.objects.create_user(
             email=email,
@@ -67,7 +67,7 @@ class TestCustomUserManager(TestCase):
         """Test creating a superuser with is_staff=False raises error"""
         with self.assertRaises(ValueError):
             User.objects.create_superuser(
-                email='admin2@example.com',
+                email='admin@example.com',
                 password='adminpass123',
                 is_staff=False
             )
@@ -76,7 +76,7 @@ class TestCustomUserManager(TestCase):
         """Test creating a superuser with is_superuser=False raises error"""
         with self.assertRaises(ValueError):
             User.objects.create_superuser(
-                email='admin3@example.com',
+                email='admin@example.com',
                 password='adminpass123',
                 is_superuser=False
             )
@@ -85,7 +85,7 @@ class TestCustomUserManager(TestCase):
 class TestCustomUser(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email='test3@example.com',
+            email='test@example.com',
             username='testuser',
             first_name='Test',
             last_name='User',
@@ -96,7 +96,7 @@ class TestCustomUser(TestCase):
         
     def test_str(self):
         """Test the string representation of the user"""
-        self.assertEqual(str(self.user), 'test3@example.com')
+        self.assertEqual(str(self.user), 'test@example.com')
         
     def test_get_full_name(self):
         """Test the get_full_name method"""
@@ -114,16 +114,16 @@ class TestCustomUser(TestCase):
         
         # Test with empty first name
         user_no_name = User.objects.create_user(
-            email='noname2@example.com'
+            email='noname@example.com'
         )
-        self.assertEqual(user_no_name.get_short_name(), 'noname2')
+        self.assertEqual(user_no_name.get_short_name(), 'noname')
         
     def test_is_admin(self):
         """Test the is_admin method"""
         self.assertFalse(self.user.is_admin())
         
         admin_user = User.objects.create_user(
-            email='admin4@example.com',
+            email='admin@example.com',
             role='admin'
         )
         self.assertTrue(admin_user.is_admin())
@@ -134,7 +134,7 @@ class TestCustomUser(TestCase):
         self.assertFalse(self.user.has_role('admin'))
         
         admin_user = User.objects.create_user(
-            email='admin5@example.com',
+            email='admin@example.com',
             role='admin'
         )
         self.assertTrue(admin_user.has_role('admin'))
