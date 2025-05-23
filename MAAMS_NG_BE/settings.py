@@ -286,7 +286,7 @@ sentry_sdk.init(
 #     # Define custom rate limits for specific paths
 #     'CUSTOM_RATES': {
 #         # Example: Stricter rate limiting for validation API
-#         '/cause/validate/': {
+#         '/api/v1/cause/validate/': {
 #             'RATE': 6,
 #             'PER': 60,
 #         },

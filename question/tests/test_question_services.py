@@ -707,7 +707,7 @@ class TestQuestionService(TestCase):
 
     def test_get_field_values_unauthorized_access(self):
         self.client.logout() 
-        response = self.client.get('/question/history/field-values/') ## Attempt to access without authentication
+        response = self.client.get('/api/v1/question/history/field-values/') ## Attempt to access without authentication
         self.assertEqual(response.status_code, 401)  # Expect 401 (Unauthorized)
     
     def test_get_field_values_sql_injection(self):

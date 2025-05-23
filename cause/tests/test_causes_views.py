@@ -13,7 +13,7 @@ from validator.exceptions import NotFoundRequestException, ForbiddenRequestExcep
 class TestCausesPostView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/cause/'
+        self.url = '/api/v1/cause/'
         self.valid_payload = {
             'question_id': str(uuid.uuid4()),
             'cause': 'Test Cause',
@@ -96,8 +96,8 @@ class TestCausesGetView(TestCase):
         self.client = APIClient()
         self.question_id = str(uuid.uuid4())
         self.cause_id = str(uuid.uuid4())
-        self.url_single = f'/cause/{self.question_id}/{self.cause_id}/'
-        self.url_list = f'/cause/{self.question_id}/'
+        self.url_single = f'/api/v1/cause/{self.question_id}/{self.cause_id}/'
+        self.url_list = f'/api/v1/cause/{self.question_id}/'
     
     @patch('cause.services.CausesService.get')
     def test_get_single_cause(self, mock_get):
@@ -209,7 +209,7 @@ class TestCausesPatchView(TestCase):
         self.client = APIClient()
         self.question_id = str(uuid.uuid4())
         self.cause_id = str(uuid.uuid4())
-        self.url = f'/cause/patch/{self.question_id}/{self.cause_id}/'
+        self.url = f'/api/v1/cause/patch/{self.question_id}/{self.cause_id}/'
         self.valid_payload = {
             'cause': 'Updated Cause'
         }
