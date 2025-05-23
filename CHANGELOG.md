@@ -2,6 +2,13 @@
 
 
 
+## v0.2.4 (2025-05-23)
+
+### Fix
+
+* fix: change url routing and fix the tests ([`5a0868f`](https://github.com/Kelompok-5-PPL-A/MAAMS-NG-BE/commit/5a0868f063227330f23342173c761d14f1d058bc))
+
+
 ## v0.2.3 (2025-05-21)
 
 ### Refactor
