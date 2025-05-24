@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
+    'MAAMS_NG_BE',
     'authentication',
     'cause',
     'question',
