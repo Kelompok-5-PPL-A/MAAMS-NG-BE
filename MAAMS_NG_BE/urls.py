@@ -35,6 +35,6 @@ urlpatterns = [
     path('api/v1/auth/', include('authentication.urls')),
     
     # App URLs
-    path('cause/', include('cause.urls')),
-    path('question/', include('question.urls')),
+    path('api/v1/cause/', include('cause.urls')),
+    path('api/v1/question/', include('question.urls')),
 ]

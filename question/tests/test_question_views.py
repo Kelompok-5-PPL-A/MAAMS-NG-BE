@@ -15,7 +15,7 @@ from types import SimpleNamespace
 class TestQuestionPostView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/submit/'
+        self.url = '/api/v1/question/submit/'
         self.valid_payload = {
             'title': 'Test Titles',
             'question': 'Test Question',
@@ -275,7 +275,7 @@ class TestQuestionGet(TestCase):
         )
         self.client.force_authenticate(user=self.user)
         self.question.tags.add(self.tag1, self.tag2)
-        self.url = f'/question/{self.question.id}/'
+        self.url = f'/api/v1/question/{self.question.id}/'
 
     def test_get_question_not_found(self):
         """Test retrieval of non-existent question"""
@@ -293,7 +293,7 @@ class TestQuestionGet(TestCase):
     
     def test_get_question_success(self):
         """Test successful retrieval of a question"""
-        response = self.client.get(f'/question/{self.question.id}/')
+        response = self.client.get(f'/api/v1/question/{self.question.id}/')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], str(self.question.id))
@@ -307,7 +307,7 @@ class TestQuestionGet(TestCase):
 class TestQuestionGetRecentAnalysis(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/recent/'
+        self.url = '/api/v1/question/recent/'
         self.user = CustomUser.objects.create_user(username="testuser", email="testuser@example.com", password="password")
         self.client.force_authenticate(user=self.user)
 
@@ -447,7 +447,7 @@ class QuestionResponseSerializerTest(TestCase):
 class TestQuestionGetPrivileged(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/history/privileged/'
+        self.url = '/api/v1/question/history/privileged/'
         self.user = CustomUser.objects.create_user(
             username="regularuser", email="user@example.com", password="password"
         )
@@ -600,8 +600,8 @@ class QuestionDeleteTest(TestCase):
             question="Guest question",
             user=None  # Indicates the question was created by a guest
         )
-        self.url = f"/question/{self.question.id}/delete/"
-        self.guest_url = f"/question/{self.guest_question.id}/delete/"
+        self.url = f"/api/v1/question/{self.question.id}/delete/"
+        self.guest_url = f"/api/v1/question/{self.guest_question.id}/delete/"
 
     def test_delete_question_success(self):
         self.client.force_authenticate(user=self.user)
@@ -612,7 +612,7 @@ class QuestionDeleteTest(TestCase):
     def test_delete_question_not_found(self):
         self.client.force_authenticate(user=self.user)
         non_existent_id = uuid.uuid4()
-        response = self.client.delete(f"/question/{non_existent_id}/delete/")
+        response = self.client.delete(f"/api/v1/question/{non_existent_id}/delete/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
 
@@ -629,7 +629,7 @@ class QuestionDeleteTest(TestCase):
 
     def test_guest_delete_question_not_found(self):
         non_existent_id = uuid.uuid4()
-        response = self.client.delete(f"/question/{non_existent_id}/delete/")
+        response = self.client.delete(f"/api/v1/question/{non_existent_id}/delete/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data['detail'], "Analisis tidak ditemukan")
 
@@ -702,7 +702,7 @@ class TestQuestionServiceErrors(TestCase):
 class TestQuestionGetAll(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/history/'
+        self.url = '/api/v1/question/history/'
         self.user = CustomUser.objects.create_user(
             username="testuser", email="testuser@example.com", password="password123"
         )
@@ -759,7 +759,7 @@ class TestQuestionGetAll(TestCase):
 class TestQuestionGetFieldValues(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/question/history/field-values/'
+        self.url = '/api/v1/question/history/field-values/'
         self.user = CustomUser.objects.create_user(
             username="testuser", email="testuser@example.com", password="password123"
         )
@@ -837,9 +837,9 @@ class TestQuestionPatch(TestCase):
         self.tag2 = Tag.objects.create(name="Tag2")
         self.question.tags.set([self.tag1, self.tag2])
 
-        self.mode_url = f'/question/ubah/{self.question.id}/'
-        self.title_url = f'/question/ubah/judul/{self.question.id}/'
-        self.tags_url = f'/question/ubah/tags/{self.question.id}/'
+        self.mode_url = f'/api/v1/question/ubah/{self.question.id}/'
+        self.title_url = f'/api/v1/question/ubah/judul/{self.question.id}/'
+        self.tags_url = f'/api/v1/question/ubah/tags/{self.question.id}/'
 
     def test_patch_mode_success(self):
         """Positive: Successfully update mode"""

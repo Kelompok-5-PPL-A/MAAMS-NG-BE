@@ -63,8 +63,8 @@ class PaginatedQuestionResponse(serializers.Serializer):
         ref_name = 'QuestionResponsePaginated'
 
     count = serializers.IntegerField(default=5)
-    next = serializers.URLField(default="http://localhost:3000/question/?p=1")
-    previous = serializers.URLField(default="http://localhost:3000/question/?p=1")
+    next = serializers.URLField(default="http://localhost:3000/api/v1/question/?p=1")
+    previous = serializers.URLField(default="http://localhost:3000/api/v1/question/?p=1")
     results = QuestionResponse(many=True)
 
 class FieldValuesResponse(serializers.Serializer):

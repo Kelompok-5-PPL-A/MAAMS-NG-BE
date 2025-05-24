@@ -14,7 +14,7 @@ from validator.constants import ErrorMsg
         'PER': 2,   # Use a shorter time period for faster testing
     },
     'CUSTOM_RATES': {
-        '/cause/validate/': {
+        '/api/v1/cause/validate/': {
             'RATE': 2,  # Stricter limit for validation
             'PER': 2,
         },
@@ -58,8 +58,8 @@ class RateLimitMiddlewareTest(TestCase):
     def _get_cache_key(self, path, user_id=None):
         """Helper method to generate the correct cache key"""
         # Extract the path component as done in middleware
-        if '/cause/validate/' in path:
-            path_component = '/cause/validate/'
+        if '/api/v1/cause/validate/' in path:
+            path_component = '/api/v1/cause/validate/'
         else:
             path_component = path.split('/')[1] if len(path.split('/')) > 1 else path
         
@@ -84,7 +84,7 @@ class RateLimitMiddlewareTest(TestCase):
         """Test that rate-limited paths enforce their limits"""
         # Create a test UUID for validation path
         test_uuid = "12345678-1234-5678-1234-567812345678"  
-        path = f"/cause/validate/{test_uuid}/"
+        path = f"/api/v1/cause/validate/{test_uuid}/"
         request = self._create_authenticated_request(path=path)
         
         # First 2 requests should be allowed (rate=2 for this path)
@@ -104,12 +104,12 @@ class RateLimitMiddlewareTest(TestCase):
     def test_get_rate_limits_for_path(self):
         """Test that _get_rate_limits_for_path returns correct rate limits for paths"""
         # Test with exact path match
-        rate, per = self.middleware._get_rate_limits_for_path('/cause/validate/')
+        rate, per = self.middleware._get_rate_limits_for_path('/api/v1/cause/validate/')
         self.assertEqual(rate, 2)  # Custom rate from test settings
         self.assertEqual(per, 2)   # Custom per from test settings
         
         # Test with path that starts with custom path
-        rate, per = self.middleware._get_rate_limits_for_path('/cause/validate/12345/')
+        rate, per = self.middleware._get_rate_limits_for_path('/api/v1/cause/validate/12345/')
         self.assertEqual(rate, 2)
         self.assertEqual(per, 2)
         
@@ -137,7 +137,7 @@ class RateLimitMiddlewareTest(TestCase):
         """Test that rate limits reset after the configured time period"""
         # Create a test UUID for validation path
         test_uuid = "12345678-1234-5678-1234-567812345678"
-        path = f"/cause/validate/{test_uuid}/"
+        path = f"/api/v1/cause/validate/{test_uuid}/"
         request = self._create_authenticated_request(path=path)
         
         # Make requests up to the limit
@@ -164,7 +164,7 @@ class RateLimitMiddlewareTest(TestCase):
         """Test that different users have separate rate limits"""
         # Create a test UUID for validation path
         test_uuid = "12345678-1234-5678-1234-567812345678"
-        path = f"/cause/validate/{test_uuid}/"
+        path = f"/api/v1/cause/validate/{test_uuid}/"
         request1 = self._create_authenticated_request(path=path)
         
         # First user makes requests up to the limit
@@ -312,10 +312,10 @@ class RateLimitMiddlewareTest(TestCase):
     def test_is_path_in_custom_rates(self):
         """Test that _is_path_in_custom_rates correctly identifies paths in custom rates"""
         # Test with path that exactly matches a custom rate path
-        self.assertTrue(self.middleware._is_path_in_custom_rates('/cause/validate/'))
+        self.assertTrue(self.middleware._is_path_in_custom_rates('/api/v1/cause/validate/'))
         
         # Test with path that starts with a custom rate path
-        self.assertTrue(self.middleware._is_path_in_custom_rates('/cause/validate/12345/'))
+        self.assertTrue(self.middleware._is_path_in_custom_rates('/api/v1/cause/validate/12345/'))
         
         # Test with path that doesn't match any custom rate path
         self.assertFalse(self.middleware._is_path_in_custom_rates('/api/v1/users/'))
