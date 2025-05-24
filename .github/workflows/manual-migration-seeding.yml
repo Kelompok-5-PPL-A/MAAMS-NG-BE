@@ -21,7 +21,6 @@ on:
         type: choice
         options:
           - all
-          - users
           - questions
           - causes
           - tags
@@ -76,6 +75,7 @@ jobs:
       - name: Run Migrate
         env:
           MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$MIGRATION_NAME" ]; then
             python manage.py migrate question && python manage.py migrate cause && python manage.py migrate tag
@@ -105,19 +105,12 @@ jobs:
         env:
           MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
           APP_NAME: ${{ github.event.inputs.app_name }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ "$APP_NAME" = "all" ]; then
-            if [ -z "$MIGRATION_NAME" ]; then
-              python manage.py migrate question zero --fake && python manage.py migrate cause zero --fake && python manage.py migrate tag zero --fake
-            else
-              python manage.py migrate $MIGRATION_NAME zero --fake
-            fi
+            python manage.py migrate question zero && python manage.py migrate cause zero && python manage.py migrate tag zero
           else
-            if [ -z "$MIGRATION_NAME" ]; then
-              python manage.py migrate $APP_NAME zero --fake
-            else
-              python manage.py migrate $APP_NAME $MIGRATION_NAME zero --fake
-            fi
+            python manage.py migrate $APP_NAME $MIGRATION_NAME
           fi
 
   seed:
@@ -138,15 +131,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Seed
+      - name: Run Seeder
         env:
           SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           case "$SEEDER_TABLE" in
-            all) python manage.py seed_all ;; 
-            questions) python manage.py seed_questions ;; 
-            causes) python manage.py seed_causes ;; 
-            tags) python manage.py seed_tags ;; 
+            all) python manage.py seed_all ;;
+            questions) python manage.py seed_questions ;;
+            causes) python manage.py seed_causes ;;
+            tags) python manage.py seed_tags ;;
             *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
           esac
 
@@ -168,14 +162,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Undo Seed
+      - name: Run Undo Seeder
         env:
           SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           case "$SEEDER_TABLE" in
-            all) python manage.py undo_seed_all ;; 
-            questions) python manage.py undo_seed_questions ;; 
-            causes) python manage.py undo_seed_causes ;; 
-            tags) python manage.py undo_seed_tags ;; 
+            all) python manage.py seed_all --undo ;;
+            questions) python manage.py undo_seed_questions ;;
+            causes) python manage.py undo_seed_causes ;;
+            tags) python manage.py undo_seed_tags ;;
             *) echo "Unknown seeder table: $SEEDER_TABLE"; exit 1;;
           esac 
