@@ -75,7 +75,8 @@ jobs:
       - name: Run Migrate
         env:
           MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'sqlite:///db.sqlite3' }}
+          DJANGO_SETTINGS_MODULE: MAAMS_NG_BE.settings
         run: |
           if [ -z "$MIGRATION_NAME" ]; then
             python manage.py migrate question && python manage.py migrate cause && python manage.py migrate tag
@@ -105,7 +106,8 @@ jobs:
         env:
           MIGRATION_NAME: ${{ github.event.inputs.migration_name }}
           APP_NAME: ${{ github.event.inputs.app_name }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'sqlite:///db.sqlite3' }}
+          DJANGO_SETTINGS_MODULE: MAAMS_NG_BE.settings
         run: |
           if [ "$APP_NAME" = "all" ]; then
             python manage.py migrate question zero && python manage.py migrate cause zero && python manage.py migrate tag zero
@@ -134,7 +136,8 @@ jobs:
       - name: Run Seeder
         env:
           SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'sqlite:///db.sqlite3' }}
+          DJANGO_SETTINGS_MODULE: MAAMS_NG_BE.settings
         run: |
           case "$SEEDER_TABLE" in
             all) python manage.py seed_all ;;
@@ -165,7 +168,8 @@ jobs:
       - name: Run Undo Seeder
         env:
           SEEDER_TABLE: ${{ github.event.inputs.seeder_table }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'sqlite:///db.sqlite3' }}
+          DJANGO_SETTINGS_MODULE: MAAMS_NG_BE.settings
         run: |
           case "$SEEDER_TABLE" in
             all) python manage.py seed_all --undo ;;
